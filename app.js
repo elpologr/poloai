@@ -1,3 +1,42 @@
+// ---------- Control de versión ----------
+// index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
+// se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
+const VERSION = "3";
+
+(function revisarArchivos() {
+  const IDS_NECESARIOS = [
+    "calendario", "cal-mes", "cal-anio", "cal-anterior", "cal-siguiente",
+    "cal-hoy", "cal-actualizar", "cal-cuadricula", "cal-estado",
+    "dia-popover", "pop-titulo", "pop-cerrar",
+    "txt-nueva-nota", "btn-agregar-nota", "estado-nota", "lista-notas",
+  ];
+  const problemas = [];
+
+  const faltan = IDS_NECESARIOS.filter((id) => !document.getElementById(id));
+  const meta = document.querySelector('meta[name="app-version"]');
+  if (faltan.length || !meta || meta.content !== VERSION) problemas.push("index.html");
+
+  const cssVersion = getComputedStyle(document.documentElement)
+    .getPropertyValue("--app-version")
+    .replace(/["'\s]/g, "");
+  if (cssVersion !== VERSION) problemas.push("styles.css");
+
+  if (!problemas.length) return;
+
+  const aviso = document.createElement("div");
+  aviso.style.cssText =
+    "background:#fff3bf;color:#5c3d00;border-bottom:3px solid #f08c00;" +
+    "padding:12px 16px;font:15px/1.4 system-ui,sans-serif;text-align:center;";
+  aviso.textContent =
+    "⚠️ Archivos desactualizados: " + problemas.join(" y ") +
+    ". Sube de nuevo TODOS los archivos de la última versión (index.html, styles.css, " +
+    "app.js y config.js) y recarga la página con Ctrl+F5 (en Mac: Cmd+Shift+R).";
+  document.body.prepend(aviso);
+
+  // Si falta algo del HTML, el resto del código no puede funcionar: se detiene aquí.
+  if (faltan.length) throw new Error("index.html desactualizado. Faltan: " + faltan.join(", "));
+})();
+
 // ---------- Menú principal ----------
 const botonesMenu = document.querySelectorAll(".btn-menu");
 const secciones = document.querySelectorAll(".seccion");
@@ -9,7 +48,8 @@ function mostrarSeccion(id) {
   botonesMenu.forEach((b) =>
     b.classList.toggle("activo", b.dataset.seccion === id)
   );
-  if (id !== "calendario") cerrarPopover();
+  if (id === "calendario") irAHoy(); // siempre abre en la fecha actual
+  else cerrarPopover();
 }
 
 botonesMenu.forEach((b) =>
@@ -156,7 +196,7 @@ const btnHoy = document.getElementById("cal-hoy");
 const btnActualizar = document.getElementById("cal-actualizar");
 const cuadricula = document.getElementById("cal-cuadricula");
 
-const hoy = new Date();
+let hoy = new Date();
 let mesActual = hoy.getMonth();
 let anioActual = hoy.getFullYear();
 let seleccion = null; // fecha seleccionada "YYYY-MM-DD"
@@ -236,12 +276,16 @@ selAnio.addEventListener("change", () => {
   anioActual = Number(selAnio.value);
   dibujarCalendario();
 });
-btnHoy.addEventListener("click", () => {
-  cerrarPopover();
+// Vuelve al mes y año de hoy (vuelve a leer la fecha por si la página lleva días abierta)
+function irAHoy() {
+  hoy = new Date();
   mesActual = hoy.getMonth();
   anioActual = hoy.getFullYear();
+  cerrarPopover();
   dibujarCalendario();
-});
+}
+
+btnHoy.addEventListener("click", irAHoy);
 btnActualizar.addEventListener("click", () => {
   cerrarPopover();
   cargarDatos();

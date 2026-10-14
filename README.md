@@ -28,6 +28,12 @@ La hoja debe tener en la fila 1: `Fecha | Actividades | Descripcion | Anotacione
 
 Si más adelante cambias el código de Apps Script, usa **Implementar → Administrar implementaciones → Editar → Nueva versión** para que los cambios se apliquen.
 
+## Si algo no se ve o no funciona
+
+`index.html`, `styles.css` y `app.js` deben ser de la **misma versión** (la actual es la 3). Si mezclas archivos viejos con nuevos, el calendario puede quedarse en enero de 1930, los días no abren el panel o el fondo no cambia a morado. En ese caso la página muestra un aviso amarillo arriba que indica qué archivo está desactualizado. Solución: sube de nuevo **todos** los archivos del proyecto a GitHub (reemplazando los anteriores) y recarga con Ctrl+F5 (en Mac: Cmd+Shift+R).
+
+Al pulsar **Calendario** siempre se muestra el mes y el año actuales.
+
 ## Seguridad
 
 - Mantén el repositorio **privado**: `config.js` contiene la URL y la clave de acceso a tu hoja.
