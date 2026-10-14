@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mi organizador</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="encabezado">
+    <h1>Mi organizador</h1>
+    <nav class="menu" aria-label="Secciones">
+      <button class="btn-menu" data-seccion="calendario">Calendario</button>
+      <button class="btn-menu" data-seccion="actividades">Actividades</button>
+      <button class="btn-menu" data-seccion="pendientes">Pendientes</button>
+      <button class="btn-menu" data-seccion="trabajo">Trabajo</button>
+    </nav>
+  </header>
+
+  <main>
+    <p id="inicio" class="mensaje-inicio">Elige una sección para comenzar.</p>
+
+    <!-- CALENDARIO -->
+    <section id="calendario" class="seccion" hidden>
+      <div class="cal-controles">
+        <button id="cal-anterior" class="btn-cal" aria-label="Mes anterior">&#8249;</button>
+        <select id="cal-mes" aria-label="Mes"></select>
+        <select id="cal-anio" aria-label="Año"></select>
+        <button id="cal-siguiente" class="btn-cal" aria-label="Mes siguiente">&#8250;</button>
+        <button id="cal-hoy" class="btn-cal btn-hoy">Hoy</button>
+      </div>
+
+      <p id="cal-estado" class="cal-estado" hidden></p>
+
+      <div id="cal-cuadricula" class="cal-cuadricula" role="grid"></div>
+
+      <!-- Submenú anclado al día seleccionado -->
+      <div id="dia-popover" class="popover" role="dialog" aria-labelledby="pop-titulo" hidden>
+        <div class="pop-cabecera">
+          <h3 id="pop-titulo"></h3>
+          <button id="pop-cerrar" class="pop-cerrar" aria-label="Cerrar">&times;</button>
+        </div>
+        <div id="pop-botones" class="pop-botones"></div>
+        <div id="pop-editor" class="pop-editor" hidden>
+          <label id="pop-etiqueta" for="pop-texto"></label>
+          <textarea id="pop-texto" rows="5"></textarea>
+          <div class="pop-acciones">
+            <button id="pop-guardar" class="btn-guardar">Guardar</button>
+            <span id="pop-estado" class="pop-estado"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACTIVIDADES -->
+    <section id="actividades" class="seccion" hidden>
+      <h2>Actividades</h2>
+      <p>Próximamente.</p>
+    </section>
+
+    <!-- PENDIENTES -->
+    <section id="pendientes" class="seccion" hidden>
+      <h2>Pendientes</h2>
+      <p>Próximamente.</p>
+    </section>
+
+    <!-- TRABAJO -->
+    <section id="trabajo" class="seccion" hidden>
+      <h2>Trabajo</h2>
+      <p>Próximamente.</p>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
