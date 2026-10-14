@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="3" />
+  <meta name="app-version" content="4" />
   <title>Mi organizador</title>
-  <link rel="stylesheet" href="styles.css?v=3" />
+  <link rel="stylesheet" href="styles.css?v=4" />
 </head>
 <body>
   <header class="encabezado">
@@ -43,34 +43,73 @@
           <button id="pop-cerrar" class="pop-cerrar" aria-label="Cerrar">&times;</button>
         </div>
 
-        <div class="pop-cuerpo">
-          <section class="pop-bloque" data-campo="actividades">
-            <h4>Actividades</h4>
-            <textarea rows="5" placeholder="Actividades del día…" aria-label="Actividades"></textarea>
-            <div class="pop-acciones">
-              <button type="button" class="btn-guardar">Guardar</button>
-              <span class="pop-estado"></span>
+        <!--
+          Tres secciones, una debajo de otra: Descripción, Actividades y Anotaciones.
+          Cada una tiene un botón con flecha (abre la zona de texto) y, pegado debajo,
+          un botón "Desplegar" (abre los recuadros ya guardados).
+        -->
+        <div id="pop-secciones" class="pop-cuerpo">
+
+          <section class="pop-seccion" data-campo="descripcion">
+            <button type="button" class="pop-toggle pop-toggle-texto" data-accion="texto" aria-expanded="false">
+              <span>Descripción</span><span class="flecha" aria-hidden="true">&#9662;</span>
+            </button>
+            <div class="pop-panel pop-panel-texto" hidden>
+              <textarea rows="4" placeholder="Escribe una descripción nueva…" aria-label="Nueva descripción"></textarea>
+              <div class="pop-acciones">
+                <button type="button" class="btn-guardar">Guardar</button>
+                <span class="pop-estado"></span>
+              </div>
+            </div>
+            <button type="button" class="pop-toggle pop-toggle-lista" data-accion="lista" aria-expanded="false">
+              <span>Desplegar</span><span class="flecha" aria-hidden="true">&#9662;</span>
+            </button>
+            <div class="pop-panel pop-panel-lista" hidden>
+              <div class="lista-notas"></div>
+              <p class="pop-estado pop-estado-lista"></p>
             </div>
           </section>
 
-          <section class="pop-bloque" data-campo="descripcion">
-            <h4>Descripción</h4>
-            <textarea rows="5" placeholder="Descripción del día…" aria-label="Descripción"></textarea>
-            <div class="pop-acciones">
-              <button type="button" class="btn-guardar">Guardar</button>
-              <span class="pop-estado"></span>
+          <section class="pop-seccion" data-campo="actividades">
+            <button type="button" class="pop-toggle pop-toggle-texto" data-accion="texto" aria-expanded="false">
+              <span>Actividades</span><span class="flecha" aria-hidden="true">&#9662;</span>
+            </button>
+            <div class="pop-panel pop-panel-texto" hidden>
+              <textarea rows="4" placeholder="Escribe una actividad nueva…" aria-label="Nueva actividad"></textarea>
+              <div class="pop-acciones">
+                <button type="button" class="btn-guardar">Guardar</button>
+                <span class="pop-estado"></span>
+              </div>
+            </div>
+            <button type="button" class="pop-toggle pop-toggle-lista" data-accion="lista" aria-expanded="false">
+              <span>Desplegar</span><span class="flecha" aria-hidden="true">&#9662;</span>
+            </button>
+            <div class="pop-panel pop-panel-lista" hidden>
+              <div class="lista-notas"></div>
+              <p class="pop-estado pop-estado-lista"></p>
             </div>
           </section>
 
-          <section class="pop-bloque ancho" id="bloque-anotaciones">
-            <h4>Anotaciones</h4>
-            <textarea id="txt-nueva-nota" rows="3" placeholder="Escribe una anotación nueva…" aria-label="Nueva anotación"></textarea>
-            <div class="pop-acciones">
-              <button type="button" id="btn-agregar-nota" class="btn-guardar">Guardar</button>
-              <span id="estado-nota" class="pop-estado"></span>
+          <section class="pop-seccion" data-campo="anotaciones">
+            <button type="button" class="pop-toggle pop-toggle-texto" data-accion="texto" aria-expanded="false">
+              <span>Anotaciones</span><span class="flecha" aria-hidden="true">&#9662;</span>
+            </button>
+            <div class="pop-panel pop-panel-texto" hidden>
+              <textarea rows="4" placeholder="Escribe una anotación nueva…" aria-label="Nueva anotación"></textarea>
+              <div class="pop-acciones">
+                <button type="button" class="btn-guardar">Guardar</button>
+                <span class="pop-estado"></span>
+              </div>
             </div>
-            <div id="lista-notas" class="lista-notas"></div>
+            <button type="button" class="pop-toggle pop-toggle-lista" data-accion="lista" aria-expanded="false">
+              <span>Desplegar</span><span class="flecha" aria-hidden="true">&#9662;</span>
+            </button>
+            <div class="pop-panel pop-panel-lista" hidden>
+              <div class="lista-notas"></div>
+              <p class="pop-estado pop-estado-lista"></p>
+            </div>
           </section>
+
         </div>
       </div>
     </section>
@@ -94,7 +133,7 @@
     </section>
   </main>
 
-  <script src="config.js?v=3"></script>
-  <script src="app.js?v=3"></script>
+  <script src="config.js?v=4"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

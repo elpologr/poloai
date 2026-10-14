@@ -4,7 +4,7 @@ Página web sencilla para organizar mi día a día.
 
 ## Secciones
 
-- **Calendario**: calendario navegable del año 1930 al 2100. Al hacer clic en un día se abre un panel grande con **Actividades**, **Descripción** y **Anotaciones**, mostrando lo que ya hay en la hoja de Google Sheets. Las anotaciones se agregan como recuadros (tantos como quieras) y en la hoja quedan dentro de la misma celda, separadas entre paréntesis: `(primera nota) (segunda nota)`. Si una nota trae paréntesis sueltos, se guardan como corchetes para no romper el formato. El botón ↻ vuelve a leer los datos de la hoja por si la editaste a mano.
+- **Calendario**: calendario navegable del año 1930 al 2100. Al hacer clic en un día se abre un panel con tres secciones, una debajo de otra y en este orden: **Descripción**, **Actividades** y **Anotaciones**. Al abrirlo solo se ven los tres títulos. Cada sección tiene un botón con flecha que despliega su zona de texto y, pegado debajo, un botón **Desplegar** que muestra los recuadros ya guardados. Cada texto que guardas es un recuadro (tantos como quieras) y en la hoja de Google Sheets todos los de una sección quedan en la misma celda, separados entre paréntesis: `(primero) (segundo)`. Si un texto trae paréntesis sueltos, se guardan como corchetes para no romper el formato. El contenido antiguo sin paréntesis se muestra como un solo recuadro. El botón ↻ vuelve a leer los datos de la hoja por si la editaste a mano.
 - **Actividades**: próximamente.
 - **Pendientes**: próximamente.
 - **Trabajo**: próximamente.
@@ -30,7 +30,7 @@ Si más adelante cambias el código de Apps Script, usa **Implementar → Admini
 
 ## Si algo no se ve o no funciona
 
-`index.html`, `styles.css` y `app.js` deben ser de la **misma versión** (la actual es la 3). Si mezclas archivos viejos con nuevos, el calendario puede quedarse en enero de 1930, los días no abren el panel o el fondo no cambia a morado. En ese caso la página muestra un aviso amarillo arriba que indica qué archivo está desactualizado. Solución: sube de nuevo **todos** los archivos del proyecto a GitHub (reemplazando los anteriores) y recarga con Ctrl+F5 (en Mac: Cmd+Shift+R).
+`index.html`, `styles.css` y `app.js` deben ser de la **misma versión** (la actual es la 4). Si mezclas archivos viejos con nuevos, el calendario puede quedarse en enero de 1930, los días no abren el panel o el fondo no cambia a morado. En ese caso la página muestra un aviso amarillo arriba que indica qué archivo está desactualizado. Solución: sube de nuevo **todos** los archivos del proyecto a GitHub (reemplazando los anteriores) y recarga con Ctrl+F5 (en Mac: Cmd+Shift+R).
 
 Al pulsar **Calendario** siempre se muestra el mes y el año actuales.
 

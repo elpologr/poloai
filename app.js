@@ -1,14 +1,13 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "3";
+const VERSION = "4";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
     "calendario", "cal-mes", "cal-anio", "cal-anterior", "cal-siguiente",
     "cal-hoy", "cal-actualizar", "cal-cuadricula", "cal-estado",
-    "dia-popover", "pop-titulo", "pop-cerrar",
-    "txt-nueva-nota", "btn-agregar-nota", "estado-nota", "lista-notas",
+    "dia-popover", "pop-titulo", "pop-cerrar", "pop-secciones",
   ];
   const problemas = [];
 
@@ -120,8 +119,9 @@ function tieneDatos(fecha) {
   return !!d && CAMPOS.some((c) => (d[c.clave] || "").trim() !== "");
 }
 
-// ---------- Anotaciones: varias notas en una sola celda, entre paréntesis ----------
-// Ejemplo en la hoja:  (primera nota) (segunda nota) (tercera nota)
+// ---------- Varios elementos en una sola celda, entre paréntesis ----------
+// Descripción, Actividades y Anotaciones funcionan igual. Ejemplo en la hoja:
+//   (primer elemento) (segundo elemento) (tercer elemento)
 
 function parentesisBalanceados(s) {
   let n = 0;
@@ -135,48 +135,47 @@ function parentesisBalanceados(s) {
   return n === 0;
 }
 
-// Si la nota trae paréntesis sueltos, se cambian por corchetes para no romper el formato
-function limpiarNota(s) {
+// Si el texto trae paréntesis sueltos, se cambian por corchetes para no romper el formato
+function limpiarElemento(s) {
   s = s.trim();
   return parentesisBalanceados(s) ? s : s.replace(/\(/g, "[").replace(/\)/g, "]");
 }
 
-function parsearNotas(texto) {
-  const notas = [];
+// Convierte el contenido de una celda en una lista de elementos.
+// Si la celda tiene texto antiguo sin el formato de paréntesis, se muestra como un solo elemento.
+function parsearElementos(texto) {
+  const t = (texto || "").trim();
+  if (!t) return [];
+  const elementos = [];
   let profundidad = 0;
   let actual = "";
-  let fuera = "";
-  for (const ch of texto || "") {
-    if (ch === "(") {
-      if (profundidad === 0) {
-        if (fuera.trim()) notas.push(fuera.trim());
-        fuera = "";
+  for (const ch of t) {
+    if (profundidad === 0) {
+      if (ch === "(") {
+        profundidad = 1;
         actual = "";
+      } else if (/\s/.test(ch)) {
+        continue;
       } else {
-        actual += ch;
+        return [t]; // hay texto fuera de los paréntesis: es contenido antiguo
       }
+    } else if (ch === "(") {
       profundidad++;
-    } else if (ch === ")" && profundidad > 0) {
-      profundidad--;
-      if (profundidad === 0) {
-        notas.push(actual);
-        actual = "";
-      } else {
-        actual += ch;
-      }
-    } else if (profundidad > 0) {
       actual += ch;
+    } else if (ch === ")") {
+      profundidad--;
+      if (profundidad === 0) elementos.push(actual.trim());
+      else actual += ch;
     } else {
-      fuera += ch;
+      actual += ch;
     }
   }
-  if (profundidad > 0) fuera += "(" + actual; // paréntesis sin cerrar: se trata como texto
-  if (fuera.trim()) notas.push(fuera.trim());
-  return notas.map((n) => n.trim()).filter((n) => n !== "");
+  if (profundidad !== 0) return [t]; // paréntesis sin cerrar: contenido antiguo
+  return elementos.filter((e) => e !== "");
 }
 
-function serializarNotas(notas) {
-  return notas.map((n) => "(" + limpiarNota(n) + ")").join(" ");
+function serializarElementos(elementos) {
+  return elementos.map((e) => "(" + limpiarElemento(e) + ")").join(" ");
 }
 
 // ---------- Calendario (1930 - 2100) ----------
@@ -297,9 +296,26 @@ const popover = document.getElementById("dia-popover");
 const popTitulo = document.getElementById("pop-titulo");
 const popCerrar = document.getElementById("pop-cerrar");
 
+// Textos de cada sección (el orden en pantalla lo define index.html)
+const TEXTOS = {
+  descripcion: {
+    vacio: "Aún no hay descripciones para este día.",
+    confirmar: "¿Eliminar esta descripción?",
+  },
+  actividades: {
+    vacio: "Aún no hay actividades para este día.",
+    confirmar: "¿Eliminar esta actividad?",
+  },
+  anotaciones: {
+    vacio: "Aún no hay anotaciones para este día.",
+    confirmar: "¿Eliminar esta anotación?",
+  },
+};
+
 function setEstado(el, texto, tipo) {
   el.textContent = texto;
-  el.className = "pop-estado" + (tipo ? " " + tipo : "");
+  el.classList.remove("ok", "error");
+  if (tipo) el.classList.add(tipo);
 }
 
 function actualizarMarca(fecha) {
@@ -307,55 +323,50 @@ function actualizarMarca(fecha) {
   if (celda) celda.classList.toggle("con-datos", tieneDatos(fecha));
 }
 
-// Bloques simples: Actividades y Descripción (un cuadro de texto + Guardar)
-const bloquesSimples = Array.from(
-  document.querySelectorAll(".pop-bloque[data-campo]")
-).map((bloque) => ({
-  campo: bloque.dataset.campo,
-  txt: bloque.querySelector("textarea"),
-  btn: bloque.querySelector(".btn-guardar"),
-  est: bloque.querySelector(".pop-estado"),
+// Cada sección: botón del título (abre la zona de texto) + botón "Desplegar" (abre los recuadros)
+const bloquesDia = Array.from(
+  document.querySelectorAll("#pop-secciones .pop-seccion[data-campo]")
+).map((el) => ({
+  campo: el.dataset.campo,
+  btnTexto: el.querySelector('[data-accion="texto"]'),
+  panelTexto: el.querySelector(".pop-panel-texto"),
+  txt: el.querySelector("textarea"),
+  btnGuardar: el.querySelector(".btn-guardar"),
+  est: el.querySelector(".pop-panel-texto .pop-estado"),
+  btnLista: el.querySelector('[data-accion="lista"]'),
+  panelLista: el.querySelector(".pop-panel-lista"),
+  lista: el.querySelector(".lista-notas"),
+  estLista: el.querySelector(".pop-estado-lista"),
 }));
 
-bloquesSimples.forEach((b) => {
-  b.btn.addEventListener("click", async () => {
-    const fecha = seleccion;
-    if (!fecha) return;
-    b.btn.disabled = true;
-    setEstado(b.est, "Guardando…");
-    try {
-      await guardarCampo(fecha, b.campo, b.txt.value);
-      if (seleccion === fecha) setEstado(b.est, "Guardado ✓", "ok");
-      actualizarMarca(fecha);
-    } catch (e) {
-      setEstado(b.est, "Error: " + e.message, "error");
-    } finally {
-      b.btn.disabled = false;
-    }
-  });
-});
-
-// Anotaciones: varios recuadros
-const txtNota = document.getElementById("txt-nueva-nota");
-const btnNota = document.getElementById("btn-agregar-nota");
-const estNota = document.getElementById("estado-nota");
-const listaNotas = document.getElementById("lista-notas");
-
-function notasDe(fecha) {
-  return parsearNotas((datos[fecha] || {}).anotaciones);
+function plegar(boton, panel) {
+  panel.hidden = true;
+  boton.setAttribute("aria-expanded", "false");
 }
 
-function dibujarNotas(fecha) {
-  listaNotas.innerHTML = "";
-  const notas = notasDe(fecha);
-  if (!notas.length) {
+// Muestra u oculta un panel. Sin "abrir", cambia al estado contrario.
+function alternar(boton, panel, abrir) {
+  const mostrar = abrir === undefined ? panel.hidden : abrir;
+  panel.hidden = !mostrar;
+  boton.setAttribute("aria-expanded", String(mostrar));
+  if (mostrar) panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function elementosDe(fecha, campo) {
+  return parsearElementos((datos[fecha] || {})[campo]);
+}
+
+function dibujarLista(fecha, b) {
+  b.lista.innerHTML = "";
+  const elementos = elementosDe(fecha, b.campo);
+  if (!elementos.length) {
     const p = document.createElement("p");
     p.className = "sin-notas";
-    p.textContent = "Aún no hay anotaciones para este día.";
-    listaNotas.appendChild(p);
+    p.textContent = TEXTOS[b.campo].vacio;
+    b.lista.appendChild(p);
     return;
   }
-  notas.forEach((texto, i) => {
+  elementos.forEach((texto, i) => {
     const caja = document.createElement("div");
     caja.className = "nota";
     const t = document.createElement("p");
@@ -364,58 +375,68 @@ function dibujarNotas(fecha) {
     const x = document.createElement("button");
     x.type = "button";
     x.className = "nota-borrar";
-    x.setAttribute("aria-label", "Eliminar anotación");
+    x.setAttribute("aria-label", "Eliminar");
     x.textContent = "×";
-    x.addEventListener("click", () => borrarNota(i));
+    x.addEventListener("click", () => borrarElemento(b, i));
     caja.append(t, x);
-    listaNotas.appendChild(caja);
+    b.lista.appendChild(caja);
   });
 }
 
-btnNota.addEventListener("click", async () => {
+async function agregarElemento(b) {
   const fecha = seleccion;
-  const texto = txtNota.value.trim();
+  const texto = b.txt.value.trim();
   if (!fecha) return;
   if (!texto) {
-    setEstado(estNota, "Escribe algo primero", "error");
+    setEstado(b.est, "Escribe algo primero", "error");
     return;
   }
-  const notas = notasDe(fecha).concat(limpiarNota(texto));
-  btnNota.disabled = true;
-  setEstado(estNota, "Guardando…");
+  const elementos = elementosDe(fecha, b.campo).concat(limpiarElemento(texto));
+  b.btnGuardar.disabled = true;
+  setEstado(b.est, "Guardando…");
   try {
-    await guardarCampo(fecha, "anotaciones", serializarNotas(notas));
+    await guardarCampo(fecha, b.campo, serializarElementos(elementos));
     if (seleccion === fecha) {
-      txtNota.value = "";
-      dibujarNotas(fecha);
-      setEstado(estNota, "Guardado ✓", "ok");
+      b.txt.value = "";
+      dibujarLista(fecha, b);
+      alternar(b.btnLista, b.panelLista, true); // muestra el recuadro recién agregado
+      setEstado(b.est, "Guardado ✓", "ok");
     }
     actualizarMarca(fecha);
   } catch (e) {
-    setEstado(estNota, "Error: " + e.message, "error");
+    setEstado(b.est, "Error: " + e.message, "error");
   } finally {
-    btnNota.disabled = false;
-  }
-});
-
-async function borrarNota(indice) {
-  const fecha = seleccion;
-  if (!fecha) return;
-  if (!window.confirm("¿Eliminar esta anotación?")) return;
-  const notas = notasDe(fecha);
-  notas.splice(indice, 1);
-  setEstado(estNota, "Guardando…");
-  try {
-    await guardarCampo(fecha, "anotaciones", serializarNotas(notas));
-    if (seleccion === fecha) {
-      dibujarNotas(fecha);
-      setEstado(estNota, "Anotación eliminada", "ok");
-    }
-    actualizarMarca(fecha);
-  } catch (e) {
-    setEstado(estNota, "Error: " + e.message, "error");
+    b.btnGuardar.disabled = false;
   }
 }
+
+async function borrarElemento(b, indice) {
+  const fecha = seleccion;
+  if (!fecha) return;
+  if (!window.confirm(TEXTOS[b.campo].confirmar)) return;
+  const elementos = elementosDe(fecha, b.campo);
+  elementos.splice(indice, 1);
+  setEstado(b.estLista, "Guardando…");
+  try {
+    await guardarCampo(fecha, b.campo, serializarElementos(elementos));
+    if (seleccion === fecha) {
+      dibujarLista(fecha, b);
+      setEstado(b.estLista, "Eliminado", "ok");
+    }
+    actualizarMarca(fecha);
+  } catch (e) {
+    setEstado(b.estLista, "Error: " + e.message, "error");
+  }
+}
+
+bloquesDia.forEach((b) => {
+  b.btnTexto.addEventListener("click", () => {
+    alternar(b.btnTexto, b.panelTexto);
+    if (!b.panelTexto.hidden) b.txt.focus();
+  });
+  b.btnLista.addEventListener("click", () => alternar(b.btnLista, b.panelLista));
+  b.btnGuardar.addEventListener("click", () => agregarElemento(b));
+});
 
 function textoFecha(fecha) {
   const [a, m, d] = fecha.split("-").map(Number);
@@ -440,14 +461,15 @@ function abrirDia(fecha) {
   dibujarCalendario();
 
   popTitulo.textContent = textoFecha(fecha);
-  const d = datos[fecha] || {};
-  bloquesSimples.forEach((b) => {
-    b.txt.value = d[b.campo] || "";
+  // Al abrir un día solo se ven los tres títulos: todo lo demás empieza plegado
+  bloquesDia.forEach((b) => {
+    b.txt.value = "";
     setEstado(b.est, "");
+    setEstado(b.estLista, "");
+    plegar(b.btnTexto, b.panelTexto);
+    plegar(b.btnLista, b.panelLista);
+    dibujarLista(fecha, b);
   });
-  txtNota.value = "";
-  setEstado(estNota, "");
-  dibujarNotas(fecha);
 
   popover.hidden = false;
   posicionarPopover(cuadricula.querySelector(`[data-fecha="${fecha}"]`));

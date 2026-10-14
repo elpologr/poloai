@@ -1,5 +1,5 @@
 :root {
-  --app-version: "3"; /* debe coincidir con VERSION en app.js */
+  --app-version: "4"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -237,26 +237,44 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   cursor: pointer;
 }
 
+/* Secciones apiladas: Descripción, Actividades y Anotaciones */
 .pop-cuerpo {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 12px;
 }
 
-.pop-bloque {
+/* Cada sección es una sola tarjeta: botón con flecha + botón "Desplegar" pegado debajo */
+.pop-seccion {
   background: #faf7ff;
   border: 1px solid var(--borde);
   border-radius: 12px;
-  padding: 12px;
+  overflow: hidden;
 }
-.pop-bloque.ancho { grid-column: 1 / -1; }
-.pop-bloque h4 {
-  margin: 0 0 8px;
-  font-size: 0.95rem;
-  color: var(--acento-oscuro);
-}
+.pop-seccion > * + * { border-top: 1px solid var(--borde); }
 
-.pop-bloque textarea {
+.pop-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 14px;
+  font: inherit;
+  text-align: left;
+  color: var(--texto);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.pop-toggle:hover { background: var(--acento-claro); }
+.pop-toggle-texto { font-weight: 700; color: var(--acento-oscuro); }
+.pop-toggle-lista { background: #fff; font-size: 0.95rem; }
+.pop-toggle .flecha { transition: transform 0.15s; }
+.pop-toggle[aria-expanded="true"] .flecha { transform: rotate(180deg); }
+
+.pop-panel { padding: 12px; background: #fff; }
+.pop-panel[hidden] { display: none; }
+
+.pop-panel textarea {
   width: 100%;
   resize: vertical;
   padding: 10px;
@@ -266,7 +284,7 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   border: 1px solid var(--borde);
   border-radius: 8px;
 }
-.pop-bloque textarea:focus { outline: 2px solid var(--acento); outline-offset: -1px; }
+.pop-panel textarea:focus { outline: 2px solid var(--acento); outline-offset: -1px; }
 
 .pop-acciones { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 .btn-guardar {
@@ -284,8 +302,8 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 .pop-estado.error { color: #c92a2a; }
 .pop-estado.ok { color: #2b8a3e; }
 
-/* Recuadros de anotaciones */
-.lista-notas { display: grid; gap: 8px; margin-top: 14px; }
+/* Recuadros (descripciones, actividades y anotaciones) */
+.lista-notas { display: grid; gap: 8px; }
 .nota {
   position: relative;
   background: #fff;
@@ -308,10 +326,8 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 }
 .nota-borrar:hover { color: #c92a2a; }
 .sin-notas { margin: 0; color: var(--suave); font-size: 0.9rem; }
-
-@media (max-width: 640px) {
-  .pop-cuerpo { grid-template-columns: 1fr; }
-}
+.pop-estado-lista { margin: 8px 0 0; }
+.pop-estado-lista:empty { display: none; }
 
 @media (max-width: 480px) {
   .cal-dia { font-size: 0.9rem; }
