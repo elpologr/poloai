@@ -1,5 +1,5 @@
 :root {
-  --app-version: "5"; /* debe coincidir con VERSION en app.js */
+  --app-version: "7"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -342,3 +342,120 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   .cal-dia { font-size: 0.9rem; }
   .lista-notas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Botón de tres rayas (arriba a la izquierda) */
+.btn-hamburguesa {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 44px;
+  height: 44px;
+  padding: 0 11px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--tarjeta);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(40, 10, 80, 0.35);
+}
+.btn-hamburguesa span {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--acento-oscuro);
+}
+.btn-hamburguesa:hover { background: var(--acento-claro); }
+
+/* Barra lateral */
+.fondo-lateral {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  background: rgba(0, 0, 0, 0.55);
+}
+.fondo-lateral[hidden] { display: none; }
+
+.barra-lateral {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 40;
+  width: min(300px, 85vw);
+  height: 100%;
+  padding: 18px 18px 24px;
+  overflow-y: auto;
+  color: #fff;
+  background: #0b0b0d;
+  border-right: 1px solid #3b3256;
+  box-shadow: 8px 0 30px rgba(0, 0, 0, 0.5);
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition: transform 0.25s ease, visibility 0s linear 0.25s;
+}
+.barra-lateral.abierta {
+  transform: none;
+  visibility: visible;
+  transition: transform 0.25s ease;
+}
+
+.lateral-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  font-size: 1.25rem;
+  color: #d8c6ff;
+}
+.lateral-cerrar {
+  border: none;
+  background: transparent;
+  font-size: 1.8rem;
+  line-height: 1;
+  color: #cfc6e6;
+  cursor: pointer;
+}
+.lateral-cerrar:hover { color: #fff; }
+
+.lateral-titulo {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9d8fc0;
+}
+.lateral-texto { margin: 0 0 12px; font-size: 0.95rem; color: #e6defa; }
+.lateral-aviso {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  color: #ffe8a3;
+  background: #2a2208;
+  border: 1px solid #6b5a14;
+  border-radius: 8px;
+}
+.lateral-aviso[hidden],
+#cuenta-sin-sesion[hidden],
+#cuenta-con-sesion[hidden],
+.cuenta-foto[hidden] { display: none; }
+
+.cuenta-perfil { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.cuenta-foto { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
+.cuenta-datos { display: flex; flex-direction: column; min-width: 0; }
+.cuenta-datos strong { overflow-wrap: anywhere; }
+.cuenta-datos span { font-size: 0.85rem; color: #b9aedb; overflow-wrap: anywhere; }
+
+.btn-salir {
+  width: 100%;
+  padding: 10px 14px;
+  font: inherit;
+  color: #fff;
+  background: transparent;
+  border: 1px solid #5b4d82;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btn-salir:hover { background: #241c3a; }

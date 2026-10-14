@@ -3,13 +3,49 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="5" />
-  <title>Mi organizador</title>
-  <link rel="stylesheet" href="styles.css?v=5" />
+  <meta name="app-version" content="7" />
+  <title>Polo AI</title>
+  <link rel="stylesheet" href="styles.css?v=7" />
 </head>
 <body>
+  <!-- Botón de tres rayas (esquina superior izquierda) -->
+  <button id="btn-menu-lateral" class="btn-hamburguesa" type="button"
+          aria-label="Abrir menú lateral" aria-controls="barra-lateral" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+
+  <!-- Barra lateral con inicio de sesión -->
+  <div id="fondo-lateral" class="fondo-lateral" hidden></div>
+  <aside id="barra-lateral" class="barra-lateral" aria-label="Menú lateral" aria-hidden="true">
+    <div class="lateral-cabecera">
+      <strong>Polo AI</strong>
+      <button id="lateral-cerrar" class="lateral-cerrar" type="button" aria-label="Cerrar menú">&times;</button>
+    </div>
+
+    <h2 class="lateral-titulo">Cuenta</h2>
+
+    <!-- Sin sesión -->
+    <div id="cuenta-sin-sesion">
+      <p class="lateral-texto">Inicia sesión con tu cuenta de Google.</p>
+      <div id="google-boton"></div>
+      <p id="google-aviso" class="lateral-aviso" hidden></p>
+    </div>
+
+    <!-- Con sesión -->
+    <div id="cuenta-con-sesion" hidden>
+      <div class="cuenta-perfil">
+        <img id="cuenta-foto" class="cuenta-foto" alt="" referrerpolicy="no-referrer" hidden />
+        <div class="cuenta-datos">
+          <strong id="cuenta-nombre"></strong>
+          <span id="cuenta-correo"></span>
+        </div>
+      </div>
+      <button id="cuenta-salir" class="btn-salir" type="button">Cerrar sesión</button>
+    </div>
+  </aside>
+
   <header class="encabezado">
-    <h1>Mi organizador</h1>
+    <h1>Polo AI</h1>
     <nav class="menu" aria-label="Secciones">
       <button class="btn-menu" data-seccion="calendario">Calendario</button>
       <button class="btn-menu" data-seccion="actividades">Actividades</button>
@@ -142,7 +178,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=5"></script>
-  <script src="app.js?v=5"></script>
+  <script src="config.js?v=7"></script>
+  <script src="app.js?v=7"></script>
+  <script type="module" src="firebase.js?v=7"></script>
 </body>
 </html>

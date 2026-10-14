@@ -1,13 +1,14 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "5";
+const VERSION = "7";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
     "calendario", "cal-mes", "cal-anio", "cal-anterior", "cal-siguiente",
     "cal-hoy", "cal-actualizar", "cal-cuadricula", "cal-estado",
     "dia-popover", "pop-titulo", "pop-cerrar", "pop-secciones",
+    "btn-menu-lateral", "barra-lateral", "google-boton",
   ];
   const problemas = [];
 
@@ -521,5 +522,135 @@ window.addEventListener("resize", () => {
   }
 });
 
-dibujarCalendario();
+// ---------- Barra lateral e inicio de sesión con Google ----------
+const btnLateral = document.getElementById("btn-menu-lateral");
+const barraLateral = document.getElementById("barra-lateral");
+const fondoLateral = document.getElementById("fondo-lateral");
+const btnCerrarLateral = document.getElementById("lateral-cerrar");
+
+function abrirLateral() {
+  barraLateral.classList.add("abierta");
+  barraLateral.setAttribute("aria-hidden", "false");
+  fondoLateral.hidden = false;
+  btnLateral.setAttribute("aria-expanded", "true");
+}
+
+function cerrarLateral() {
+  barraLateral.classList.remove("abierta");
+  barraLateral.setAttribute("aria-hidden", "true");
+  fondoLateral.hidden = true;
+  btnLateral.setAttribute("aria-expanded", "false");
+}
+
+btnLateral.addEventListener("click", () =>
+  barraLateral.classList.contains("abierta") ? cerrarLateral() : abrirLateral()
+);
+btnCerrarLateral.addEventListener("click", cerrarLateral);
+fondoLateral.addEventListener("click", cerrarLateral);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") cerrarLateral();
+});
+
+const CLAVE_SESION = "polo-ai-sesion";
+const cuentaSin = document.getElementById("cuenta-sin-sesion");
+const cuentaCon = document.getElementById("cuenta-con-sesion");
+const googleBoton = document.getElementById("google-boton");
+const googleAviso = document.getElementById("google-aviso");
+const cuentaFoto = document.getElementById("cuenta-foto");
+const cuentaNombre = document.getElementById("cuenta-nombre");
+const cuentaCorreo = document.getElementById("cuenta-correo");
+const btnSalir = document.getElementById("cuenta-salir");
+
+let usuario = null; // { nombre, correo, foto }
+try {
+  usuario = JSON.parse(localStorage.getItem(CLAVE_SESION));
+} catch (e) {
+  usuario = null;
+}
+
+// El token de Google (JWT) trae los datos de la cuenta en su parte central, en base64
+function decodificarJWT(token) {
+  const base = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+  const json = decodeURIComponent(
+    atob(base)
+      .split("")
+      .map((ch) => "%" + ("00" + ch.charCodeAt(0).toString(16)).slice(-2))
+      .join("")
+  );
+  return JSON.parse(json);
+}
+
+function dibujarCuenta() {
+  cuentaSin.hidden = !!usuario;
+  cuentaCon.hidden = !usuario;
+  if (!usuario) return;
+  cuentaNombre.textContent = usuario.nombre || "";
+  cuentaCorreo.textContent = usuario.correo || "";
+  const fotoValida = typeof usuario.foto === "string" && usuario.foto.startsWith("https://");
+  cuentaFoto.hidden = !fotoValida;
+  if (fotoValida) cuentaFoto.src = usuario.foto;
+}
+
+function respuestaGoogle(resp) {
+  try {
+    const p = decodificarJWT(resp.credential);
+    usuario = { nombre: p.name || "", correo: p.email || "", foto: p.picture || "" };
+    try {
+      localStorage.setItem(CLAVE_SESION, JSON.stringify(usuario));
+    } catch (e) {}
+    dibujarCuenta();
+  } catch (e) {
+    googleAviso.textContent = "No se pudo iniciar sesión: " + e.message;
+    googleAviso.hidden = false;
+  }
+}
+
+function cerrarSesion() {
+  usuario = null;
+  try {
+    localStorage.removeItem(CLAVE_SESION);
+  } catch (e) {}
+  if (window.google && google.accounts && google.accounts.id) {
+    google.accounts.id.disableAutoSelect();
+  }
+  dibujarCuenta();
+}
+btnSalir.addEventListener("click", cerrarSesion);
+
+function iniciarGoogle() {
+  if (typeof CONFIG === "undefined" || !CONFIG.GOOGLE_CLIENT_ID) {
+    googleAviso.textContent =
+      "Falta configurar GOOGLE_CLIENT_ID en config.js (revisa el README).";
+    googleAviso.hidden = false;
+    return;
+  }
+  const s = document.createElement("script");
+  s.src = "https://accounts.google.com/gsi/client";
+  s.async = true;
+  s.defer = true;
+  s.onload = () => {
+    google.accounts.id.initialize({
+      client_id: CONFIG.GOOGLE_CLIENT_ID,
+      callback: respuestaGoogle,
+    });
+    google.accounts.id.renderButton(googleBoton, {
+      theme: "filled_black",
+      size: "large",
+      text: "signin_with",
+      locale: "es",
+    });
+  };
+  s.onerror = () => {
+    googleAviso.textContent = "No se pudo cargar el servicio de Google. Revisa tu conexión.";
+    googleAviso.hidden = false;
+  };
+  document.head.appendChild(s);
+}
+
+dibujarCuenta();
+iniciarGoogle();
+
+// ---------- Inicio ----------
+// Al abrir o recargar la página (F5) el calendario ya aparece en la fecha actual
+mostrarSeccion("calendario");
 cargarDatos();
