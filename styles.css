@@ -1,5 +1,5 @@
 :root {
-  --app-version: "4"; /* debe coincidir con VERSION en app.js */
+  --app-version: "5"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -194,8 +194,8 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   position: absolute;
   z-index: 10;
   width: min(780px, 100%);
-  background: #fff;
-  border: 1px solid var(--borde);
+  background: #0b0b0d;
+  border: 1px solid #3b3256;
   border-radius: 18px;
   box-shadow: 0 18px 50px rgba(40, 10, 80, 0.4);
   padding: 18px 20px 20px;
@@ -209,9 +209,9 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   left: var(--flecha);
   width: 12px;
   height: 12px;
-  background: #fff;
-  border-left: 1px solid var(--borde);
-  border-top: 1px solid var(--borde);
+  background: #0b0b0d;
+  border-left: 1px solid #3b3256;
+  border-top: 1px solid #3b3256;
   transform: translateX(-50%) rotate(45deg);
 }
 
@@ -226,16 +226,17 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   margin: 0;
   font-size: 1.15rem;
   text-transform: capitalize;
-  color: var(--acento-oscuro);
+  color: #d8c6ff;
 }
 .pop-cerrar {
   border: none;
   background: transparent;
   font-size: 1.6rem;
   line-height: 1;
-  color: var(--suave);
+  color: #cfc6e6;
   cursor: pointer;
 }
+.pop-cerrar:hover { color: #fff; }
 
 /* Secciones apiladas: Descripción, Actividades y Anotaciones */
 .pop-cuerpo {
@@ -268,6 +269,7 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 .pop-toggle:hover { background: var(--acento-claro); }
 .pop-toggle-texto { font-weight: 700; color: var(--acento-oscuro); }
 .pop-toggle-lista { background: #fff; font-size: 0.95rem; }
+.pop-toggle[hidden] { display: none; }
 .pop-toggle .flecha { transition: transform 0.15s; }
 .pop-toggle[aria-expanded="true"] .flecha { transform: rotate(180deg); }
 
@@ -302,21 +304,28 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 .pop-estado.error { color: #c92a2a; }
 .pop-estado.ok { color: #2b8a3e; }
 
-/* Recuadros (descripciones, actividades y anotaciones) */
-.lista-notas { display: grid; gap: 8px; }
+/* Recuadros (descripciones, actividades y anotaciones): cuadrados, 4 por fila */
+.lista-notas {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.lista-notas:empty { display: none; }
 .nota {
   position: relative;
+  aspect-ratio: 1 / 1;
+  overflow-y: auto;
   background: #fff;
   border: 1px solid var(--borde);
   border-left: 4px solid var(--acento);
   border-radius: 10px;
-  padding: 10px 36px 10px 12px;
+  padding: 26px 10px 10px 10px;
 }
-.nota-texto { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.nota-texto { margin: 0; font-size: 0.92rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .nota-borrar {
   position: absolute;
-  top: 6px;
-  right: 8px;
+  top: 3px;
+  right: 6px;
   border: none;
   background: transparent;
   font-size: 1.2rem;
@@ -325,10 +334,11 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   cursor: pointer;
 }
 .nota-borrar:hover { color: #c92a2a; }
-.sin-notas { margin: 0; color: var(--suave); font-size: 0.9rem; }
+.sin-notas { grid-column: 1 / -1; margin: 0; color: var(--suave); font-size: 0.9rem; }
 .pop-estado-lista { margin: 8px 0 0; }
 .pop-estado-lista:empty { display: none; }
 
 @media (max-width: 480px) {
   .cal-dia { font-size: 0.9rem; }
+  .lista-notas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

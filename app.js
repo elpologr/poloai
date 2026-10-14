@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "4";
+const VERSION = "5";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -335,7 +335,9 @@ const bloquesDia = Array.from(
   est: el.querySelector(".pop-panel-texto .pop-estado"),
   btnLista: el.querySelector('[data-accion="lista"]'),
   panelLista: el.querySelector(".pop-panel-lista"),
-  lista: el.querySelector(".lista-notas"),
+  fija: el.querySelector(".lista-fija"),
+  lista: el.querySelector(".lista-extra"),
+  etiquetaLista: el.querySelector(".pop-lista-etiqueta"),
   estLista: el.querySelector(".pop-estado-lista"),
 }));
 
@@ -356,31 +358,46 @@ function elementosDe(fecha, campo) {
   return parsearElementos((datos[fecha] || {})[campo]);
 }
 
+const MAX_VISIBLES = 4; // los primeros 4 recuadros siempre se ven
+
+function crearNota(texto, indice, b) {
+  const caja = document.createElement("div");
+  caja.className = "nota";
+  const t = document.createElement("p");
+  t.className = "nota-texto";
+  t.textContent = texto;
+  const x = document.createElement("button");
+  x.type = "button";
+  x.className = "nota-borrar";
+  x.setAttribute("aria-label", "Eliminar");
+  x.textContent = "×";
+  x.addEventListener("click", () => borrarElemento(b, indice));
+  caja.append(t, x);
+  return caja;
+}
+
 function dibujarLista(fecha, b) {
+  b.fija.innerHTML = "";
   b.lista.innerHTML = "";
   const elementos = elementosDe(fecha, b.campo);
+
   if (!elementos.length) {
     const p = document.createElement("p");
     p.className = "sin-notas";
     p.textContent = TEXTOS[b.campo].vacio;
-    b.lista.appendChild(p);
-    return;
+    b.fija.appendChild(p);
   }
+
   elementos.forEach((texto, i) => {
-    const caja = document.createElement("div");
-    caja.className = "nota";
-    const t = document.createElement("p");
-    t.className = "nota-texto";
-    t.textContent = texto;
-    const x = document.createElement("button");
-    x.type = "button";
-    x.className = "nota-borrar";
-    x.setAttribute("aria-label", "Eliminar");
-    x.textContent = "×";
-    x.addEventListener("click", () => borrarElemento(b, i));
-    caja.append(t, x);
-    b.lista.appendChild(caja);
+    const caja = crearNota(texto, i, b);
+    (i < MAX_VISIBLES ? b.fija : b.lista).appendChild(caja);
   });
+
+  // El botón "Desplegar" solo aparece si hay más de 4 recuadros
+  const extras = Math.max(0, elementos.length - MAX_VISIBLES);
+  b.btnLista.hidden = extras === 0;
+  b.etiquetaLista.textContent = extras ? `Desplegar (${extras} más)` : "Desplegar";
+  if (extras === 0) plegar(b.btnLista, b.panelLista);
 }
 
 async function agregarElemento(b) {
@@ -399,7 +416,8 @@ async function agregarElemento(b) {
     if (seleccion === fecha) {
       b.txt.value = "";
       dibujarLista(fecha, b);
-      alternar(b.btnLista, b.panelLista, true); // muestra el recuadro recién agregado
+      // Si el recuadro nuevo quedó después del 4.º, abre la lista para que se vea
+      if (elementos.length > MAX_VISIBLES) alternar(b.btnLista, b.panelLista, true);
       setEstado(b.est, "Guardado ✓", "ok");
     }
     actualizarMarca(fecha);
@@ -461,7 +479,7 @@ function abrirDia(fecha) {
   dibujarCalendario();
 
   popTitulo.textContent = textoFecha(fecha);
-  // Al abrir un día solo se ven los tres títulos: todo lo demás empieza plegado
+  // Al abrir un día se ven los 3 títulos y sus primeros 4 recuadros; lo demás empieza plegado
   bloquesDia.forEach((b) => {
     b.txt.value = "";
     setEstado(b.est, "");

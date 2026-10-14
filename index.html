@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="4" />
+  <meta name="app-version" content="5" />
   <title>Mi organizador</title>
-  <link rel="stylesheet" href="styles.css?v=4" />
+  <link rel="stylesheet" href="styles.css?v=5" />
 </head>
 <body>
   <header class="encabezado">
@@ -46,7 +46,7 @@
         <!--
           Tres secciones, una debajo de otra: Descripción, Actividades y Anotaciones.
           Cada una tiene un botón con flecha (abre la zona de texto) y, pegado debajo,
-          un botón "Desplegar" (abre los recuadros ya guardados).
+          un botón "Desplegar" (abre los recuadros del 5 en adelante; los primeros 4 siempre se ven).
         -->
         <div id="pop-secciones" class="pop-cuerpo">
 
@@ -61,12 +61,15 @@
                 <span class="pop-estado"></span>
               </div>
             </div>
-            <button type="button" class="pop-toggle pop-toggle-lista" data-accion="lista" aria-expanded="false">
-              <span>Desplegar</span><span class="flecha" aria-hidden="true">&#9662;</span>
+            <div class="pop-panel pop-panel-fija">
+              <div class="lista-notas lista-fija"></div>
+              <p class="pop-estado pop-estado-lista"></p>
+            </div>
+            <button type="button" class="pop-toggle pop-toggle-lista" data-accion="lista" aria-expanded="false" hidden>
+              <span class="pop-lista-etiqueta">Desplegar</span><span class="flecha" aria-hidden="true">&#9662;</span>
             </button>
             <div class="pop-panel pop-panel-lista" hidden>
-              <div class="lista-notas"></div>
-              <p class="pop-estado pop-estado-lista"></p>
+              <div class="lista-notas lista-extra"></div>
             </div>
           </section>
 
@@ -81,12 +84,15 @@
                 <span class="pop-estado"></span>
               </div>
             </div>
-            <button type="button" class="pop-toggle pop-toggle-lista" data-accion="lista" aria-expanded="false">
-              <span>Desplegar</span><span class="flecha" aria-hidden="true">&#9662;</span>
+            <div class="pop-panel pop-panel-fija">
+              <div class="lista-notas lista-fija"></div>
+              <p class="pop-estado pop-estado-lista"></p>
+            </div>
+            <button type="button" class="pop-toggle pop-toggle-lista" data-accion="lista" aria-expanded="false" hidden>
+              <span class="pop-lista-etiqueta">Desplegar</span><span class="flecha" aria-hidden="true">&#9662;</span>
             </button>
             <div class="pop-panel pop-panel-lista" hidden>
-              <div class="lista-notas"></div>
-              <p class="pop-estado pop-estado-lista"></p>
+              <div class="lista-notas lista-extra"></div>
             </div>
           </section>
 
@@ -101,12 +107,15 @@
                 <span class="pop-estado"></span>
               </div>
             </div>
-            <button type="button" class="pop-toggle pop-toggle-lista" data-accion="lista" aria-expanded="false">
-              <span>Desplegar</span><span class="flecha" aria-hidden="true">&#9662;</span>
+            <div class="pop-panel pop-panel-fija">
+              <div class="lista-notas lista-fija"></div>
+              <p class="pop-estado pop-estado-lista"></p>
+            </div>
+            <button type="button" class="pop-toggle pop-toggle-lista" data-accion="lista" aria-expanded="false" hidden>
+              <span class="pop-lista-etiqueta">Desplegar</span><span class="flecha" aria-hidden="true">&#9662;</span>
             </button>
             <div class="pop-panel pop-panel-lista" hidden>
-              <div class="lista-notas"></div>
-              <p class="pop-estado pop-estado-lista"></p>
+              <div class="lista-notas lista-extra"></div>
             </div>
           </section>
 
@@ -133,7 +142,7 @@
     </section>
   </main>
 
-  <script src="config.js?v=4"></script>
-  <script src="app.js?v=4"></script>
+  <script src="config.js?v=5"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
