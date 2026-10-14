@@ -28,26 +28,48 @@
         <select id="cal-anio" aria-label="Año"></select>
         <button id="cal-siguiente" class="btn-cal" aria-label="Mes siguiente">&#8250;</button>
         <button id="cal-hoy" class="btn-cal btn-hoy">Hoy</button>
+        <button id="cal-actualizar" class="btn-cal" title="Volver a leer los datos de Google Sheets" aria-label="Actualizar datos">&#8635;</button>
       </div>
 
       <p id="cal-estado" class="cal-estado" hidden></p>
 
       <div id="cal-cuadricula" class="cal-cuadricula" role="grid"></div>
 
-      <!-- Submenú anclado al día seleccionado -->
+      <!-- Panel grande anclado al día seleccionado -->
       <div id="dia-popover" class="popover" role="dialog" aria-labelledby="pop-titulo" hidden>
         <div class="pop-cabecera">
           <h3 id="pop-titulo"></h3>
           <button id="pop-cerrar" class="pop-cerrar" aria-label="Cerrar">&times;</button>
         </div>
-        <div id="pop-botones" class="pop-botones"></div>
-        <div id="pop-editor" class="pop-editor" hidden>
-          <label id="pop-etiqueta" for="pop-texto"></label>
-          <textarea id="pop-texto" rows="5"></textarea>
-          <div class="pop-acciones">
-            <button id="pop-guardar" class="btn-guardar">Guardar</button>
-            <span id="pop-estado" class="pop-estado"></span>
-          </div>
+
+        <div class="pop-cuerpo">
+          <section class="pop-bloque" data-campo="actividades">
+            <h4>Actividades</h4>
+            <textarea rows="5" placeholder="Actividades del día…" aria-label="Actividades"></textarea>
+            <div class="pop-acciones">
+              <button type="button" class="btn-guardar">Guardar</button>
+              <span class="pop-estado"></span>
+            </div>
+          </section>
+
+          <section class="pop-bloque" data-campo="descripcion">
+            <h4>Descripción</h4>
+            <textarea rows="5" placeholder="Descripción del día…" aria-label="Descripción"></textarea>
+            <div class="pop-acciones">
+              <button type="button" class="btn-guardar">Guardar</button>
+              <span class="pop-estado"></span>
+            </div>
+          </section>
+
+          <section class="pop-bloque ancho" id="bloque-anotaciones">
+            <h4>Anotaciones</h4>
+            <textarea id="txt-nueva-nota" rows="3" placeholder="Escribe una anotación nueva…" aria-label="Nueva anotación"></textarea>
+            <div class="pop-acciones">
+              <button type="button" id="btn-agregar-nota" class="btn-guardar">Guardar</button>
+              <span id="estado-nota" class="pop-estado"></span>
+            </div>
+            <div id="lista-notas" class="lista-notas"></div>
+          </section>
         </div>
       </div>
     </section>

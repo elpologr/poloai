@@ -4,7 +4,7 @@ Página web sencilla para organizar mi día a día.
 
 ## Secciones
 
-- **Calendario**: calendario navegable del año 1930 al 2100. Al hacer clic en un día se abre un submenú con los botones **Actividades**, **Descripción** y **Anotaciones**; lo que escribas se guarda en Google Sheets.
+- **Calendario**: calendario navegable del año 1930 al 2100. Al hacer clic en un día se abre un panel grande con **Actividades**, **Descripción** y **Anotaciones**, mostrando lo que ya hay en la hoja de Google Sheets. Las anotaciones se agregan como recuadros (tantos como quieras) y en la hoja quedan dentro de la misma celda, separadas entre paréntesis: `(primera nota) (segunda nota)`. Si una nota trae paréntesis sueltos, se guardan como corchetes para no romper el formato. El botón ↻ vuelve a leer los datos de la hoja por si la editaste a mano.
 - **Actividades**: próximamente.
 - **Pendientes**: próximamente.
 - **Trabajo**: próximamente.
@@ -15,7 +15,7 @@ Abre `index.html` en tu navegador (necesita conexión a internet para hablar con
 
 ## Conectar Google Sheets (una sola vez)
 
-La hoja debe tener en la fila 1: `Fecha | Actividades | Descripcion | Anotaciones`. Cada día ocupa una fila (la fecha se guarda como `AAAA-MM-DD`).
+La hoja debe tener en la fila 1: `Fecha | Actividades | Descripcion | Anotaciones`. Cada día ocupa una fila (la fecha se guarda como `AAAA-MM-DD`). Las filas se mantienen ordenadas por fecha: si anotas un día anterior, se inserta en su lugar y las demás filas bajan.
 
 1. Abre tu hoja de Google y ve a **Extensiones → Apps Script**.
 2. Borra lo que haya y pega el contenido de `google-apps-script.gs`.

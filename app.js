@@ -52,6 +52,7 @@ async function cargarDatos() {
     );
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || "Error desconocido");
+    Object.keys(datos).forEach((k) => delete datos[k]);
     Object.assign(datos, j.datos);
     mostrarEstadoCal("");
     dibujarCalendario();
@@ -79,6 +80,65 @@ function tieneDatos(fecha) {
   return !!d && CAMPOS.some((c) => (d[c.clave] || "").trim() !== "");
 }
 
+// ---------- Anotaciones: varias notas en una sola celda, entre paréntesis ----------
+// Ejemplo en la hoja:  (primera nota) (segunda nota) (tercera nota)
+
+function parentesisBalanceados(s) {
+  let n = 0;
+  for (const ch of s) {
+    if (ch === "(") n++;
+    else if (ch === ")") {
+      n--;
+      if (n < 0) return false;
+    }
+  }
+  return n === 0;
+}
+
+// Si la nota trae paréntesis sueltos, se cambian por corchetes para no romper el formato
+function limpiarNota(s) {
+  s = s.trim();
+  return parentesisBalanceados(s) ? s : s.replace(/\(/g, "[").replace(/\)/g, "]");
+}
+
+function parsearNotas(texto) {
+  const notas = [];
+  let profundidad = 0;
+  let actual = "";
+  let fuera = "";
+  for (const ch of texto || "") {
+    if (ch === "(") {
+      if (profundidad === 0) {
+        if (fuera.trim()) notas.push(fuera.trim());
+        fuera = "";
+        actual = "";
+      } else {
+        actual += ch;
+      }
+      profundidad++;
+    } else if (ch === ")" && profundidad > 0) {
+      profundidad--;
+      if (profundidad === 0) {
+        notas.push(actual);
+        actual = "";
+      } else {
+        actual += ch;
+      }
+    } else if (profundidad > 0) {
+      actual += ch;
+    } else {
+      fuera += ch;
+    }
+  }
+  if (profundidad > 0) fuera += "(" + actual; // paréntesis sin cerrar: se trata como texto
+  if (fuera.trim()) notas.push(fuera.trim());
+  return notas.map((n) => n.trim()).filter((n) => n !== "");
+}
+
+function serializarNotas(notas) {
+  return notas.map((n) => "(" + limpiarNota(n) + ")").join(" ");
+}
+
 // ---------- Calendario (1930 - 2100) ----------
 const ANIO_MIN = 1930;
 const ANIO_MAX = 2100;
@@ -93,6 +153,7 @@ const selAnio = document.getElementById("cal-anio");
 const btnAnterior = document.getElementById("cal-anterior");
 const btnSiguiente = document.getElementById("cal-siguiente");
 const btnHoy = document.getElementById("cal-hoy");
+const btnActualizar = document.getElementById("cal-actualizar");
 const cuadricula = document.getElementById("cal-cuadricula");
 
 const hoy = new Date();
@@ -181,44 +242,141 @@ btnHoy.addEventListener("click", () => {
   anioActual = hoy.getFullYear();
   dibujarCalendario();
 });
+btnActualizar.addEventListener("click", () => {
+  cerrarPopover();
+  cargarDatos();
+});
 
-// ---------- Submenú del día ----------
+// ---------- Panel del día ----------
 const seccionCal = document.getElementById("calendario");
 const popover = document.getElementById("dia-popover");
 const popTitulo = document.getElementById("pop-titulo");
 const popCerrar = document.getElementById("pop-cerrar");
-const popBotones = document.getElementById("pop-botones");
-const popEditor = document.getElementById("pop-editor");
-const popEtiqueta = document.getElementById("pop-etiqueta");
-const popTexto = document.getElementById("pop-texto");
-const popGuardar = document.getElementById("pop-guardar");
-const popEstado = document.getElementById("pop-estado");
 
-let campoActivo = null;
+function setEstado(el, texto, tipo) {
+  el.textContent = texto;
+  el.className = "pop-estado" + (tipo ? " " + tipo : "");
+}
 
-// Crea los botones Actividades / Descripción / Anotaciones una sola vez
-CAMPOS.forEach((c) => {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.className = "pop-btn";
-  b.dataset.campo = c.clave;
-  b.textContent = c.etiqueta;
-  b.addEventListener("click", () => elegirCampo(c.clave));
-  popBotones.appendChild(b);
+function actualizarMarca(fecha) {
+  const celda = cuadricula.querySelector(`[data-fecha="${fecha}"]`);
+  if (celda) celda.classList.toggle("con-datos", tieneDatos(fecha));
+}
+
+// Bloques simples: Actividades y Descripción (un cuadro de texto + Guardar)
+const bloquesSimples = Array.from(
+  document.querySelectorAll(".pop-bloque[data-campo]")
+).map((bloque) => ({
+  campo: bloque.dataset.campo,
+  txt: bloque.querySelector("textarea"),
+  btn: bloque.querySelector(".btn-guardar"),
+  est: bloque.querySelector(".pop-estado"),
+}));
+
+bloquesSimples.forEach((b) => {
+  b.btn.addEventListener("click", async () => {
+    const fecha = seleccion;
+    if (!fecha) return;
+    b.btn.disabled = true;
+    setEstado(b.est, "Guardando…");
+    try {
+      await guardarCampo(fecha, b.campo, b.txt.value);
+      if (seleccion === fecha) setEstado(b.est, "Guardado ✓", "ok");
+      actualizarMarca(fecha);
+    } catch (e) {
+      setEstado(b.est, "Error: " + e.message, "error");
+    } finally {
+      b.btn.disabled = false;
+    }
+  });
 });
+
+// Anotaciones: varios recuadros
+const txtNota = document.getElementById("txt-nueva-nota");
+const btnNota = document.getElementById("btn-agregar-nota");
+const estNota = document.getElementById("estado-nota");
+const listaNotas = document.getElementById("lista-notas");
+
+function notasDe(fecha) {
+  return parsearNotas((datos[fecha] || {}).anotaciones);
+}
+
+function dibujarNotas(fecha) {
+  listaNotas.innerHTML = "";
+  const notas = notasDe(fecha);
+  if (!notas.length) {
+    const p = document.createElement("p");
+    p.className = "sin-notas";
+    p.textContent = "Aún no hay anotaciones para este día.";
+    listaNotas.appendChild(p);
+    return;
+  }
+  notas.forEach((texto, i) => {
+    const caja = document.createElement("div");
+    caja.className = "nota";
+    const t = document.createElement("p");
+    t.className = "nota-texto";
+    t.textContent = texto;
+    const x = document.createElement("button");
+    x.type = "button";
+    x.className = "nota-borrar";
+    x.setAttribute("aria-label", "Eliminar anotación");
+    x.textContent = "×";
+    x.addEventListener("click", () => borrarNota(i));
+    caja.append(t, x);
+    listaNotas.appendChild(caja);
+  });
+}
+
+btnNota.addEventListener("click", async () => {
+  const fecha = seleccion;
+  const texto = txtNota.value.trim();
+  if (!fecha) return;
+  if (!texto) {
+    setEstado(estNota, "Escribe algo primero", "error");
+    return;
+  }
+  const notas = notasDe(fecha).concat(limpiarNota(texto));
+  btnNota.disabled = true;
+  setEstado(estNota, "Guardando…");
+  try {
+    await guardarCampo(fecha, "anotaciones", serializarNotas(notas));
+    if (seleccion === fecha) {
+      txtNota.value = "";
+      dibujarNotas(fecha);
+      setEstado(estNota, "Guardado ✓", "ok");
+    }
+    actualizarMarca(fecha);
+  } catch (e) {
+    setEstado(estNota, "Error: " + e.message, "error");
+  } finally {
+    btnNota.disabled = false;
+  }
+});
+
+async function borrarNota(indice) {
+  const fecha = seleccion;
+  if (!fecha) return;
+  if (!window.confirm("¿Eliminar esta anotación?")) return;
+  const notas = notasDe(fecha);
+  notas.splice(indice, 1);
+  setEstado(estNota, "Guardando…");
+  try {
+    await guardarCampo(fecha, "anotaciones", serializarNotas(notas));
+    if (seleccion === fecha) {
+      dibujarNotas(fecha);
+      setEstado(estNota, "Anotación eliminada", "ok");
+    }
+    actualizarMarca(fecha);
+  } catch (e) {
+    setEstado(estNota, "Error: " + e.message, "error");
+  }
+}
 
 function textoFecha(fecha) {
   const [a, m, d] = fecha.split("-").map(Number);
   return new Date(a, m - 1, d).toLocaleDateString("es-MX", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
-  });
-}
-
-function marcarBotonesPopover() {
-  popBotones.querySelectorAll(".pop-btn").forEach((b) => {
-    const valor = ((datos[seleccion] || {})[b.dataset.campo] || "").trim();
-    b.classList.toggle("con-datos", valor !== "");
-    b.classList.toggle("activo", b.dataset.campo === campoActivo);
   });
 }
 
@@ -235,62 +393,31 @@ function posicionarPopover(celda) {
 
 function abrirDia(fecha) {
   seleccion = fecha;
-  campoActivo = null;
-  popEditor.hidden = true;
-  popEstado.textContent = "";
   dibujarCalendario();
 
   popTitulo.textContent = textoFecha(fecha);
-  marcarBotonesPopover();
+  const d = datos[fecha] || {};
+  bloquesSimples.forEach((b) => {
+    b.txt.value = d[b.campo] || "";
+    setEstado(b.est, "");
+  });
+  txtNota.value = "";
+  setEstado(estNota, "");
+  dibujarNotas(fecha);
+
   popover.hidden = false;
   posicionarPopover(cuadricula.querySelector(`[data-fecha="${fecha}"]`));
-}
-
-function elegirCampo(clave) {
-  campoActivo = clave;
-  const info = CAMPOS.find((c) => c.clave === clave);
-  popEtiqueta.textContent = info.etiqueta;
-  popTexto.value = (datos[seleccion] || {})[clave] || "";
-  popEstado.textContent = "";
-  popEstado.className = "pop-estado";
-  popEditor.hidden = false;
-  marcarBotonesPopover();
-  popTexto.focus();
+  popover.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 function cerrarPopover() {
   if (popover.hidden && !seleccion) return;
   popover.hidden = true;
-  campoActivo = null;
   seleccion = null;
   cuadricula
     .querySelectorAll(".seleccionado")
     .forEach((e) => e.classList.remove("seleccionado"));
 }
-
-popGuardar.addEventListener("click", async () => {
-  if (!seleccion || !campoActivo) return;
-  const fecha = seleccion;
-  const campo = campoActivo;
-  popGuardar.disabled = true;
-  popEstado.className = "pop-estado";
-  popEstado.textContent = "Guardando…";
-  try {
-    await guardarCampo(fecha, campo, popTexto.value);
-    if (seleccion === fecha) {
-      popEstado.className = "pop-estado ok";
-      popEstado.textContent = "Guardado ✓";
-      marcarBotonesPopover();
-    }
-    const celda = cuadricula.querySelector(`[data-fecha="${fecha}"]`);
-    if (celda) celda.classList.toggle("con-datos", tieneDatos(fecha));
-  } catch (e) {
-    popEstado.className = "pop-estado error";
-    popEstado.textContent = "Error: " + e.message;
-  } finally {
-    popGuardar.disabled = false;
-  }
-});
 
 popCerrar.addEventListener("click", cerrarPopover);
 document.addEventListener("keydown", (e) => {
@@ -298,7 +425,9 @@ document.addEventListener("keydown", (e) => {
 });
 document.addEventListener("click", (e) => {
   if (popover.hidden) return;
-  if (popover.contains(e.target) || e.target.closest(".cal-dia")) return;
+  const ruta = e.composedPath();
+  if (ruta.includes(popover)) return;
+  if (ruta.some((n) => n.classList && n.classList.contains("cal-dia"))) return;
   cerrarPopover();
 });
 window.addEventListener("resize", () => {
