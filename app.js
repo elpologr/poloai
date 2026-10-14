@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "7";
+const VERSION = "8";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -401,6 +401,13 @@ function dibujarLista(fecha, b) {
   if (extras === 0) plegar(b.btnLista, b.panelLista);
 }
 
+// Fecha y hora del momento de guardar, con el formato: 14/10/2026 21:35
+function selloFechaHora() {
+  const n = new Date();
+  return `${dos(n.getDate())}/${dos(n.getMonth() + 1)}/${n.getFullYear()} ` +
+    `${dos(n.getHours())}:${dos(n.getMinutes())}`;
+}
+
 async function agregarElemento(b) {
   const fecha = seleccion;
   const texto = b.txt.value.trim();
@@ -409,7 +416,9 @@ async function agregarElemento(b) {
     setEstado(b.est, "Escribe algo primero", "error");
     return;
   }
-  const elementos = elementosDe(fecha, b.campo).concat(limpiarElemento(texto));
+  // La fecha y hora van al inicio del recuadro, en su propia línea, antes del texto
+  const conSello = selloFechaHora() + "\n" + texto;
+  const elementos = elementosDe(fecha, b.campo).concat(limpiarElemento(conSello));
   b.btnGuardar.disabled = true;
   setEstado(b.est, "Guardando…");
   try {

@@ -1,5 +1,5 @@
 :root {
-  --app-version: "7"; /* debe coincidir con VERSION en app.js */
+  --app-version: "8"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
