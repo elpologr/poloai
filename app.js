@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "25";
+const VERSION = "30";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -16,7 +16,7 @@ const VERSION = "25";
     "zona-actividades", "zona-trabajo", "btn-menu-notas", "seccion-notas", "btn-menu-ejercicio",
     "panel-ejercicio", "ej-cuadricula", "ej-dia", "ej-form",
     "btn-menu-diario", "panel-diario", "di-cuadricula", "di-dia", "di-form",
-    "seccion-ejercicio", "seccion-diario",
+    "seccion-ejercicio", "seccion-diario", "di-ejercicios", "di-ej-detalle", "pedidos-yeso", "zona-pedidos-yeso",
     "pop-color", "pop-colores", "pop-mas-colores", "pop-paleta", "pop-color-personal",
   ];
   const problemas = [];
@@ -52,6 +52,8 @@ const secciones = document.querySelectorAll(".seccion");
 const mensajeInicio = document.getElementById("inicio");
 
 function mostrarSeccion(id) {
+  // Si hay una nota a medias (en Notas o en una zona), se pregunta antes de salir
+  if (!confirmarAbandonoEdicion()) return;
   mensajeInicio.hidden = true;
   secciones.forEach((s) => (s.hidden = s.id !== id));
   botonesMenu.forEach((b) =>
@@ -1114,6 +1116,7 @@ function mostrarFormNota(mostrar) {
     notasFecha.value = fechaActualInput();
     setEstado(notasEstado, "");
     notasNombre.focus();
+    notasSnap = notasValores();
   }
 }
 
@@ -1139,9 +1142,7 @@ function salirModoEdicion() {
 
 // Abre la edición de una nota: el mismo formulario, con sus datos, como ventana encima del panel
 function abrirEdicionNota(n) {
-  const borrador = !notaEditando && !notasForm.hidden &&
-    (notasTexto.value.trim() || notasNombre.value.trim() || notasIdent.value.trim());
-  if (borrador && !window.confirm("Tienes una nota nueva sin guardar. ¿Descartarla para editar esta?")) return;
+  if (notaFormSucio() && !window.confirm("Tienes una nota sin guardar. ¿Descartarla para editar esta?")) return;
 
   salirModoEdicion();
   notaEditando = n;
@@ -1161,6 +1162,7 @@ function abrirEdicionNota(n) {
   notasForm.classList.add("modo-editar");
   notasCaja.appendChild(notasForm); // al final de la caja: queda por encima de la lista y del submenú
   notasForm.scrollTop = 0;
+  notasSnap = notasValores();
   notasNombre.focus();
 }
 
@@ -1169,6 +1171,46 @@ function cancelarEdicionNota() {
   limpiarFormNota();
   mostrarFormNota(false);
 }
+
+// ----- Cambios sin guardar: se pregunta antes de abandonar la edición de una nota -----
+const MENSAJE_ABANDONAR = "Tienes cambios sin guardar. ¿Seguro que quieres abandonar la edición actual?";
+let notasSnap = ""; // valores del formulario de Notas al abrirlo (para saber si se cambió algo)
+
+function notasValores() {
+  return JSON.stringify([
+    notasNombre.value, notasEtiqueta.value, colorElegido, notasFecha.value, notasIdent.value, notasTexto.value,
+  ]);
+}
+// El formulario de Notas está abierto y se cambió algo desde que se abrió
+function notaFormSucio() {
+  return !notasForm.hidden && notasValores() !== notasSnap;
+}
+function confirmarAbandonoNota() {
+  return !notaFormSucio() || window.confirm(MENSAJE_ABANDONAR);
+}
+function hayEdicionSinGuardar() {
+  return notaFormSucio() || zonas.some((z) => z.sucio());
+}
+// Pregunta si hay algo sin guardar; si se acepta, el borrador se descarta
+function confirmarAbandonoEdicion() {
+  if (!hayEdicionSinGuardar()) return true;
+  if (!window.confirm(MENSAJE_ABANDONAR)) return false;
+  if (notaFormSucio()) {
+    limpiarFormNota();
+    mostrarFormNota(false);
+  }
+  zonas.forEach((z) => {
+    if (z.sucio()) z.cancelar();
+  });
+  return true;
+}
+// Cerrar o recargar la página con una nota a medias también avisa
+window.addEventListener("beforeunload", (e) => {
+  if (hayEdicionSinGuardar()) {
+    e.preventDefault();
+    e.returnValue = "";
+  }
+});
 
 // Fecha de una tarjeta: texto + lápiz para cambiarla
 function dibujarFechaNota(cont, n) {
@@ -1544,7 +1586,14 @@ document.getElementById("notas-ir-login").addEventListener("click", () => {
 });
 notasGuardar.addEventListener("click", () => (notaEditando ? editarNota() : agregarNota()));
 notasNuevaBtn.addEventListener("click", () => mostrarFormNota(true));
-notasCancelar.addEventListener("click", () => (notaEditando ? cancelarEdicionNota() : mostrarFormNota(false)));
+notasCancelar.addEventListener("click", () => {
+  if (!confirmarAbandonoNota()) return;
+  if (notaEditando) cancelarEdicionNota();
+  else {
+    limpiarFormNota(); // si había algo escrito y se aceptó abandonarlo, se descarta
+    mostrarFormNota(false);
+  }
+});
 notasSubVolver.addEventListener("click", cerrarSubmenu);
 // Tocar el fondo oscuro (fuera de la caja) cierra el panel; Esc también
 panelNotas.addEventListener("click", (e) => {
@@ -1553,8 +1602,9 @@ panelNotas.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !panelNotas.hidden) {
     // Esc cierra primero la edición, luego el submenú y, si no hay, el panel de notas
-    if (notaEditando) cancelarEdicionNota();
-    else if (etiquetaAbierta !== null) cerrarSubmenu();
+    if (notaEditando) {
+      if (confirmarAbandonoNota()) cancelarEdicionNota();
+    } else if (etiquetaAbierta !== null) cerrarSubmenu();
     else cerrarNotas();
   }
 });
@@ -1889,9 +1939,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// ---------- Acceso directo: notas con la etiqueta «Pedidos de Yeso» ----------
-const ETIQUETA_ACCESO_DIRECTO = "Pedidos de Yeso";
-
+// ---------- Notas: abrir el submenú de una etiqueta ----------
 // Muestra el submenú con todas las notas de una etiqueta (o avisa si todavía no hay ninguna)
 function irAEtiquetaNotas(etiqueta) {
   etiquetaPendiente = null;
@@ -1899,13 +1947,6 @@ function irAEtiquetaNotas(etiqueta) {
   else setEstado(notasEstadoLista, "Aún no hay notas con la etiqueta «" + etiqueta + "»");
 }
 
-function abrirNotasEtiqueta(etiqueta) {
-  abrirNotas(); // cierra la barra, abre el panel y (con sesión) carga las notas
-  if (!sesionVigente()) return; // sin sesión, el panel pide iniciarla
-  if (notasCargadas) irAEtiquetaNotas(etiqueta);
-  else etiquetaPendiente = etiqueta; // cargarNotas la abre al terminar
-}
-document.getElementById("btn-yeso").addEventListener("click", () => abrirNotasEtiqueta(ETIQUETA_ACCESO_DIRECTO));
 
 // ---------- Galería (hoja «Galeria» de Google Sheets; imágenes en imgbb) ----------
 const ETIQUETAS_GALERIA = ["General", "Programacion", "Contenido Digital", "Perfiles"];
@@ -2206,6 +2247,15 @@ const ZONAS_ETIQUETA = [
     crear: "+ Crear trabajo", nuevo: "Nuevo trabajo", editar: "Editar trabajo",
     guardar: "Guardar trabajo", marcador: "Escribe un trabajo nuevo…",
     vacio: "Aún no hay trabajos. ¡Crea el primero! ✨", borrar: "¿Eliminar este trabajo?",
+    vista: true, // al tocar una tarjeta se abre primero una nota sencilla (la tuerca abre la edición)
+    finalizar: true, // cada tarjeta lleva el botón «Marcar tarea como finalizada» (pasa al Diario)
+  },
+  {
+    // Sección propia (se abre desde el botón «Pedidos de Yeso» de la barra lateral, no desde el menú superior)
+    seccion: "pedidos-yeso", etiqueta: "Pedidos de Yeso", datos: "tus pedidos de yeso",
+    crear: "+ Crear pedido", nuevo: "Nuevo pedido", editar: "Editar pedido",
+    guardar: "Guardar pedido", marcador: "Escribe un pedido nuevo…",
+    vacio: "Aún no hay pedidos de yeso. ¡Crea el primero! ✨", borrar: "¿Eliminar este pedido?",
   },
 ];
 
@@ -2294,6 +2344,7 @@ function crearZonaEtiqueta(cfg) {
     lista: q(".zona-lista"),
     editando: null, // nota que se está editando (null = nueva)
     color: "Blanco",
+    snap: "", // valores del formulario al abrirlo (para saber si se cambió algo)
   };
 
   // ----- Color (igual que en Notas: pasteles, paleta completa y selector libre) -----
@@ -2348,6 +2399,63 @@ function crearZonaEtiqueta(cfg) {
   });
   elegirColorZona("Blanco");
 
+  // ----- Nota sencilla (solo nombre, fecha y descripción); la tuerca abre la edición -----
+  let vista = null;
+  if (cfg.vista) {
+    vista = document.createElement("div");
+    vista.className = "zona-vista";
+    vista.hidden = true;
+    vista.innerHTML = `
+      <div class="zona-vista-caja" role="dialog" aria-modal="true">
+        <div class="zona-vista-botones">
+          <button type="button" class="zona-vista-btn zona-vista-cerrar" aria-label="Cerrar" title="Cerrar">&times;</button>
+          <button type="button" class="zona-vista-btn zona-vista-tuerca" aria-label="Modificar" title="Modificar">&#9881;&#65039;</button>
+        </div>
+        <h3 class="zona-vista-nombre"></h3>
+        <div class="zona-vista-fecha"></div>
+        <p class="zona-vista-texto"></p>
+      </div>`;
+    cont.appendChild(vista);
+  }
+  let viendo = null;
+  function cerrarVista() {
+    if (!vista) return;
+    vista.hidden = true;
+    viendo = null;
+  }
+  function abrirVista(n) {
+    viendo = n;
+    const caja = vista.querySelector(".zona-vista-caja");
+    const hex = hexDeColor(n.color);
+    caja.style.setProperty("--fondo", hex);
+    aplicarContraste(caja, hex);
+    vista.querySelector(".zona-vista-nombre").textContent = n.nombre || "Sin nombre";
+    vista.querySelector(".zona-vista-fecha").textContent = n.fecha || "";
+    vista.querySelector(".zona-vista-texto").textContent = n.texto || "";
+    vista.hidden = false;
+    vista.querySelector(".zona-vista-cerrar").focus();
+  }
+  // Al tocar una tarjeta: nota sencilla (si la zona la usa) o edición directa
+  function abrirTarjeta(n) {
+    if (vista) abrirVista(n);
+    else abrirEdicion(n);
+  }
+  if (vista) {
+    vista.querySelector(".zona-vista-cerrar").addEventListener("click", cerrarVista);
+    vista.querySelector(".zona-vista-tuerca").addEventListener("click", () => {
+      const n = viendo;
+      cerrarVista();
+      if (n) abrirEdicion(n);
+    });
+    // Tocar el fondo oscuro (fuera de la nota) la cierra; Esc también
+    vista.addEventListener("click", (e) => {
+      if (e.target === vista) cerrarVista();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !vista.hidden) cerrarVista();
+    });
+  }
+
   // ----- Formulario -----
   function limpiarForm() {
     z.texto.value = "";
@@ -2367,6 +2475,7 @@ function crearZonaEtiqueta(cfg) {
       z.fecha.value = fechaActualInput();
       setEstado(z.estado, "");
       z.nombre.focus();
+      z.snap = z.valores();
     }
   }
   function cancelar() {
@@ -2376,9 +2485,7 @@ function crearZonaEtiqueta(cfg) {
 
   // Tocar una tarjeta: el mismo formulario, con sus datos, aquí mismo en la zona
   function abrirEdicion(n) {
-    const borrador = !z.editando && !z.form.hidden &&
-      (z.texto.value.trim() || z.nombre.value.trim() || z.ident.value.trim());
-    if (borrador && !window.confirm("Tienes un formulario sin guardar. ¿Descartarlo para editar este?")) return;
+    if (z.sucio() && !window.confirm("Tienes cambios sin guardar. ¿Descartarlos para editar este?")) return;
     z.editando = n;
     z.nombre.value = n.nombre === "Sin nombre" ? "" : n.nombre || "";
     const c = String(n.color || "").trim();
@@ -2393,6 +2500,7 @@ function crearZonaEtiqueta(cfg) {
     z.form.hidden = false;
     z.nuevoBtn.hidden = true;
     z.form.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    z.snap = z.valores();
     z.nombre.focus();
   }
 
@@ -2448,6 +2556,31 @@ function crearZonaEtiqueta(cfg) {
     }
   }
 
+  // ----- Finalizar un trabajo: sale de Notas y entra al Diario, en el día de hoy -----
+  async function finalizar(n, botonSi) {
+    const ahora = new Date();
+    const fecha = claveFecha(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    botonSi.disabled = true;
+    setEstado(z.estadoLista, "Finalizando…");
+    try {
+      await llamarNotas("trabajo_finalizar", { id: n.id, fecha });
+      notas = notas.filter((x) => x.id !== n.id);
+      if (z.editando && z.editando.id === n.id) cancelar();
+      dibujarNotas(); // el trabajo desaparece de Trabajo y de la lista de Notas
+      registrarTerminadoEnDiario({
+        id: n.id,
+        nombre: n.nombre || "Sin nombre",
+        fecha,
+        descripcion: n.texto || "",
+        terminado: true,
+      });
+      setEstado(z.estadoLista, "Trabajo finalizado ✓ (ya está en el Diario)", "ok");
+    } catch (e) {
+      botonSi.disabled = false;
+      setEstado(z.estadoLista, "Error: " + e.message, "error");
+    }
+  }
+
   // ----- Lista de tarjetas (solo las de esta etiqueta) -----
   function crearTarjeta(n) {
     const hex = hexDeColor(n.color);
@@ -2486,19 +2619,57 @@ function crearZonaEtiqueta(cfg) {
     });
     tarjeta.append(fecha, texto, x);
 
+    // Botón «Marcar tarea como finalizada»: pide confirmación y pasa el trabajo al Diario
+    if (cfg.finalizar) {
+      const fin = document.createElement("div");
+      fin.className = "tarjeta-finalizar";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tarjeta-fin-btn";
+      btn.textContent = "✔ Marcar tarea como finalizada";
+      const conf = document.createElement("div");
+      conf.className = "tarjeta-fin-conf";
+      conf.hidden = true;
+      const aviso = document.createElement("p");
+      aviso.className = "tarjeta-fin-aviso";
+      aviso.textContent = "¿Seguro? Se quitará de Trabajo y pasará al Diario con la fecha de hoy.";
+      const si = document.createElement("button");
+      si.type = "button";
+      si.className = "tarjeta-fin-si";
+      si.textContent = "Sí, finalizar";
+      const no = document.createElement("button");
+      no.type = "button";
+      no.className = "tarjeta-fin-no";
+      no.textContent = "Cancelar";
+      conf.append(aviso, si, no);
+      btn.addEventListener("click", () => {
+        btn.hidden = true;
+        conf.hidden = false;
+      });
+      no.addEventListener("click", () => {
+        conf.hidden = true;
+        btn.hidden = false;
+      });
+      si.addEventListener("click", () => finalizar(n, si));
+      // Tocar esta zona no abre la nota
+      fin.addEventListener("click", (e) => e.stopPropagation());
+      fin.append(btn, conf);
+      tarjeta.appendChild(fin);
+    }
+
     // Tocar la tarjeta en cualquier zona abre su edición (la × sigue con su función)
     tarjeta.tabIndex = 0;
     tarjeta.setAttribute("role", "button");
-    tarjeta.setAttribute("aria-label", "Editar " + (n.nombre || "Sin nombre"));
+    tarjeta.setAttribute("aria-label", (vista ? "Ver " : "Editar ") + (n.nombre || "Sin nombre"));
     tarjeta.addEventListener("click", (e) => {
       if (e.target.closest("button, input")) return;
       if (String(window.getSelection()).length) return; // si estaba seleccionando texto, no se abre
-      abrirEdicion(n);
+      abrirTarjeta(n);
     });
     tarjeta.addEventListener("keydown", (e) => {
       if (e.target === tarjeta && (e.key === "Enter" || e.key === " ")) {
         e.preventDefault();
-        abrirEdicion(n);
+        abrirTarjeta(n);
       }
     });
     return tarjeta;
@@ -2522,15 +2693,25 @@ function crearZonaEtiqueta(cfg) {
     const dentro = sesionVigente();
     z.sinSesion.hidden = dentro;
     z.contenido.hidden = !dentro;
-    if (!dentro) cancelar();
+    if (!dentro) {
+      cerrarVista();
+      cancelar();
+    }
     return dentro;
+  };
+
+  z.valores = () => JSON.stringify([z.nombre.value, z.color, z.fecha.value, z.ident.value, z.texto.value]);
+  z.sucio = () => !z.form.hidden && z.valores() !== z.snap;
+  z.cancelar = cancelar;
+  const cancelarConAviso = () => {
+    if (!z.sucio() || window.confirm(MENSAJE_ABANDONAR)) cancelar();
   };
 
   z.nuevoBtn.addEventListener("click", () => mostrarForm(true));
   z.guardarBtn.addEventListener("click", guardar);
-  z.form.querySelector(".zona-cancelar").addEventListener("click", cancelar);
+  z.form.querySelector(".zona-cancelar").addEventListener("click", cancelarConAviso);
   z.form.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") cancelar();
+    if (e.key === "Escape") cancelarConAviso();
   });
   q(".zona-actualizar").addEventListener("click", () => {
     if (sesionVigente()) cargarNotasZonas();
@@ -2577,6 +2758,15 @@ function actualizarZonasEtiqueta() {
     cargarNotasZonas();
   }
 }
+
+// Botón «Pedidos de Yeso» de la barra lateral: abre su propia sección (aparte de Notas)
+document.getElementById("btn-yeso").addEventListener("click", () => {
+  cerrarLateral();
+  mostrarSeccion("pedidos-yeso");
+  const z = zonas.find((x) => x.cfg.seccion === "pedidos-yeso");
+  if (z.actualizar() && !notasCargadas) cargarNotasZonas();
+  else z.dibujar();
+});
 
 // Al abrir una de estas secciones se muestra su zona (y se leen las notas si aún no se han leído)
 botonesMenu.forEach((b) =>
@@ -2902,12 +3092,20 @@ async function cargarEjercicios() {
     setEstado(ejEstado, "");
     dibujarCalendarioEj();
     if (ejDia) dibujarChipsEj();
+    // El Diario también muestra los ejercicios hechos cada día
+    dibujarCalendarioDi();
+    if (diDia) dibujarChipsDi();
   } catch (err) {
     setEstado(ejEstado, "Error: " + err.message, "error");
   }
 }
 
 function actualizarPanelEjercicio() {
+  if (!sesionVigente()) {
+    // Sin sesión no se guardan datos en pantalla (el Diario también usa estos ejercicios)
+    ejCargados = false;
+    ejercicios = [];
+  }
   if (panelEj.hidden) return;
   const dentro = sesionVigente();
   ejSinSesion.hidden = dentro;
@@ -2993,6 +3191,10 @@ const diDescripcion = diEl("di-descripcion");
 const diGuardar = diEl("di-guardar");
 const diBorrar = diEl("di-borrar");
 const diFormEstado = diEl("di-form-estado");
+const diEjSub = diEl("di-ejercicios");
+const diEjTitulo = diEl("di-ej-titulo");
+const diEjChips = diEl("di-ej-chips");
+const diEjDetalle = diEl("di-ej-detalle");
 
 let diarios = []; // [{ id, nombre, fecha: "AAAA-MM-DD", descripcion }]
 let diCargados = false;
@@ -3005,6 +3207,15 @@ MESES.forEach((n, i) => diSelMes.add(new Option(n, i)));
 for (let a = ANIO_MIN; a <= ANIO_MAX; a++) diSelAnio.add(new Option(a, a));
 
 const diDeDia = (fecha) => diarios.filter((e) => e.fecha === fecha);
+
+// Un trabajo recién finalizado aparece en el Diario sin tener que recargar
+// (si el Diario aún no se ha leído, se leerá completo al abrirlo)
+function registrarTerminadoEnDiario(e) {
+  if (!diCargados) return;
+  if (!diarios.some((x) => x.id === e.id)) diarios.push(e);
+  dibujarCalendarioDi();
+  if (diDia) dibujarChipsDi();
+}
 
 // ----- Calendario de anotación (igual al principal, pero con sus propios datos) -----
 function dibujarCalendarioDi() {
@@ -3037,7 +3248,7 @@ function dibujarCalendarioDi() {
     if ((primerDia + d - 1) % 7 >= 5) el.classList.add("finde");
     if (d === ahora.getDate() && diMes === ahora.getMonth() && diAnio === ahora.getFullYear()) el.classList.add("hoy");
     if (fecha === diDia) el.classList.add("seleccionado");
-    if (diDeDia(fecha).length) el.classList.add("con-datos");
+    if (diDeDia(fecha).length || ejDeDia(fecha).length) el.classList.add("con-datos");
     el.addEventListener("click", () => abrirDiaDi(fecha));
     diCuad.appendChild(el);
   }
@@ -3054,13 +3265,28 @@ function diCambiarMes(delta) {
 // ----- Submenú del día: un botón cuadrado por anotación + un "+" para añadir -----
 function dibujarChipsDi() {
   diChips.innerHTML = "";
+  // Si ese día hiciste ejercicio, aparece un cuadro «Ejercicio» (al tocarlo se ven los ejercicios hechos)
+  const hechos = ejDeDia(diDia);
+  if (hechos.length) {
+    const ej = document.createElement("button");
+    ej.type = "button";
+    ej.className = "ej-chip ej-chip-ejercicio";
+    ej.title = "Ejercicio hecho este día";
+    ej.setAttribute("aria-label", "Ver los " + hechos.length + " ejercicios hechos este día");
+    ej.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">💪</span><span class="ej-chip-nombre"></span>';
+    ej.querySelector(".ej-chip-nombre").textContent = "Ejercicio (" + hechos.length + ")";
+    ej.addEventListener("click", abrirEjerciciosDi);
+    diChips.appendChild(ej);
+  }
   diDeDia(diDia).forEach((e) => {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "ej-chip";
     b.title = e.nombre;
     b.setAttribute("aria-label", "Ver o editar la anotación " + e.nombre);
-    b.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">📓</span><span class="ej-chip-nombre"></span>';
+    b.innerHTML = '<span class="ej-chip-icono" aria-hidden="true"></span><span class="ej-chip-nombre"></span>';
+    b.querySelector(".ej-chip-icono").textContent = e.terminado ? "✅" : "📓";
+    if (e.terminado) b.title = e.nombre + " (trabajo terminado)";
     b.querySelector(".ej-chip-nombre").textContent = e.nombre;
     b.addEventListener("click", () => abrirFormDi(e));
     diChips.appendChild(b);
@@ -3082,7 +3308,56 @@ function abrirDiaDi(fecha) {
   diDiaPanel.hidden = false;
   dibujarCalendarioDi();
 }
+// ----- Ejercicios hechos ese día (se leen de la hoja «Ejercicio»): mini cuadros con descripción breve -----
+function resumenCorto(t, max) {
+  const x = String(t || "").replace(/\s+/g, " ").trim();
+  if (!x) return "Sin descripción";
+  return x.length > max ? x.slice(0, max).trimEnd() + "…" : x;
+}
+
+function dibujarEjerciciosDi() {
+  diEjChips.innerHTML = "";
+  ejDeDia(diDia).forEach((e) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ej-chip ej-chip-resumen";
+    b.setAttribute("aria-label", "Ver todo el ejercicio " + e.nombre);
+    const n = document.createElement("span");
+    n.className = "ej-chip-nombre";
+    n.textContent = e.nombre;
+    const d = document.createElement("span");
+    d.className = "ej-chip-desc";
+    d.textContent = resumenCorto(e.descripcion, 70);
+    b.append(n, d);
+    b.addEventListener("click", () => abrirDetalleEjDi(e));
+    diEjChips.appendChild(b);
+  });
+}
+
+function abrirEjerciciosDi() {
+  if (!diDia) return;
+  diEjTitulo.textContent = "💪 Ejercicio · " + textoFecha(diDia);
+  dibujarEjerciciosDi();
+  diEjSub.hidden = false;
+}
+
+function abrirDetalleEjDi(e) {
+  diEl("di-ej-detalle-nombre").textContent = e.nombre || "Sin nombre";
+  diEl("di-ej-detalle-fecha").textContent = textoFecha(e.fecha);
+  diEl("di-ej-detalle-texto").textContent = e.descripcion || "Sin descripción";
+  diEjDetalle.hidden = false;
+  diEl("di-ej-detalle-cerrar").focus();
+}
+function cerrarDetalleEjDi() {
+  diEjDetalle.hidden = true;
+}
+function cerrarEjerciciosDi() {
+  cerrarDetalleEjDi();
+  diEjSub.hidden = true;
+}
+
 function cerrarDiaDi() {
+  cerrarEjerciciosDi();
   cerrarFormDi();
   diDiaPanel.hidden = true;
   diDia = null;
@@ -3092,7 +3367,7 @@ function cerrarDiaDi() {
 // ----- Ventana para añadir / editar -----
 function abrirFormDi(e) {
   diEditando = e;
-  diFormTitulo.textContent = e ? "Editar anotación" : "Nueva anotación";
+  diFormTitulo.textContent = e ? (e.terminado ? "Editar trabajo terminado ✅" : "Editar anotación") : "Nueva anotación";
   diNombre.value = e ? e.nombre : "";
   diDescripcion.value = e ? e.descripcion : "";
   diBorrar.hidden = !e;
@@ -3113,7 +3388,13 @@ async function guardarDi() {
   }
   const editando = diEditando;
   const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
-  const e = { id, nombre, fecha: editando ? editando.fecha : diDia, descripcion: diDescripcion.value.trim() };
+  const e = {
+    id,
+    nombre,
+    fecha: editando ? editando.fecha : diDia,
+    descripcion: diDescripcion.value.trim(),
+    terminado: editando ? !!editando.terminado : false, // solo informativo: el Apps Script no toca la columna D
+  };
   diGuardar.disabled = true;
   setEstado(diFormEstado, "Guardando…");
   try {
@@ -3163,6 +3444,18 @@ async function cargarDiarios() {
   }
 }
 
+// El Diario también muestra los ejercicios hechos: si aún no se han leído, se leen aquí
+let ejCargando = false;
+async function cargarEjerciciosParaDiario() {
+  if (ejCargados || ejCargando || !sesionVigente()) return;
+  ejCargando = true;
+  try {
+    await cargarEjercicios();
+  } finally {
+    ejCargando = false;
+  }
+}
+
 function actualizarPanelDiario() {
   if (panelDi.hidden) return;
   const dentro = sesionVigente();
@@ -3170,6 +3463,7 @@ function actualizarPanelDiario() {
   diContenido.hidden = !dentro;
   if (dentro) {
     if (!diCargados) cargarDiarios();
+    cargarEjerciciosParaDiario();
   } else {
     diCargados = false;
     diarios = [];
@@ -3191,6 +3485,7 @@ function entrarDiario() {
 }
 // Diario ya es una página: aquí solo se cierran el formulario y el submenú del día
 function cerrarDiario() {
+  cerrarEjerciciosDi();
   cerrarFormDi();
   diDiaPanel.hidden = true;
   diDia = null;
@@ -3198,8 +3493,10 @@ function cerrarDiario() {
 
 diEl("di-cerrar").addEventListener("click", cerrarDiario);
 diEl("di-actualizar").addEventListener("click", () => {
-  if (sesionVigente()) cargarDiarios();
-  else actualizarPanelDiario();
+  if (sesionVigente()) {
+    cargarDiarios();
+    cargarEjercicios(); // también vuelve a leer los ejercicios
+  } else actualizarPanelDiario();
 });
 diEl("di-ir-login").addEventListener("click", () => {
   cerrarDiario();
@@ -3219,10 +3516,18 @@ diEl("di-dia-volver").addEventListener("click", cerrarDiaDi);
 diGuardar.addEventListener("click", guardarDi);
 diEl("di-cancelar").addEventListener("click", cerrarFormDi);
 diBorrar.addEventListener("click", borrarDi);
-// Esc cierra primero la ventana y luego el submenú del día
+diEl("di-ej-volver").addEventListener("click", cerrarEjerciciosDi);
+diEl("di-ej-detalle-cerrar").addEventListener("click", cerrarDetalleEjDi);
+// Tocar el fondo oscuro (fuera de la ventana) cierra la información del ejercicio
+diEjDetalle.addEventListener("click", (e) => {
+  if (e.target === diEjDetalle) cerrarDetalleEjDi();
+});
+// Esc cierra primero la información del ejercicio, luego sus cuadros, la ventana y por último el submenú del día
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelDi.hidden) return;
-  if (!diForm.hidden) cerrarFormDi();
+  if (!diEjDetalle.hidden) cerrarDetalleEjDi();
+  else if (!diEjSub.hidden) cerrarEjerciciosDi();
+  else if (!diForm.hidden) cerrarFormDi();
   else if (!diDiaPanel.hidden) cerrarDiaDi();
 });
 

@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="25" />
+  <meta name="app-version" content="30" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=25" />
+  <link rel="stylesheet" href="styles.css?v=30" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -53,7 +53,7 @@
       <span class="btn-lateral-icono" aria-hidden="true">&#128444;&#65039;</span>
       <span>Proyectos</span>
     </button>
-    <!-- Acceso directo: abre las notas con la etiqueta «Pedidos de Yeso» -->
+    <!-- Abre la sección propia de Pedidos de Yeso (sus notas llevan la etiqueta «Pedidos de Yeso») -->
     <button id="btn-yeso" class="btn-lateral-notas btn-lateral-yeso" type="button">
       <span class="btn-lateral-icono" aria-hidden="true">&#128230;</span>
       <span>Pedidos de Yeso</span>
@@ -595,6 +595,29 @@
         </div>
       </div>
 
+      <!-- Ejercicios hechos ese día (se abre desde el cuadro «Ejercicio» del día): un mini cuadro por ejercicio -->
+      <div id="di-ejercicios" class="notas-submenu" hidden>
+        <header class="notas-sub-cabecera">
+          <button id="di-ej-volver" class="notas-btn notas-btn-sec" type="button">‹ Volver</button>
+          <h3 id="di-ej-titulo"></h3>
+        </header>
+        <div class="notas-sub-cuerpo">
+          <div id="di-ej-chips" class="ej-chips"></div>
+        </div>
+      </div>
+
+      <!-- Información completa de un ejercicio hecho -->
+      <div id="di-ej-detalle" class="zona-vista" hidden>
+        <div class="zona-vista-caja" role="dialog" aria-modal="true" aria-labelledby="di-ej-detalle-nombre">
+          <div class="zona-vista-botones">
+            <button id="di-ej-detalle-cerrar" type="button" class="zona-vista-btn" aria-label="Cerrar" title="Cerrar">&times;</button>
+          </div>
+          <h3 id="di-ej-detalle-nombre" class="zona-vista-nombre"></h3>
+          <div id="di-ej-detalle-fecha" class="zona-vista-fecha"></div>
+          <p id="di-ej-detalle-texto" class="zona-vista-texto"></p>
+        </div>
+      </div>
+
       <!-- Ventana para agregar o editar una anotación -->
       <div id="di-form" class="notas-nueva modo-editar" hidden>
         <h3 id="di-form-titulo" class="notas-form-titulo">Nueva anotación</h3>
@@ -617,6 +640,13 @@
   </div>
     </section>
 
+    <!-- PEDIDOS DE YESO (sección propia; se abre desde la barra lateral) -->
+    <section id="pedidos-yeso" class="seccion" hidden>
+      <h2>&#128230; Pedidos de Yeso</h2>
+      <!-- Zona con el formulario de notas y la etiqueta «Pedidos de Yeso» (la arma app.js; usa la hoja «Notas») -->
+      <div id="zona-pedidos-yeso" class="zona-etiqueta"></div>
+    </section>
+
     <!-- ACTIVIDADES -->
     <section id="actividades" class="seccion" hidden>
       <h2>Actividades</h2>
@@ -632,8 +662,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=25"></script>
-  <script src="app.js?v=25"></script>
-  <script type="module" src="firebase.js?v=25"></script>
+  <script src="config.js?v=30"></script>
+  <script src="app.js?v=30"></script>
+  <script type="module" src="firebase.js?v=30"></script>
 </body>
 </html>
