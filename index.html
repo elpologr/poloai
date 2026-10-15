@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="8" />
+  <meta name="app-version" content="10" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=8" />
+  <link rel="stylesheet" href="styles.css?v=10" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -42,7 +42,58 @@
       </div>
       <button id="cuenta-salir" class="btn-salir" type="button">Cerrar sesión</button>
     </div>
+
+    <!-- Herramientas -->
+    <hr class="lateral-separador" />
+    <button id="btn-notas" class="btn-lateral-notas" type="button">
+      <span class="btn-lateral-icono" aria-hidden="true">&#128221;</span>
+      <span>Notas</span>
+    </button>
   </aside>
+
+  <!-- Panel grande de Notas (azul pastel). Las notas viven en la segunda hoja de Google Sheets -->
+  <div id="panel-notas" class="panel-notas" hidden>
+    <div class="notas-caja" role="dialog" aria-modal="true" aria-labelledby="notas-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#9729;&#65039;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#127769;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+        <span class="decor decor-6">&#128153;</span>
+      </div>
+
+      <header class="notas-cabecera">
+        <h2 id="notas-titulo">Notas</h2>
+        <div class="notas-cab-botones">
+          <button id="notas-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer las notas de Google Sheets" aria-label="Actualizar notas">&#8635;</button>
+          <button id="notas-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar notas">&times;</button>
+        </div>
+      </header>
+
+      <div class="notas-cuerpo">
+        <!-- Sin sesión -->
+        <div id="notas-sin-sesion" class="notas-aviso-sesion" hidden>
+          <p>Inicia sesión con tu cuenta de Google para ver y guardar tus notas.</p>
+          <button id="notas-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
+        </div>
+
+        <!-- Con sesión -->
+        <div id="notas-contenido">
+          <div class="notas-nueva">
+            <textarea id="notas-texto" rows="3" maxlength="5000"
+                      placeholder="Escribe una nota nueva…" aria-label="Nueva nota"></textarea>
+            <div class="notas-fila">
+              <button id="notas-guardar" class="notas-btn" type="button">Guardar nota</button>
+              <span id="notas-estado" class="notas-estado"></span>
+            </div>
+          </div>
+          <div id="notas-lista" class="notas-lista"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <header class="encabezado">
     <h1>Polo AI</h1>
@@ -178,8 +229,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=8"></script>
-  <script src="app.js?v=8"></script>
-  <script type="module" src="firebase.js?v=8"></script>
+  <script src="config.js?v=10"></script>
+  <script src="app.js?v=10"></script>
+  <script type="module" src="firebase.js?v=10"></script>
 </body>
 </html>

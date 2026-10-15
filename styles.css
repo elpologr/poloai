@@ -1,5 +1,5 @@
 :root {
-  --app-version: "8"; /* debe coincidir con VERSION en app.js */
+  --app-version: "10"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -459,3 +459,244 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   cursor: pointer;
 }
 .btn-salir:hover { background: #241c3a; }
+
+/* ---------- Botón "Notas" en la barra lateral ---------- */
+.lateral-separador {
+  margin: 22px 0 16px;
+  border: none;
+  border-top: 1px solid #3b3256;
+}
+.btn-lateral-notas {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  font: inherit;
+  font-weight: 600;
+  color: #12304f;
+  background: linear-gradient(135deg, #d6ecff, #a9d3f7);
+  border: 1px solid #cfe6fb;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.15s;
+}
+.btn-lateral-notas:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.btn-lateral-icono { font-size: 1.2rem; }
+
+/* ---------- Panel de Notas (azul pastel) ---------- */
+.panel-notas {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(10, 25, 50, 0.6);
+}
+.panel-notas[hidden] { display: none; }
+
+.notas-caja {
+  --nb-texto: #1d3a5c;
+  --nb-suave: #55789f;
+  --nb-acento: #4f94d4;
+  --nb-acento-oscuro: #3a7ebd;
+  --nb-borde: #bcd9f3;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(960px, 100%);
+  max-height: min(90vh, 860px);
+  overflow: hidden;
+  color: var(--nb-texto);
+  border: 2px solid #fff;
+  border-radius: 22px;
+  box-shadow: 0 24px 70px rgba(10, 30, 70, 0.55);
+  /* Manchones pastel, como la pantalla inicial pero en azul */
+  background-color: #bfe0fa;
+  background-image:
+    radial-gradient(circle at 10% 14%, rgba(255, 255, 255, 0.85) 0, transparent 30%),
+    radial-gradient(circle at 90% 10%, rgba(214, 236, 255, 0.9) 0, transparent 28%),
+    radial-gradient(circle at 78% 74%, rgba(255, 255, 255, 0.7) 0, transparent 34%),
+    radial-gradient(circle at 14% 88%, rgba(150, 200, 245, 0.7) 0, transparent 32%),
+    radial-gradient(circle at 50% 48%, rgba(126, 184, 238, 0.45) 0, transparent 40%),
+    radial-gradient(circle at 98% 54%, rgba(232, 244, 255, 0.8) 0, transparent 22%);
+}
+
+/* Puntitos acolchados + destellos (en lugar del capitoné morado) */
+.notas-caja::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.8;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cpath d='M30 14l3 9 9 3-9 3-3 9-3-9-9-3 9-3z' fill='white' fill-opacity='.75'/%3E%3Cpath d='M92 72l2 6 6 2-6 2-2 6-2-6-6-2 6-2z' fill='white' fill-opacity='.6'/%3E%3C/svg%3E"),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.85) 0 2px, rgba(120, 175, 225, 0.35) 2.5px 4px, transparent 5px),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.85) 0 2px, rgba(120, 175, 225, 0.35) 2.5px 4px, transparent 5px);
+  background-size: 120px 120px, 40px 40px, 40px 40px;
+  background-position: 0 0, 0 0, 20px 20px;
+}
+
+/* Decoración flotante */
+.notas-decor { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.decor { position: absolute; opacity: 0.85; animation: flotar 6s ease-in-out infinite; }
+.decor-1 { top: 10%; right: 12%; font-size: 2.6rem; }
+.decor-2 { top: 28%; right: 4%; font-size: 1.6rem; animation-delay: -1.5s; }
+.decor-3 { bottom: 9%; right: 9%; font-size: 2rem; animation-delay: -3s; }
+.decor-4 { bottom: 14%; left: 3%; font-size: 3rem; animation-delay: -2s; }
+.decor-5 { top: 40%; left: 2%; font-size: 1.4rem; animation-delay: -4s; }
+.decor-6 { top: 8%; left: 38%; font-size: 1.3rem; animation-delay: -5s; }
+@keyframes flotar {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .decor { animation: none; }
+}
+
+.notas-cabecera,
+.notas-cuerpo { position: relative; z-index: 1; }
+
+.notas-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 22px 10px;
+}
+.notas-cabecera h2 {
+  margin: 0;
+  font-size: 1.7rem;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(40, 100, 170, 0.55);
+}
+.notas-cab-botones { display: flex; gap: 8px; }
+.notas-btn-icono {
+  width: 38px;
+  height: 38px;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--nb-acento-oscuro);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--nb-borde);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.notas-btn-icono:hover { background: #fff; }
+
+.notas-cuerpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 22px 22px;
+}
+
+.notas-nueva {
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--nb-borde);
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(60, 110, 170, 0.18);
+}
+.notas-nueva textarea {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  padding: 10px;
+  font: inherit;
+  color: var(--nb-texto);
+  background: #fff;
+  border: 1px solid var(--nb-borde);
+  border-radius: 10px;
+}
+.notas-nueva textarea:focus { outline: 2px solid var(--nb-acento); outline-offset: -1px; }
+.notas-fila { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+
+.notas-btn {
+  padding: 9px 20px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--nb-acento);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.notas-btn:hover:not(:disabled) { background: var(--nb-acento-oscuro); }
+.notas-btn:disabled { opacity: 0.6; cursor: wait; }
+
+.notas-estado { font-size: 0.88rem; color: var(--nb-suave); }
+.notas-estado.error { color: #c0392b; }
+.notas-estado.ok { color: #1e8a55; }
+
+.notas-aviso-sesion {
+  padding: 22px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--nb-borde);
+  border-radius: 16px;
+}
+.notas-aviso-sesion[hidden],
+#notas-contenido[hidden] { display: none; }
+.notas-aviso-sesion p { margin: 0 0 14px; }
+
+/* Tarjetas de notas */
+.notas-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+.tarjeta-nota {
+  --tono: #8fc3f0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 150px;
+  padding: 26px 14px 12px;
+  background: rgba(255, 255, 255, 0.95);
+  border-top: 7px solid var(--tono);
+  border-radius: 14px;
+  box-shadow: 0 8px 18px rgba(60, 110, 170, 0.2);
+}
+.tarjeta-nota:nth-child(4n + 2) { --tono: #b9a7f0; }
+.tarjeta-nota:nth-child(4n + 3) { --tono: #f5b5c8; }
+.tarjeta-nota:nth-child(4n + 4) { --tono: #9fe0c8; }
+.tarjeta-fecha { margin-bottom: 6px; font-size: 0.78rem; color: var(--nb-suave); }
+.tarjeta-texto {
+  margin: 0;
+  max-height: 230px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tarjeta-borrar {
+  position: absolute;
+  top: 10px;
+  right: 8px;
+  border: none;
+  background: transparent;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--nb-suave);
+  cursor: pointer;
+}
+.tarjeta-borrar:hover { color: #c0392b; }
+.notas-vacio {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 18px;
+  text-align: center;
+  color: var(--nb-suave);
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 14px;
+}
+
+@media (max-width: 480px) {
+  .notas-cabecera { padding: 14px 14px 8px; }
+  .notas-cuerpo { padding: 4px 14px 16px; }
+  .notas-lista { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}

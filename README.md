@@ -6,6 +6,7 @@ Página web sencilla para organizar mi día a día.
 
 - **Calendario**: calendario navegable del año 1930 al 2100. Al hacer clic en un día se abre un panel con tres secciones, una debajo de otra y en este orden: **Descripción**, **Actividades** y **Anotaciones**. El panel tiene fondo negro. Cada sección tiene un botón con flecha que despliega su zona de texto; debajo se muestran siempre los **primeros 4 recuadros** (cuadrados, uno a la derecha del otro) y, si hay más de 4, aparece un botón **Desplegar** que muestra el resto. Cada texto que guardas es un recuadro (tantos como quieras) y empieza con la **fecha y hora** en que lo guardaste (por ejemplo `14/10/2026 21:35`, tomada del reloj de tu dispositivo), en su propia línea antes del texto y en la hoja de Google Sheets todos los de una sección quedan en la misma celda, separados entre paréntesis: `(primero) (segundo)`. Si un texto trae paréntesis sueltos, se guardan como corchetes para no romper el formato. El contenido antiguo sin paréntesis se muestra como un solo recuadro. El botón ↻ vuelve a leer los datos de la hoja por si la editaste a mano.
 - **Menú lateral**: el botón de tres rayas (esquina superior izquierda) abre una barra lateral con el inicio de sesión con Google. Una vez dentro muestra tu foto, nombre y correo, y un botón **Cerrar sesión**. Se cierra con la ×, tocando fuera de la barra o con la tecla Esc.
+- **Notas**: en la barra lateral, debajo del inicio de sesión, el botón **Notas** abre un panel grande azul pastel. Ahí escribes notas libres (cada una guarda su fecha y hora), se ven como tarjetas de colores (las más recientes primero) y se pueden eliminar con la ×. El botón ↻ vuelve a leer la hoja. Las notas **no** van en la hoja del calendario: se guardan en una **segunda hoja llamada `Notas`** del mismo libro de Google Sheets (columnas `Id | Fecha | Nota`), que el Apps Script crea sola la primera vez. Para ver, guardar o borrar notas hay que haber iniciado sesión con la cuenta autorizada.
 - **Actividades**: próximamente.
 - **Pendientes**: próximamente.
 - **Trabajo**: próximamente.
@@ -31,7 +32,7 @@ Si más adelante cambias el código de Apps Script, usa **Implementar → Admini
 
 ## Si algo no se ve o no funciona
 
-`index.html`, `styles.css` y `app.js` deben ser de la **misma versión** (la actual es la 8). Si mezclas archivos viejos con nuevos, el calendario puede quedarse en enero de 1930, los días no abren el panel o el fondo no cambia a morado. En ese caso la página muestra un aviso amarillo arriba que indica qué archivo está desactualizado. Solución: sube de nuevo **todos** los archivos del proyecto a GitHub (reemplazando los anteriores) y recarga con Ctrl+F5 (en Mac: Cmd+Shift+R).
+`index.html`, `styles.css` y `app.js` deben ser de la **misma versión** (la actual es la 10). Si mezclas archivos viejos con nuevos, el calendario puede quedarse en enero de 1930, los días no abren el panel o el fondo no cambia a morado. En ese caso la página muestra un aviso amarillo arriba que indica qué archivo está desactualizado. Solución: sube de nuevo **todos** los archivos del proyecto a GitHub (reemplazando los anteriores) y recarga con Ctrl+F5 (en Mac: Cmd+Shift+R).
 
 Al abrir o recargar la página (F5) el **Calendario** aparece de primeras, en el mes y el año actuales. Al pulsar **Calendario** siempre se muestra el mes y el año actuales.
 
@@ -43,7 +44,21 @@ Al abrir o recargar la página (F5) el **Calendario** aparece de primeras, en el
 4. En **Orígenes autorizados de JavaScript** agrega la dirección donde publicas la página, solo el dominio y sin ruta (por ejemplo `https://elpologr.github.io`). Para probar en tu computadora agrega también `http://localhost:8000` (y ábrela con un servidor local; con `file://` Google no funciona).
 5. Copia el **ID de cliente** (termina en `.apps.googleusercontent.com`) y pégalo en `config.js`, en `GOOGLE_CLIENT_ID`.
 
-Nota: por ahora el inicio de sesión solo identifica quién entró (nombre, correo y foto). No protege la hoja de Google Sheets: eso sigue dependiendo de la URL y la clave de `config.js`.
+## Quién puede modificar la hoja
+
+Solo la cuenta de Google escrita en `CORREO_AUTORIZADO` (dentro de `google-apps-script.gs`) puede guardar o borrar recuadros. La página manda al Apps Script el token del inicio de sesión de Google y el Apps Script lo verifica con Google en cada guardado: debe ser auténtico, vigente, de tu página (`CLIENT_ID`) y de ese correo. Si no, responde con un error y no toca la hoja.
+
+- Para guardar hay que **iniciar sesión** en la barra lateral con esa cuenta. Si no lo has hecho, la página abre la barra y avisa.
+- El token de Google dura cerca de 1 hora; al vencer, la página intenta volver a entrar sola y, si no puede, vuelve a mostrar el botón de Google.
+- Para cambiar la cuenta autorizada, edita `CORREO_AUTORIZADO` en `google-apps-script.gs` y publica una **nueva versión** de la implementación.
+- `CLIENT_ID` en `google-apps-script.gs` debe ser igual a `GOOGLE_CLIENT_ID` de `config.js`.
+- **Importante:** la restricción del calendario es para *modificar*. Leer los datos del calendario sigue necesitando solo la URL y la clave (`TOKEN`) de `config.js`, que quedan visibles para quien abra tu página. Las **notas** sí son privadas: tanto leerlas como guardarlas o borrarlas exige iniciar sesión con la cuenta autorizada.
+
+### Después de cambiar el Apps Script
+
+1. Pega el nuevo `google-apps-script.gs` en el editor de Apps Script y guarda.
+2. Si es la primera vez que usas esta versión: elige la función `autorizarPermisos` en el menú de funciones, pulsa **Ejecutar** y acepta los permisos (el script se conecta a Google para verificar el inicio de sesión). Si ya lo hiciste antes, este paso se puede omitir; si Google pide permisos nuevos (por la segunda hoja), acéptalos.
+3. Ve a **Implementar → Administrar implementaciones → Editar (lápiz) → Versión: Nueva versión → Implementar**. La URL `/exec` se mantiene igual.
 
 ## Firebase
 
@@ -55,8 +70,8 @@ El proyecto de Firebase (`velas-kukumita`) ya está conectado. Su configuración
 
 ## Seguridad
 
-- Mantén el repositorio **privado**: `config.js` contiene la URL y la clave de acceso a tu hoja.
-- Quien tenga la URL y la clave puede leer y escribir en la hoja, así que no las compartas.
+- Quien tenga la URL y la clave de `config.js` puede **leer** la hoja, así que no las compartas más de lo necesario.
+- **Modificar** la hoja solo lo puede hacer la cuenta autorizada (ver "Quién puede modificar la hoja").
 
 ## Archivos
 

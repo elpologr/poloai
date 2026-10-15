@@ -1,14 +1,14 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "8";
+const VERSION = "10";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
     "calendario", "cal-mes", "cal-anio", "cal-anterior", "cal-siguiente",
     "cal-hoy", "cal-actualizar", "cal-cuadricula", "cal-estado",
     "dia-popover", "pop-titulo", "pop-cerrar", "pop-secciones",
-    "btn-menu-lateral", "barra-lateral", "google-boton",
+    "btn-menu-lateral", "barra-lateral", "google-boton", "btn-notas", "panel-notas",
   ];
   const problemas = [];
 
@@ -103,11 +103,17 @@ async function cargarDatos() {
 
 async function guardarCampo(fecha, campo, valor) {
   if (!configurado()) throw new Error("Falta configurar config.js");
+  // Para modificar la hoja hace falta haber iniciado sesión con Google
+  const idToken = credencialVigente();
+  if (!idToken) {
+    abrirLateral();
+    throw new Error("Inicia sesión con Google para guardar");
+  }
   // text/plain evita el "preflight" de CORS con Apps Script
   const r = await fetch(CONFIG.APPS_SCRIPT_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ token: CONFIG.TOKEN, fecha, campo, valor }),
+    body: JSON.stringify({ token: CONFIG.TOKEN, idToken, fecha, campo, valor }),
   });
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || "Error al guardar");
@@ -570,11 +576,49 @@ const cuentaNombre = document.getElementById("cuenta-nombre");
 const cuentaCorreo = document.getElementById("cuenta-correo");
 const btnSalir = document.getElementById("cuenta-salir");
 
-let usuario = null; // { nombre, correo, foto }
+let usuario = null; // { nombre, correo, foto, credencial, exp }
 try {
   usuario = JSON.parse(localStorage.getItem(CLAVE_SESION));
 } catch (e) {
   usuario = null;
+}
+
+// La credencial de Google dura cerca de 1 hora. Pasado ese tiempo hay que volver a entrar
+// (si ya habías aceptado antes, Google suele volver a iniciar sesión solo).
+function sesionVigente() {
+  return !!(usuario && usuario.credencial && usuario.exp * 1000 > Date.now() + 15000);
+}
+
+function credencialVigente() {
+  return sesionVigente() ? usuario.credencial : null;
+}
+
+let sesionCaducada = false; // había una sesión guardada pero ya venció
+if (usuario && !sesionVigente()) {
+  usuario = null;
+  sesionCaducada = true;
+  try {
+    localStorage.removeItem(CLAVE_SESION);
+  } catch (e) {}
+}
+
+let temporizadorSesion = null;
+function programarCaducidad() {
+  clearTimeout(temporizadorSesion);
+  if (!usuario) return;
+  const ms = Math.max(usuario.exp * 1000 - Date.now() - 15000, 0);
+  temporizadorSesion = setTimeout(expirarSesion, ms);
+}
+
+// Vence la credencial: se cierra la sesión en pantalla y se intenta volver a entrar sola
+function expirarSesion() {
+  usuario = null;
+  try {
+    localStorage.removeItem(CLAVE_SESION);
+  } catch (e) {}
+  dibujarCuenta();
+  actualizarPanelNotas();
+  if (window.google && google.accounts && google.accounts.id) google.accounts.id.prompt();
 }
 
 // El token de Google (JWT) trae los datos de la cuenta en su parte central, en base64
@@ -603,11 +647,20 @@ function dibujarCuenta() {
 function respuestaGoogle(resp) {
   try {
     const p = decodificarJWT(resp.credential);
-    usuario = { nombre: p.name || "", correo: p.email || "", foto: p.picture || "" };
+    usuario = {
+      nombre: p.name || "",
+      correo: p.email || "",
+      foto: p.picture || "",
+      credencial: resp.credential,
+      exp: p.exp,
+    };
     try {
       localStorage.setItem(CLAVE_SESION, JSON.stringify(usuario));
     } catch (e) {}
+    googleAviso.hidden = true;
     dibujarCuenta();
+    programarCaducidad();
+    actualizarPanelNotas();
   } catch (e) {
     googleAviso.textContent = "No se pudo iniciar sesión: " + e.message;
     googleAviso.hidden = false;
@@ -615,6 +668,7 @@ function respuestaGoogle(resp) {
 }
 
 function cerrarSesion() {
+  clearTimeout(temporizadorSesion);
   usuario = null;
   try {
     localStorage.removeItem(CLAVE_SESION);
@@ -623,6 +677,7 @@ function cerrarSesion() {
     google.accounts.id.disableAutoSelect();
   }
   dibujarCuenta();
+  actualizarPanelNotas();
 }
 btnSalir.addEventListener("click", cerrarSesion);
 
@@ -641,6 +696,7 @@ function iniciarGoogle() {
     google.accounts.id.initialize({
       client_id: CONFIG.GOOGLE_CLIENT_ID,
       callback: respuestaGoogle,
+      auto_select: true,
     });
     google.accounts.id.renderButton(googleBoton, {
       theme: "filled_black",
@@ -648,6 +704,8 @@ function iniciarGoogle() {
       text: "signin_with",
       locale: "es",
     });
+    // Si había una sesión que ya venció, intenta entrar de nuevo sin pedirte nada
+    if (sesionCaducada) google.accounts.id.prompt();
   };
   s.onerror = () => {
     googleAviso.textContent = "No se pudo cargar el servicio de Google. Revisa tu conexión.";
@@ -656,7 +714,159 @@ function iniciarGoogle() {
   document.head.appendChild(s);
 }
 
+// ---------- Notas (segunda hoja de Google Sheets) ----------
+const btnNotas = document.getElementById("btn-notas");
+const panelNotas = document.getElementById("panel-notas");
+const notasSinSesion = document.getElementById("notas-sin-sesion");
+const notasContenido = document.getElementById("notas-contenido");
+const notasTexto = document.getElementById("notas-texto");
+const notasGuardar = document.getElementById("notas-guardar");
+const notasEstado = document.getElementById("notas-estado");
+const notasLista = document.getElementById("notas-lista");
+
+let notas = []; // [{ id, fecha, texto }]
+let notasCargadas = false;
+
+// Llama al Apps Script para las notas (siempre con la sesión de Google)
+async function llamarNotas(accion, extra) {
+  if (!configurado()) throw new Error("Falta configurar config.js");
+  const idToken = credencialVigente();
+  if (!idToken) throw new Error("Inicia sesión con Google");
+  // text/plain evita el "preflight" de CORS con Apps Script
+  const r = await fetch(CONFIG.APPS_SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(Object.assign({ token: CONFIG.TOKEN, idToken, accion }, extra || {})),
+  });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || "Error");
+  return j;
+}
+
+function dibujarNotas() {
+  notasLista.innerHTML = "";
+  if (!notas.length) {
+    const p = document.createElement("p");
+    p.className = "notas-vacio";
+    p.textContent = "Aún no hay notas. ¡Escribe la primera! ✨";
+    notasLista.appendChild(p);
+    return;
+  }
+  // Las más recientes primero (el id es la hora en milisegundos)
+  const ordenadas = notas.slice().sort((x, y) => Number(y.id) - Number(x.id));
+  ordenadas.forEach((n) => {
+    const tarjeta = document.createElement("div");
+    tarjeta.className = "tarjeta-nota";
+    const fecha = document.createElement("div");
+    fecha.className = "tarjeta-fecha";
+    fecha.textContent = n.fecha;
+    const texto = document.createElement("p");
+    texto.className = "tarjeta-texto";
+    texto.textContent = n.texto;
+    const borrar = document.createElement("button");
+    borrar.type = "button";
+    borrar.className = "tarjeta-borrar";
+    borrar.setAttribute("aria-label", "Eliminar nota");
+    borrar.textContent = "×";
+    borrar.addEventListener("click", () => borrarNota(n.id));
+    tarjeta.append(fecha, texto, borrar);
+    notasLista.appendChild(tarjeta);
+  });
+}
+
+async function cargarNotas() {
+  setEstado(notasEstado, "Cargando…");
+  try {
+    const j = await llamarNotas("nota_listar");
+    notas = Array.isArray(j.notas) ? j.notas : [];
+    notasCargadas = true;
+    dibujarNotas();
+    setEstado(notasEstado, "");
+  } catch (e) {
+    setEstado(notasEstado, "Error: " + e.message, "error");
+  }
+}
+
+async function agregarNota() {
+  const texto = notasTexto.value.trim();
+  if (!texto) {
+    setEstado(notasEstado, "Escribe algo primero", "error");
+    return;
+  }
+  const nota = { id: String(Date.now()), fecha: selloFechaHora(), texto };
+  notasGuardar.disabled = true;
+  setEstado(notasEstado, "Guardando…");
+  try {
+    await llamarNotas("nota_agregar", nota);
+    notas.push(nota);
+    notasTexto.value = "";
+    dibujarNotas();
+    setEstado(notasEstado, "Guardada ✓", "ok");
+  } catch (e) {
+    setEstado(notasEstado, "Error: " + e.message, "error");
+  } finally {
+    notasGuardar.disabled = false;
+  }
+}
+
+async function borrarNota(id) {
+  if (!window.confirm("¿Eliminar esta nota?")) return;
+  setEstado(notasEstado, "Eliminando…");
+  try {
+    await llamarNotas("nota_borrar", { id });
+    notas = notas.filter((n) => n.id !== id);
+    dibujarNotas();
+    setEstado(notasEstado, "Eliminada", "ok");
+  } catch (e) {
+    setEstado(notasEstado, "Error: " + e.message, "error");
+  }
+}
+
+// Muestra el aviso de inicio de sesión o el contenido, según la sesión
+function actualizarPanelNotas() {
+  if (panelNotas.hidden) return;
+  const dentro = sesionVigente();
+  notasSinSesion.hidden = dentro;
+  notasContenido.hidden = !dentro;
+  if (dentro) {
+    if (!notasCargadas) cargarNotas();
+  } else {
+    notasCargadas = false;
+    notas = [];
+  }
+}
+
+function abrirNotas() {
+  cerrarLateral();
+  panelNotas.hidden = false;
+  actualizarPanelNotas();
+}
+
+function cerrarNotas() {
+  panelNotas.hidden = true;
+}
+
+btnNotas.addEventListener("click", abrirNotas);
+document.getElementById("notas-cerrar").addEventListener("click", cerrarNotas);
+document.getElementById("notas-actualizar").addEventListener("click", () => {
+  if (sesionVigente()) cargarNotas();
+  else actualizarPanelNotas();
+});
+document.getElementById("notas-ir-login").addEventListener("click", () => {
+  cerrarNotas();
+  abrirLateral();
+});
+notasGuardar.addEventListener("click", agregarNota);
+// Tocar el fondo oscuro (fuera de la caja) cierra el panel; Esc también
+panelNotas.addEventListener("click", (e) => {
+  if (e.target === panelNotas) cerrarNotas();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !panelNotas.hidden) cerrarNotas();
+});
+
 dibujarCuenta();
+programarCaducidad();
 iniciarGoogle();
 
 // ---------- Inicio ----------
