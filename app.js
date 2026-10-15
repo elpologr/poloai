@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "19";
+const VERSION = "20";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -2211,26 +2211,22 @@ function crearZonaEtiqueta(cfg) {
       </div>
       <div class="notas-nueva zona-form" hidden>
         <h3 class="notas-form-titulo zona-form-titulo">${cfg.nuevo}</h3>
-        <div class="notas-campos">
-          <label class="notas-campo">
-            <span>Nombre</span>
-            <input class="zona-nombre" type="text" maxlength="80" placeholder="Nombre" autocomplete="off" />
-          </label>
-          <label class="notas-campo">
+        <div class="notas-superior">
+          <label class="notas-campo notas-campo-etiqueta">
             <span>Etiqueta</span>
             <input class="zona-etiqueta-fija" type="text" value="${cfg.etiqueta}" readonly tabindex="-1" />
           </label>
-        </div>
-        <div class="notas-campo">
-          <span>Color</span>
-          <div class="notas-colores zona-colores" role="radiogroup" aria-label="Color"></div>
-          <button type="button" class="notas-enlace zona-mas-colores" aria-expanded="false">Más colores ▾</button>
-          <div class="notas-paleta zona-paleta" hidden>
-            <div class="zona-paleta-familias"></div>
-            <label class="notas-personal zona-personal">
-              <input class="zona-color-personal" type="color" value="#ffffff" aria-label="Elegir cualquier color" />
-              <span>Elegir cualquier otro color</span>
-            </label>
+          <div class="notas-campo notas-campo-color">
+            <span>Color</span>
+            <div class="notas-colores zona-colores" role="radiogroup" aria-label="Color"></div>
+            <button type="button" class="notas-enlace zona-mas-colores" aria-expanded="false">Más colores ▾</button>
+            <div class="notas-paleta zona-paleta" hidden>
+              <div class="zona-paleta-familias"></div>
+              <label class="notas-personal zona-personal">
+                <input class="zona-color-personal" type="color" value="#ffffff" aria-label="Elegir cualquier color" />
+                <span>Elegir cualquier otro color</span>
+              </label>
+            </div>
           </div>
         </div>
         <div class="notas-campos notas-campos-par">
@@ -2243,6 +2239,10 @@ function crearZonaEtiqueta(cfg) {
             <input class="zona-ident" type="text" maxlength="40" placeholder="Opcional" autocomplete="off" />
           </label>
         </div>
+        <label class="notas-campo notas-campo-nombre">
+          <span>Nombre</span>
+          <input class="zona-nombre" type="text" maxlength="80" placeholder="Nombre" autocomplete="off" />
+        </label>
         <textarea class="zona-texto" rows="4" maxlength="5000"
                   placeholder="${cfg.marcador}" aria-label="${cfg.nuevo}"></textarea>
         <div class="notas-fila">

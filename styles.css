@@ -1,5 +1,5 @@
 :root {
-  --app-version: "19"; /* debe coincidir con VERSION en app.js */
+  --app-version: "20"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -1274,3 +1274,22 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 .pop-color .pop-estado:empty { display: none; }
 .pop-color .notas-paleta { margin-top: 12px; }
 .pop-color .notas-personal input[type="color"] { width: 46px; height: 34px; padding: 2px; cursor: pointer; }
+
+/* ---------- Notas: etiqueta arriba a la izquierda, colores a su derecha ---------- */
+.notas-superior {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) 1fr;
+  align-items: start;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid var(--nb-borde);
+  border-radius: 14px;
+}
+.notas-superior .notas-campo { margin-bottom: 0; }
+.notas-campo-nombre { margin-bottom: 10px; }
+
+@media (max-width: 480px) {
+  .notas-superior { grid-template-columns: 1fr; gap: 10px; }
+}

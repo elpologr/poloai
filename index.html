@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="19" />
+  <meta name="app-version" content="20" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=19" />
+  <link rel="stylesheet" href="styles.css?v=20" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -103,28 +103,25 @@
           <!-- Opciones para crear una nota (ocultas hasta pulsar "Nueva nota") -->
           <div id="notas-form" class="notas-nueva" hidden>
             <h3 id="notas-form-titulo" class="notas-form-titulo">Nueva nota</h3>
-            <div class="notas-campos">
-              <label class="notas-campo">
-                <span>Nombre</span>
-                <input id="notas-nombre" type="text" maxlength="80" placeholder="Nombre de la nota" autocomplete="off" />
-              </label>
-              <label class="notas-campo">
+            <!-- Arriba: etiqueta (esquina superior izquierda) y, a su derecha, los colores -->
+            <div class="notas-superior">
+              <label class="notas-campo notas-campo-etiqueta">
                 <span>Etiqueta</span>
                 <select id="notas-etiqueta"></select>
               </label>
-            </div>
-            <div class="notas-campo">
-              <span>Color</span>
-              <!-- Colores principales (pasteles) -->
-              <div id="notas-colores" class="notas-colores" role="radiogroup" aria-label="Color de la nota"></div>
-              <button id="notas-mas-colores" class="notas-enlace" type="button" aria-expanded="false">Más colores ▾</button>
-              <!-- Paleta completa y selector libre (ocultos hasta pulsar "Más colores") -->
-              <div id="notas-paleta" class="notas-paleta" hidden>
-                <div id="notas-paleta-familias"></div>
-                <label id="notas-personal" class="notas-personal">
-                  <input id="notas-color-personal" type="color" value="#ffffff" aria-label="Elegir cualquier color" />
-                  <span>Elegir cualquier otro color</span>
-                </label>
+              <div class="notas-campo notas-campo-color">
+                <span>Color</span>
+                <!-- Colores principales (pasteles) -->
+                <div id="notas-colores" class="notas-colores" role="radiogroup" aria-label="Color de la nota"></div>
+                <button id="notas-mas-colores" class="notas-enlace" type="button" aria-expanded="false">Más colores ▾</button>
+                <!-- Paleta completa y selector libre (ocultos hasta pulsar "Más colores") -->
+                <div id="notas-paleta" class="notas-paleta" hidden>
+                  <div id="notas-paleta-familias"></div>
+                  <label id="notas-personal" class="notas-personal">
+                    <input id="notas-color-personal" type="color" value="#ffffff" aria-label="Elegir cualquier color" />
+                    <span>Elegir cualquier otro color</span>
+                  </label>
+                </div>
               </div>
             </div>
             <div class="notas-campos notas-campos-par">
@@ -137,6 +134,11 @@
                 <input id="notas-identificador" type="text" maxlength="40" placeholder="Opcional" autocomplete="off" />
               </label>
             </div>
+            <!-- Nombre de la nota y, justo debajo, la zona para escribirla -->
+            <label class="notas-campo notas-campo-nombre">
+              <span>Nombre</span>
+              <input id="notas-nombre" type="text" maxlength="80" placeholder="Nombre de la nota" autocomplete="off" />
+            </label>
             <textarea id="notas-texto" rows="4" maxlength="5000"
                       placeholder="Escribe una nota nueva…" aria-label="Nueva nota"></textarea>
             <div class="notas-fila">
@@ -466,8 +468,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=19"></script>
-  <script src="app.js?v=19"></script>
-  <script type="module" src="firebase.js?v=19"></script>
+  <script src="config.js?v=20"></script>
+  <script src="app.js?v=20"></script>
+  <script type="module" src="firebase.js?v=20"></script>
 </body>
 </html>
