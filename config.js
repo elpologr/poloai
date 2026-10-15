@@ -8,7 +8,7 @@ const CONFIG = {
   // ID de cliente de Google para "Iniciar sesión con Google" (termina en
   // .apps.googleusercontent.com). Sigue los pasos del README. Si lo dejas vacío,
   // la barra lateral avisa que falta configurarlo.
-  GOOGLE_CLIENT_ID: "",
+  GOOGLE_CLIENT_ID: "76727611900-lv1baflcpv7fni9a3op4drbctjnjbkad.apps.googleusercontent.com",
   // Configuración web de Firebase (Consola de Firebase → Configuración del proyecto →
   // Tus apps → Configuración del SDK). Estos valores no son secretos: la seguridad
   // real se define en las reglas de Firebase y en los dominios autorizados.
