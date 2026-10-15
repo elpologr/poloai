@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="17" />
+  <meta name="app-version" content="19" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=17" />
+  <link rel="stylesheet" href="styles.css?v=19" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -343,6 +343,24 @@
           <button id="pop-cerrar" class="pop-cerrar" aria-label="Cerrar">&times;</button>
         </div>
 
+        <!-- Color del día: pinta el recuadro del día en el calendario y el fondo de este panel -->
+        <div id="pop-color" class="pop-color">
+          <div class="pop-color-fila">
+            <span class="pop-color-titulo">Color del día</span>
+            <div id="pop-colores" class="notas-colores" role="radiogroup" aria-label="Color del día"></div>
+            <button id="pop-mas-colores" class="pop-color-enlace" type="button" aria-expanded="false">Más colores ▾</button>
+            <button id="pop-color-quitar" class="pop-color-enlace" type="button" hidden>Quitar color</button>
+            <span id="pop-color-estado" class="pop-estado"></span>
+          </div>
+          <div id="pop-paleta" class="notas-paleta" hidden>
+            <div id="pop-paleta-familias"></div>
+            <label id="pop-personal" class="notas-personal">
+              <input id="pop-color-personal" type="color" value="#ffffff" aria-label="Elegir cualquier color" />
+              <span>Elegir cualquier otro color</span>
+            </label>
+          </div>
+        </div>
+
         <!--
           Tres secciones, una debajo de otra: Descripción, Actividades y Anotaciones.
           Cada una tiene un botón con flecha (abre la zona de texto) y, pegado debajo,
@@ -355,9 +373,10 @@
               <span>Descripción</span><span class="flecha" aria-hidden="true">&#9662;</span>
             </button>
             <div class="pop-panel pop-panel-texto" hidden>
-              <textarea rows="4" placeholder="Escribe una descripción nueva…" aria-label="Nueva descripción"></textarea>
+              <textarea rows="4" placeholder="Escribe la descripción del día…" aria-label="Descripción del día"></textarea>
               <div class="pop-acciones">
                 <button type="button" class="btn-guardar">Guardar</button>
+                <button type="button" class="btn-cancelar" hidden>Cancelar</button>
                 <span class="pop-estado"></span>
               </div>
             </div>
@@ -381,6 +400,7 @@
               <textarea rows="4" placeholder="Escribe una actividad nueva…" aria-label="Nueva actividad"></textarea>
               <div class="pop-acciones">
                 <button type="button" class="btn-guardar">Guardar</button>
+                <button type="button" class="btn-cancelar" hidden>Cancelar</button>
                 <span class="pop-estado"></span>
               </div>
             </div>
@@ -404,6 +424,7 @@
               <textarea rows="4" placeholder="Escribe una anotación nueva…" aria-label="Nueva anotación"></textarea>
               <div class="pop-acciones">
                 <button type="button" class="btn-guardar">Guardar</button>
+                <button type="button" class="btn-cancelar" hidden>Cancelar</button>
                 <span class="pop-estado"></span>
               </div>
             </div>
@@ -445,8 +466,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=17"></script>
-  <script src="app.js?v=17"></script>
-  <script type="module" src="firebase.js?v=17"></script>
+  <script src="config.js?v=19"></script>
+  <script src="app.js?v=19"></script>
+  <script type="module" src="firebase.js?v=19"></script>
 </body>
 </html>

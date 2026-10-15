@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "17";
+const VERSION = "19";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -14,6 +14,7 @@ const VERSION = "17";
     "notas-identificador", "notas-form-titulo", "btn-proyectos", "panel-proyectos", "proy-form",
     "btn-yeso", "btn-galeria", "panel-galeria", "gal-form",
     "zona-actividades", "zona-pendientes", "zona-trabajo",
+    "pop-color", "pop-colores", "pop-mas-colores", "pop-paleta", "pop-color-personal",
   ];
   const problemas = [];
 
@@ -82,6 +83,18 @@ function mostrarEstadoCal(texto, tipo) {
   estadoCal.hidden = !texto;
 }
 
+let calendarioCargado = false; // ya se leyeron los datos del calendario con la sesión actual
+
+// Quita los datos del calendario de la pantalla (sin sesión nadie los ve)
+function vaciarCalendario(aviso) {
+  Object.keys(datos).forEach((k) => delete datos[k]);
+  calendarioCargado = false;
+  cerrarPopover();
+  dibujarCalendario();
+  mostrarEstadoCal(aviso || "");
+}
+
+// Leer el calendario también exige iniciar sesión con la cuenta autorizada
 async function cargarDatos() {
   if (!configurado()) {
     mostrarEstadoCal(
@@ -90,19 +103,37 @@ async function cargarDatos() {
     );
     return;
   }
+  const idToken = credencialVigente();
+  if (!idToken) {
+    vaciarCalendario("Inicia sesión con Google (menú ☰) para ver tu calendario.");
+    return;
+  }
   mostrarEstadoCal("Cargando datos…");
   try {
-    const r = await fetch(
-      CONFIG.APPS_SCRIPT_URL + "?token=" + encodeURIComponent(CONFIG.TOKEN)
-    );
+    // text/plain evita el "preflight" de CORS con Apps Script
+    const r = await fetch(CONFIG.APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ token: CONFIG.TOKEN, idToken, accion: "calendario_listar" }),
+    });
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || "Error desconocido");
     Object.keys(datos).forEach((k) => delete datos[k]);
     Object.assign(datos, j.datos);
+    calendarioCargado = true;
     mostrarEstadoCal("");
     dibujarCalendario();
   } catch (e) {
     mostrarEstadoCal("No se pudieron cargar los datos: " + e.message, "error");
+  }
+}
+
+// Se llama cuando cambia la sesión: al entrar se leen los datos y al salir se quitan de pantalla
+function actualizarCalendarioSesion() {
+  if (sesionVigente()) {
+    if (!calendarioCargado) cargarDatos();
+  } else {
+    vaciarCalendario("Inicia sesión con Google (menú ☰) para ver tu calendario.");
   }
 }
 
@@ -218,6 +249,12 @@ const claveFecha = (a, m, d) => `${a}-${dos(m + 1)}-${dos(d)}`;
 MESES.forEach((nombre, i) => selMes.add(new Option(nombre, i)));
 for (let a = ANIO_MIN; a <= ANIO_MAX; a++) selAnio.add(new Option(a, a));
 
+// Color de un día (vacío = sin color): un pastel con nombre o un código #rrggbb
+function colorDeDia(fecha) {
+  const c = String((datos[fecha] || {}).color || "").trim();
+  return c ? hexDeColor(c) : "";
+}
+
 function dibujarCalendario() {
   selMes.value = mesActual;
   selAnio.value = anioActual;
@@ -259,6 +296,12 @@ function dibujarCalendario() {
     }
     if (fecha === seleccion) el.classList.add("seleccionado");
     if (tieneDatos(fecha)) el.classList.add("con-datos");
+    const colorDia = colorDeDia(fecha);
+    if (colorDia) {
+      el.classList.add("con-color");
+      el.style.background = colorDia;
+      el.style.color = esColorOscuro(colorDia) ? "#fff" : "#2b2140";
+    }
 
     el.addEventListener("click", () => abrirDia(fecha));
     cuadricula.appendChild(el);
@@ -311,7 +354,7 @@ const popCerrar = document.getElementById("pop-cerrar");
 // Textos de cada sección (el orden en pantalla lo define index.html)
 const TEXTOS = {
   descripcion: {
-    vacio: "Aún no hay descripciones para este día.",
+    vacio: "Aún no hay descripción para este día.",
     confirmar: "¿Eliminar esta descripción?",
   },
   actividades: {
@@ -344,6 +387,10 @@ const bloquesDia = Array.from(
   panelTexto: el.querySelector(".pop-panel-texto"),
   txt: el.querySelector("textarea"),
   btnGuardar: el.querySelector(".btn-guardar"),
+  btnCancelar: el.querySelector(".btn-cancelar"),
+  textoGuardar: el.querySelector(".btn-guardar").textContent,
+  unico: el.dataset.campo === "descripcion", // la descripción es una sola por día
+  editando: null, // posición del texto que se está modificando (null = texto nuevo)
   est: el.querySelector(".pop-panel-texto .pop-estado"),
   btnLista: el.querySelector('[data-accion="lista"]'),
   panelLista: el.querySelector(".pop-panel-lista"),
@@ -372,19 +419,42 @@ function elementosDe(fecha, campo) {
 
 const MAX_VISIBLES = 4; // los primeros 4 recuadros siempre se ven
 
-function crearNota(texto, indice, b) {
+function crearNota(texto, indice, b, completa) {
   const caja = document.createElement("div");
-  caja.className = "nota";
+  caja.className = "nota" + (completa ? " nota-completa" : "");
   const t = document.createElement("p");
   t.className = "nota-texto";
   t.textContent = texto;
+  const e = document.createElement("button");
+  e.type = "button";
+  e.className = "nota-editar";
+  e.title = "Modificar";
+  e.setAttribute("aria-label", "Modificar");
+  e.textContent = "✎";
+  e.addEventListener("click", () => abrirEditor(b, indice));
   const x = document.createElement("button");
   x.type = "button";
   x.className = "nota-borrar";
   x.setAttribute("aria-label", "Eliminar");
   x.textContent = "×";
   x.addEventListener("click", () => borrarElemento(b, indice));
-  caja.append(t, x);
+  caja.append(t, e, x);
+
+  // Tocar el recuadro en cualquier zona lo abre para modificarlo (✎ y × siguen con su función)
+  caja.tabIndex = 0;
+  caja.setAttribute("role", "button");
+  caja.setAttribute("aria-label", "Modificar este texto");
+  caja.addEventListener("click", (ev) => {
+    if (ev.target.closest("button")) return;
+    if (String(window.getSelection()).length) return; // si estaba seleccionando texto, no se abre
+    abrirEditor(b, indice);
+  });
+  caja.addEventListener("keydown", (ev) => {
+    if (ev.target === caja && (ev.key === "Enter" || ev.key === " ")) {
+      ev.preventDefault();
+      abrirEditor(b, indice);
+    }
+  });
   return caja;
 }
 
@@ -398,6 +468,15 @@ function dibujarLista(fecha, b) {
     p.className = "sin-notas";
     p.textContent = TEXTOS[b.campo].vacio;
     b.fija.appendChild(p);
+  }
+
+  // La descripción es una sola: se muestra como un solo texto a lo largo del panel
+  // (si en la hoja había varias, se unen aquí en un solo texto)
+  if (b.unico) {
+    if (elementos.length) b.fija.appendChild(crearNota(elementos.join("\n\n"), 0, b, true));
+    b.btnLista.hidden = true;
+    plegar(b.btnLista, b.panelLista);
+    return;
   }
 
   elementos.forEach((texto, i) => {
@@ -419,7 +498,55 @@ function selloFechaHora() {
     `${dos(n.getHours())}:${dos(n.getMinutes())}`;
 }
 
-async function agregarElemento(b) {
+// Texto que se carga en la zona de escritura: vacío (texto nuevo) o el texto guardado
+// (la descripción, al ser una sola, se carga completa)
+function textoEditable(fecha, b, indice) {
+  if (indice === null) return "";
+  const elementos = elementosDe(fecha, b.campo);
+  return b.unico ? elementos.join("\n\n") : elementos[indice] || "";
+}
+
+// Deja la zona de escritura en modo «texto nuevo»
+function reiniciarEditor(b) {
+  b.editando = null;
+  b.txt.value = "";
+  b.btnGuardar.textContent = b.textoGuardar;
+  b.btnCancelar.hidden = true;
+}
+
+// Abre la zona de escritura: para un texto nuevo (indice = null) o para modificar uno guardado.
+// La descripción es una sola: si ya existe, siempre se abre para modificarla.
+function abrirEditor(b, indice) {
+  const fecha = seleccion;
+  if (!fecha) return;
+  if (b.unico && elementosDe(fecha, b.campo).length) indice = 0;
+
+  if (indice === null) {
+    // Texto nuevo: se conserva lo que ya se hubiera escrito
+    if (b.editando !== null) reiniciarEditor(b);
+    alternar(b.btnTexto, b.panelTexto, true);
+    b.txt.focus();
+    return;
+  }
+  if (b.editando === indice && !b.panelTexto.hidden) {
+    b.txt.focus();
+    return;
+  }
+  const original = b.editando === null ? "" : textoEditable(fecha, b, b.editando);
+  if (b.txt.value.trim() && b.txt.value !== original &&
+      !window.confirm("Tienes texto sin guardar en esta sección. ¿Descartarlo?")) return;
+
+  b.editando = indice;
+  b.txt.value = textoEditable(fecha, b, indice);
+  b.btnGuardar.textContent = "Guardar cambios";
+  b.btnCancelar.hidden = false;
+  setEstado(b.est, "");
+  alternar(b.btnTexto, b.panelTexto, true);
+  b.txt.focus();
+}
+
+// Guarda un texto nuevo o los cambios de uno que se estaba modificando
+async function guardarElemento(b) {
   const fecha = seleccion;
   const texto = b.txt.value.trim();
   if (!fecha) return;
@@ -427,19 +554,42 @@ async function agregarElemento(b) {
     setEstado(b.est, "Escribe algo primero", "error");
     return;
   }
-  // La fecha y hora van al inicio del recuadro, en su propia línea, antes del texto
-  const conSello = selloFechaHora() + "\n" + texto;
-  const elementos = elementosDe(fecha, b.campo).concat(limpiarElemento(conSello));
+  const editando = b.editando;
+  let elementos = elementosDe(fecha, b.campo);
+  if (editando !== null && b.unico) {
+    elementos = [limpiarElemento(texto)]; // la descripción es una sola
+  } else if (editando !== null) {
+    if (editando >= elementos.length) {
+      setEstado(b.est, "Ese texto ya no existe. Cierra y vuelve a abrir el día.", "error");
+      return;
+    }
+    elementos[editando] = limpiarElemento(texto);
+  } else if (b.unico && elementos.length) {
+    setEstado(b.est, "Ya hay una descripción: modifícala con el lápiz ✎.", "error");
+    return;
+  } else {
+    // La fecha y hora van al inicio del recuadro, en su propia línea, antes del texto
+    const conSello = selloFechaHora() + "\n" + texto;
+    elementos = elementos.concat(limpiarElemento(conSello));
+  }
   b.btnGuardar.disabled = true;
   setEstado(b.est, "Guardando…");
   try {
     await guardarCampo(fecha, b.campo, serializarElementos(elementos));
     if (seleccion === fecha) {
-      b.txt.value = "";
       dibujarLista(fecha, b);
-      // Si el recuadro nuevo quedó después del 4.º, abre la lista para que se vea
-      if (elementos.length > MAX_VISIBLES) alternar(b.btnLista, b.panelLista, true);
-      setEstado(b.est, "Guardado ✓", "ok");
+      if (editando !== null || b.unico) {
+        // Al terminar de modificar (o de escribir la descripción) se cierra la zona de texto
+        reiniciarEditor(b);
+        plegar(b.btnTexto, b.panelTexto);
+        setEstado(b.est, "");
+        setEstado(b.estLista, editando !== null ? "Cambios guardados ✓" : "Guardada ✓", "ok");
+      } else {
+        b.txt.value = "";
+        // Si el recuadro nuevo quedó después del 4.º, abre la lista para que se vea
+        if (elementos.length > MAX_VISIBLES) alternar(b.btnLista, b.panelLista, true);
+        setEstado(b.est, "Guardado ✓", "ok");
+      }
     }
     actualizarMarca(fecha);
   } catch (e) {
@@ -453,12 +603,16 @@ async function borrarElemento(b, indice) {
   const fecha = seleccion;
   if (!fecha) return;
   if (!window.confirm(TEXTOS[b.campo].confirmar)) return;
-  const elementos = elementosDe(fecha, b.campo);
-  elementos.splice(indice, 1);
+  const elementos = b.unico ? [] : elementosDe(fecha, b.campo); // la descripción se borra completa
+  if (!b.unico) elementos.splice(indice, 1);
   setEstado(b.estLista, "Guardando…");
   try {
     await guardarCampo(fecha, b.campo, serializarElementos(elementos));
     if (seleccion === fecha) {
+      if (b.editando !== null) {
+        reiniciarEditor(b);
+        plegar(b.btnTexto, b.panelTexto);
+      }
       dibujarLista(fecha, b);
       setEstado(b.estLista, "Eliminado", "ok");
     }
@@ -470,11 +624,21 @@ async function borrarElemento(b, indice) {
 
 bloquesDia.forEach((b) => {
   b.btnTexto.addEventListener("click", () => {
-    alternar(b.btnTexto, b.panelTexto);
-    if (!b.panelTexto.hidden) b.txt.focus();
+    if (!b.panelTexto.hidden) {
+      // Se cierra la zona de texto (si se estaba modificando algo, se deja sin cambios)
+      if (b.editando !== null) reiniciarEditor(b);
+      plegar(b.btnTexto, b.panelTexto);
+      return;
+    }
+    abrirEditor(b, null);
   });
   b.btnLista.addEventListener("click", () => alternar(b.btnLista, b.panelLista));
-  b.btnGuardar.addEventListener("click", () => agregarElemento(b));
+  b.btnGuardar.addEventListener("click", () => guardarElemento(b));
+  b.btnCancelar.addEventListener("click", () => {
+    reiniciarEditor(b);
+    plegar(b.btnTexto, b.panelTexto);
+    setEstado(b.est, "");
+  });
 });
 
 function textoFecha(fecha) {
@@ -489,10 +653,14 @@ function posicionarPopover(celda) {
   const rc = celda.getBoundingClientRect();
   const ancho = popover.offsetWidth;
   const centro = rc.left - rs.left + rc.width / 2;
-  const izq = Math.max(0, Math.min(centro - ancho / 2, rs.width - ancho));
+  // Centrado en el día, pero sin salirse de la pantalla (el panel puede ser más ancho que la sección)
+  const minIzq = 12 - rs.left;
+  const maxIzq = document.documentElement.clientWidth - 12 - rs.left - ancho;
+  const izq = Math.max(minIzq, Math.min(centro - ancho / 2, maxIzq));
   popover.style.left = izq + "px";
   popover.style.top = rc.bottom - rs.top + 10 + "px";
-  popover.style.setProperty("--flecha", centro - izq + "px");
+  const flecha = Math.max(24, Math.min(centro - izq, Math.max(ancho - 24, 24)));
+  popover.style.setProperty("--flecha", flecha + "px");
 }
 
 function abrirDia(fecha) {
@@ -503,12 +671,17 @@ function abrirDia(fecha) {
   // Al abrir un día se ven los 3 títulos y sus primeros 4 recuadros; lo demás empieza plegado
   bloquesDia.forEach((b) => {
     b.txt.value = "";
+    reiniciarEditor(b);
     setEstado(b.est, "");
     setEstado(b.estLista, "");
     plegar(b.btnTexto, b.panelTexto);
     plegar(b.btnLista, b.panelLista);
     dibujarLista(fecha, b);
   });
+
+  pintarPanelDia((datos[fecha] || {}).color);
+  setEstado(popColorEstado, "");
+  plegarPaletaDia();
 
   popover.hidden = false;
   posicionarPopover(cuadricula.querySelector(`[data-fecha="${fecha}"]`));
@@ -1310,6 +1483,7 @@ function actualizarPanelNotas() {
   actualizarPanelProyectos(); // la sesión también afecta a los paneles de Proyectos y Galería
   actualizarPanelGaleria();
   actualizarZonasEtiqueta(); // y a las zonas de Actividades, Pendientes y Trabajo
+  actualizarCalendarioSesion(); // y a los datos del calendario
   if (panelNotas.hidden) return;
   const dentro = sesionVigente();
   notasSinSesion.hidden = dentro;
@@ -2398,6 +2572,132 @@ botonesMenu.forEach((b) =>
     else z.dibujar();
   })
 );
+
+// ---------- Color del día (recuadro del calendario y fondo del panel) ----------
+// Usa los mismos colores que las notas. El color de cada día se guarda en la hoja «Colores».
+const popColores = document.getElementById("pop-colores");
+const popMasColores = document.getElementById("pop-mas-colores");
+const popPaleta = document.getElementById("pop-paleta");
+const popPaletaFamilias = document.getElementById("pop-paleta-familias");
+const popPersonal = document.getElementById("pop-personal");
+const popColorPersonal = document.getElementById("pop-color-personal");
+const popColorQuitar = document.getElementById("pop-color-quitar");
+const popColorEstado = document.getElementById("pop-color-estado");
+
+// Pinta el panel con el color del día (sin color = negro de siempre) y marca la muestra elegida
+function pintarPanelDia(valor) {
+  const c = String(valor || "").trim();
+  const hex = c ? hexDeColor(c) : "";
+  if (hex) {
+    const oscuro = esColorOscuro(hex);
+    popover.style.setProperty("--pop-fondo", hex);
+    popover.style.setProperty("--pop-titulo", oscuro ? "#ffffff" : "#2b2140");
+    popover.style.setProperty("--pop-cierre", oscuro ? "#f0eafc" : "#4a3f66");
+  } else {
+    ["--pop-fondo", "--pop-titulo", "--pop-cierre"].forEach((p) => popover.style.removeProperty(p));
+  }
+  let enMuestra = false;
+  document.querySelectorAll("#pop-color .color-op").forEach((b) => {
+    const activo = !!c && b.dataset.color.toLowerCase() === c.toLowerCase();
+    if (activo) enMuestra = true;
+    b.classList.toggle("elegido", activo);
+    b.setAttribute("aria-checked", activo ? "true" : "false");
+  });
+  popColorPersonal.value = hex || "#ffffff";
+  popPersonal.classList.toggle("elegido", !!c && !enMuestra);
+  popColorQuitar.hidden = !c;
+}
+
+function plegarPaletaDia() {
+  popPaleta.hidden = true;
+  popMasColores.setAttribute("aria-expanded", "false");
+  popMasColores.textContent = "Más colores ▾";
+}
+
+// Guarda el color de un día en la hoja «Colores» (color vacío = quitarlo)
+async function guardarColorDia(fecha, color) {
+  if (!configurado()) throw new Error("Falta configurar config.js");
+  const idToken = credencialVigente();
+  if (!idToken) {
+    abrirLateral();
+    throw new Error("Inicia sesión con Google para guardar");
+  }
+  // text/plain evita el "preflight" de CORS con Apps Script
+  const r = await fetch(CONFIG.APPS_SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ token: CONFIG.TOKEN, idToken, accion: "calendario_color", fecha, color }),
+  });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || "Error al guardar");
+}
+
+let secuenciaColorDia = 0;
+// Cambia el color del día: se ve al instante y, si no se puede guardar, vuelve al anterior
+async function cambiarColorDia(fecha, valor) {
+  const anterior = String((datos[fecha] || {}).color || "");
+  const orden = ++secuenciaColorDia;
+  datos[fecha] = datos[fecha] || {};
+  datos[fecha].color = valor;
+  pintarPanelDia(valor);
+  dibujarCalendario();
+  setEstado(popColorEstado, "Guardando…");
+  try {
+    await guardarColorDia(fecha, valor);
+    if (orden === secuenciaColorDia) setEstado(popColorEstado, "Guardado ✓", "ok");
+  } catch (e) {
+    if (orden !== secuenciaColorDia) return;
+    datos[fecha] = datos[fecha] || {};
+    datos[fecha].color = anterior;
+    if (seleccion === fecha) pintarPanelDia(anterior);
+    dibujarCalendario();
+    setEstado(popColorEstado, "Error: " + e.message, "error");
+  }
+}
+
+function muestraColorDia(valor, hex, titulo) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "color-op";
+  b.dataset.color = valor;
+  b.title = titulo;
+  b.setAttribute("role", "radio");
+  b.setAttribute("aria-label", titulo);
+  b.style.background = hex;
+  b.addEventListener("click", () => {
+    if (seleccion) cambiarColorDia(seleccion, valor);
+  });
+  return b;
+}
+COLORES_NOTA.forEach((c) => popColores.appendChild(muestraColorDia(c.nombre, c.hex, c.nombre)));
+PALETA_COLORES.forEach((f) => {
+  const fila = document.createElement("div");
+  fila.className = "paleta-fila";
+  const nombre = document.createElement("span");
+  nombre.className = "paleta-nombre";
+  nombre.textContent = f.titulo;
+  const grupo = document.createElement("div");
+  grupo.className = "notas-colores";
+  grupo.setAttribute("role", "radiogroup");
+  grupo.setAttribute("aria-label", f.titulo);
+  f.colores.forEach((hex) => grupo.appendChild(muestraColorDia(hex, hex, f.titulo + " " + hex)));
+  fila.append(nombre, grupo);
+  popPaletaFamilias.appendChild(fila);
+});
+// Selector libre: mientras se arrastra solo se ve; el color se guarda al soltar
+popColorPersonal.addEventListener("input", () => pintarPanelDia(popColorPersonal.value.toLowerCase()));
+popColorPersonal.addEventListener("change", () => {
+  if (seleccion) cambiarColorDia(seleccion, popColorPersonal.value.toLowerCase());
+});
+popColorQuitar.addEventListener("click", () => {
+  if (seleccion) cambiarColorDia(seleccion, "");
+});
+popMasColores.addEventListener("click", () => {
+  const abrir = popPaleta.hidden;
+  popPaleta.hidden = !abrir;
+  popMasColores.setAttribute("aria-expanded", abrir ? "true" : "false");
+  popMasColores.textContent = abrir ? "Menos colores ▴" : "Más colores ▾";
+});
 
 dibujarCuenta();
 programarCaducidad();
