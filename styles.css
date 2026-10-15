@@ -1,5 +1,5 @@
 :root {
-  --app-version: "11"; /* debe coincidir con VERSION en app.js */
+  --app-version: "13"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -769,4 +769,222 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 
 @media (max-width: 480px) {
   .notas-campos { grid-template-columns: 1fr; }
+}
+
+/* ---------- Notas: botón "Nueva nota" y fecha editable ---------- */
+.notas-barra {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+}
+.notas-nueva { margin-top: 14px; }
+.notas-nueva[hidden] { display: none; }
+.notas-btn-sec {
+  color: var(--nb-acento-oscuro);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--nb-borde);
+}
+.notas-btn-sec:hover:not(:disabled) { background: #fff; }
+
+.tarjeta-fecha {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tarjeta-editar-fecha {
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  line-height: 1;
+  color: var(--nb-suave);
+  cursor: pointer;
+}
+.tarjeta-editar-fecha:hover { color: var(--nb-acento-oscuro); }
+.tarjeta-fecha-input {
+  max-width: 100%;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--nb-texto);
+  background: #fff;
+  border: 1px solid var(--nb-borde);
+  border-radius: 8px;
+}
+.tarjeta-fecha-ok,
+.tarjeta-fecha-no {
+  padding: 3px 9px;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--nb-acento-oscuro);
+  background: #fff;
+  border: 1px solid var(--nb-borde);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.tarjeta-fecha-ok:disabled { opacity: 0.6; cursor: wait; }
+
+/* ---------- Notas: filas por etiqueta, submenú y paleta de colores ---------- */
+.notas-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.notas-grupo-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--nb-texto);
+}
+.notas-grupo-cuenta {
+  padding: 1px 9px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--nb-acento-oscuro);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--nb-borde);
+  border-radius: 999px;
+}
+.notas-grupo-fila {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+}
+.notas-grupo-cards {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+.notas-grupo-mas {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 86px;
+  padding: 8px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--nb-acento-oscuro);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--nb-borde);
+  border-radius: 14px;
+  box-shadow: 0 6px 14px rgba(60, 110, 170, 0.15);
+  cursor: pointer;
+}
+.notas-grupo-mas:hover { background: #fff; }
+.notas-grupo-mas .flecha-mas { font-size: 1.5rem; line-height: 1; }
+
+/* Submenú con todas las notas de una etiqueta (cubre la caja de notas) */
+.notas-submenu {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  background-color: #bfe0fa;
+  background-image:
+    radial-gradient(circle at 10% 14%, rgba(255, 255, 255, 0.85) 0, transparent 30%),
+    radial-gradient(circle at 90% 10%, rgba(214, 236, 255, 0.9) 0, transparent 28%);
+}
+.notas-submenu[hidden] { display: none; }
+.notas-sub-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 22px 10px;
+}
+.notas-sub-cabecera h3 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--nb-texto);
+  overflow-wrap: anywhere;
+}
+.notas-sub-cuerpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 22px 22px;
+}
+.notas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 14px;
+}
+
+/* Paleta de colores */
+.notas-enlace {
+  display: block;
+  margin-top: 8px;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--nb-acento-oscuro);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.notas-paleta {
+  --nb-suave: #55789f;
+  margin-top: 10px;
+  padding: 12px;
+  color: var(--nb-texto);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--nb-borde);
+  border-radius: 12px;
+}
+.notas-paleta[hidden] { display: none; }
+.paleta-fila { margin-bottom: 10px; }
+.paleta-nombre {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--nb-suave);
+}
+.paleta-fila .notas-colores { gap: 8px; }
+.notas-personal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.notas-personal.elegido {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 2px var(--nb-acento);
+}
+.notas-nueva .notas-personal input[type="color"] {
+  width: 46px;
+  height: 34px;
+  padding: 2px;
+  cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .notas-grupo-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .notas-grupo-mas { width: 64px; font-size: 0.75rem; }
+}
+@media (max-width: 480px) {
+  .notas-sub-cabecera { padding: 14px 14px 8px; }
+  .notas-sub-cuerpo { padding: 4px 14px 16px; }
+  .notas-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 }

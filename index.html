@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="11" />
+  <meta name="app-version" content="13" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=11" />
+  <link rel="stylesheet" href="styles.css?v=13" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -51,7 +51,7 @@
     </button>
   </aside>
 
-  <!-- Panel grande de Notas (azul pastel). Las notas viven en la segunda hoja de Google Sheets -->
+  <!-- Panel grande de Notas (azul pastel). Las notas viven en la hoja «Notas» de Google Sheets -->
   <div id="panel-notas" class="panel-notas" hidden>
     <div class="notas-caja" role="dialog" aria-modal="true" aria-labelledby="notas-titulo">
       <div class="notas-decor" aria-hidden="true">
@@ -81,7 +81,14 @@
 
         <!-- Con sesión -->
         <div id="notas-contenido">
-          <div id="notas-form" class="notas-nueva">
+          <!-- Zona de arriba: botón para crear una nota y mensajes de la lista -->
+          <div class="notas-barra">
+            <button id="notas-nueva-btn" class="notas-btn" type="button">+ Nueva nota</button>
+            <span id="notas-estado-lista" class="notas-estado"></span>
+          </div>
+
+          <!-- Opciones para crear una nota (ocultas hasta pulsar "Nueva nota") -->
+          <div id="notas-form" class="notas-nueva" hidden>
             <div class="notas-campos">
               <label class="notas-campo">
                 <span>Nombre</span>
@@ -94,16 +101,42 @@
             </div>
             <div class="notas-campo">
               <span>Color</span>
+              <!-- Colores principales (pasteles) -->
               <div id="notas-colores" class="notas-colores" role="radiogroup" aria-label="Color de la nota"></div>
+              <button id="notas-mas-colores" class="notas-enlace" type="button" aria-expanded="false">Más colores ▾</button>
+              <!-- Paleta completa y selector libre (ocultos hasta pulsar "Más colores") -->
+              <div id="notas-paleta" class="notas-paleta" hidden>
+                <div id="notas-paleta-familias"></div>
+                <label id="notas-personal" class="notas-personal">
+                  <input id="notas-color-personal" type="color" value="#ffffff" aria-label="Elegir cualquier color" />
+                  <span>Elegir cualquier otro color</span>
+                </label>
+              </div>
             </div>
+            <label class="notas-campo">
+              <span>Fecha y hora</span>
+              <input id="notas-fecha" type="datetime-local" />
+            </label>
             <textarea id="notas-texto" rows="4" maxlength="5000"
                       placeholder="Escribe una nota nueva…" aria-label="Nueva nota"></textarea>
             <div class="notas-fila">
               <button id="notas-guardar" class="notas-btn" type="button">Guardar nota</button>
+              <button id="notas-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
               <span id="notas-estado" class="notas-estado"></span>
             </div>
           </div>
           <div id="notas-lista" class="notas-lista"></div>
+        </div>
+      </div>
+
+      <!-- Submenú: todas las notas de una etiqueta -->
+      <div id="notas-submenu" class="notas-submenu" hidden>
+        <header class="notas-sub-cabecera">
+          <button id="notas-sub-volver" class="notas-btn notas-btn-sec" type="button">‹ Volver</button>
+          <h3 id="notas-sub-titulo"></h3>
+        </header>
+        <div class="notas-sub-cuerpo">
+          <div id="notas-sub-lista" class="notas-grid"></div>
         </div>
       </div>
     </div>
@@ -243,8 +276,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=11"></script>
-  <script src="app.js?v=11"></script>
-  <script type="module" src="firebase.js?v=11"></script>
+  <script src="config.js?v=13"></script>
+  <script src="app.js?v=13"></script>
+  <script type="module" src="firebase.js?v=13"></script>
 </body>
 </html>

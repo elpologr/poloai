@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "11";
+const VERSION = "13";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -9,6 +9,8 @@ const VERSION = "11";
     "cal-hoy", "cal-actualizar", "cal-cuadricula", "cal-estado",
     "dia-popover", "pop-titulo", "pop-cerrar", "pop-secciones",
     "btn-menu-lateral", "barra-lateral", "google-boton", "btn-notas", "panel-notas",
+    "notas-nueva-btn", "notas-fecha", "notas-cancelar", "notas-estado-lista",
+    "notas-submenu", "notas-sub-lista", "notas-mas-colores", "notas-color-personal",
   ];
   const problemas = [];
 
@@ -714,7 +716,7 @@ function iniciarGoogle() {
   document.head.appendChild(s);
 }
 
-// ---------- Notas (segunda hoja de Google Sheets) ----------
+// ---------- Notas (hoja «Notas» de Google Sheets) ----------
 const btnNotas = document.getElementById("btn-notas");
 const panelNotas = document.getElementById("panel-notas");
 const notasSinSesion = document.getElementById("notas-sin-sesion");
@@ -726,10 +728,25 @@ const notasEtiqueta = document.getElementById("notas-etiqueta");
 const notasColores = document.getElementById("notas-colores");
 const notasGuardar = document.getElementById("notas-guardar");
 const notasEstado = document.getElementById("notas-estado");
+const notasEstadoLista = document.getElementById("notas-estado-lista");
+const notasNuevaBtn = document.getElementById("notas-nueva-btn");
+const notasCancelar = document.getElementById("notas-cancelar");
+const notasFecha = document.getElementById("notas-fecha");
+const notasSubmenu = document.getElementById("notas-submenu");
+const notasSubTitulo = document.getElementById("notas-sub-titulo");
+const notasSubLista = document.getElementById("notas-sub-lista");
+const notasSubVolver = document.getElementById("notas-sub-volver");
+const notasMasColores = document.getElementById("notas-mas-colores");
+const notasPaleta = document.getElementById("notas-paleta");
+const notasPaletaFamilias = document.getElementById("notas-paleta-familias");
+const notasColorPersonal = document.getElementById("notas-color-personal");
+const notasPersonal = document.getElementById("notas-personal");
 const notasLista = document.getElementById("notas-lista");
 
 let notas = []; // [{ id, nombre, fecha, etiqueta, texto, color }]
 let notasCargadas = false;
+let etiquetaAbierta = null; // etiqueta cuyo submenú está abierto (null = ninguno)
+const MAX_FILA_NOTAS = 4; // notas visibles por fila; el resto va en el submenú
 
 // Etiquetas y colores (los nombres se guardan tal cual en la hoja; deben coincidir con el Apps Script)
 const ETIQUETAS_NOTA = [
@@ -752,20 +769,75 @@ const COLORES_NOTA = [
 ];
 let colorElegido = "Blanco";
 
-function hexDeColor(nombre) {
-  const c = COLORES_NOTA.find((x) => x.nombre === nombre);
+// Más colores (además de los pasteles de arriba): familias de claro a oscuro.
+// Estos se guardan en la hoja como código "#rrggbb"; los pasteles, por su nombre.
+const PALETA_COLORES = [
+  { titulo: "Más pasteles", colores: ["#e6e6fa", "#ffd6cc", "#e6f7b8", "#d6ecff", "#f3d1f4", "#f5e6cc"] },
+  { titulo: "Rojos", colores: ["#fecaca", "#fca5a5", "#f87171", "#ef4444", "#dc2626", "#991b1b"] },
+  { titulo: "Naranjas", colores: ["#fed7aa", "#fdba74", "#fb923c", "#f97316", "#ea580c", "#9a3412"] },
+  { titulo: "Amarillos", colores: ["#fef08a", "#fde047", "#facc15", "#eab308", "#ca8a04", "#854d0e"] },
+  { titulo: "Verdes", colores: ["#bbf7d0", "#86efac", "#4ade80", "#22c55e", "#16a34a", "#166534"] },
+  { titulo: "Turquesas", colores: ["#a5f3fc", "#67e8f9", "#22d3ee", "#06b6d4", "#0891b2", "#155e75"] },
+  { titulo: "Azules", colores: ["#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb", "#1e40af"] },
+  { titulo: "Morados", colores: ["#ddd6fe", "#c4b5fd", "#a78bfa", "#8b5cf6", "#7c3aed", "#5b21b6"] },
+  { titulo: "Rosas", colores: ["#fbcfe8", "#f9a8d4", "#f472b6", "#ec4899", "#db2777", "#9d174d"] },
+  { titulo: "Cafés", colores: ["#e7cfb4", "#d2a679", "#b07a4a", "#8b5a2b", "#6b4423", "#3f2a14"] },
+  { titulo: "Grises", colores: ["#f1f5f9", "#cbd5e1", "#94a3b8", "#64748b", "#334155", "#111827"] },
+];
+
+// Acepta el nombre de un pastel ("Rosa") o un código "#rrggbb"
+function hexDeColor(valor) {
+  const v = String(valor || "").trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) return v.toLowerCase();
+  const c = COLORES_NOTA.find((x) => x.nombre === v);
   return c ? c.hex : "#ffffff";
 }
 
+// Si el color es oscuro, el texto pasa a blanco para que se pueda leer
+function esColorOscuro(hex) {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (!m) return false;
+  const [r, g, b] = [m[1], m[2], m[3]].map((x) => parseInt(x, 16));
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.55;
+}
+function aplicarContraste(el, hex) {
+  if (esColorOscuro(hex)) {
+    el.style.setProperty("color", "#fff");
+    el.style.setProperty("--nb-suave", "rgba(255, 255, 255, 0.8)");
+  } else {
+    el.style.removeProperty("color");
+    el.style.removeProperty("--nb-suave");
+  }
+}
+
 // El color elegido se ve de fondo en el formulario mientras escribes la nota
-function elegirColor(nombre) {
-  colorElegido = nombre;
-  notasForm.style.setProperty("--fondo-nota", hexDeColor(nombre));
-  notasColores.querySelectorAll(".color-op").forEach((b) => {
-    const activo = b.dataset.color === nombre;
+function elegirColor(valor) {
+  colorElegido = valor;
+  const hex = hexDeColor(valor);
+  notasForm.style.setProperty("--fondo-nota", hex);
+  aplicarContraste(notasForm, hex);
+  let enMuestra = false;
+  notasForm.querySelectorAll(".color-op").forEach((b) => {
+    const activo = b.dataset.color.toLowerCase() === String(valor).toLowerCase();
+    if (activo) enMuestra = true;
     b.classList.toggle("elegido", activo);
     b.setAttribute("aria-checked", activo ? "true" : "false");
   });
+  notasColorPersonal.value = hex;
+  notasPersonal.classList.toggle("elegido", !enMuestra);
+}
+
+function crearMuestraColor(valor, hex, titulo) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "color-op";
+  b.dataset.color = valor;
+  b.title = titulo;
+  b.setAttribute("role", "radio");
+  b.setAttribute("aria-label", titulo);
+  b.style.background = hex;
+  b.addEventListener("click", () => elegirColor(valor));
+  return b;
 }
 
 ETIQUETAS_NOTA.forEach((e) => {
@@ -774,17 +846,28 @@ ETIQUETAS_NOTA.forEach((e) => {
   op.textContent = e;
   notasEtiqueta.appendChild(op);
 });
-COLORES_NOTA.forEach((c) => {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.className = "color-op";
-  b.dataset.color = c.nombre;
-  b.title = c.nombre;
-  b.setAttribute("role", "radio");
-  b.setAttribute("aria-label", c.nombre);
-  b.style.background = c.hex;
-  b.addEventListener("click", () => elegirColor(c.nombre));
-  notasColores.appendChild(b);
+COLORES_NOTA.forEach((c) => notasColores.appendChild(crearMuestraColor(c.nombre, c.hex, c.nombre)));
+PALETA_COLORES.forEach((f) => {
+  const fila = document.createElement("div");
+  fila.className = "paleta-fila";
+  const nombre = document.createElement("span");
+  nombre.className = "paleta-nombre";
+  nombre.textContent = f.titulo;
+  const cont = document.createElement("div");
+  cont.className = "notas-colores";
+  cont.setAttribute("role", "radiogroup");
+  cont.setAttribute("aria-label", f.titulo);
+  f.colores.forEach((hex) => cont.appendChild(crearMuestraColor(hex, hex, f.titulo + " " + hex)));
+  fila.append(nombre, cont);
+  notasPaletaFamilias.appendChild(fila);
+});
+// Selector libre: cualquier color del espectro
+notasColorPersonal.addEventListener("input", () => elegirColor(notasColorPersonal.value.toLowerCase()));
+notasMasColores.addEventListener("click", () => {
+  const abrir = notasPaleta.hidden;
+  notasPaleta.hidden = !abrir;
+  notasMasColores.setAttribute("aria-expanded", abrir ? "true" : "false");
+  notasMasColores.textContent = abrir ? "Menos colores ▴" : "Más colores ▾";
 });
 elegirColor("Blanco");
 
@@ -804,6 +887,146 @@ async function llamarNotas(accion, extra) {
   return j;
 }
 
+// ----- Fechas de las notas: se guardan como "dd/mm/aaaa hh:mm" -----
+// "dd/mm/aaaa hh:mm" -> "aaaa-mm-ddThh:mm" (formato del campo de fecha y hora); "" si no se entiende
+function fechaAInput(s) {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})[ T](\d{1,2}):(\d{2})/.exec(String(s || "").trim());
+  if (!m) return "";
+  return `${m[3]}-${dos(m[2])}-${dos(m[1])}T${dos(m[4])}:${m[5]}`;
+}
+// "aaaa-mm-ddThh:mm" -> "dd/mm/aaaa hh:mm"; "" si el campo está vacío
+function inputAFecha(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v || "");
+  return m ? `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}` : "";
+}
+function fechaActualInput() {
+  const n = new Date();
+  return `${n.getFullYear()}-${dos(n.getMonth() + 1)}-${dos(n.getDate())}` +
+    `T${dos(n.getHours())}:${dos(n.getMinutes())}`;
+}
+function marcaTiempo(s) {
+  const v = fechaAInput(s);
+  return v ? Date.parse(v) : NaN;
+}
+
+// Muestra u oculta las opciones para crear una nota (el botón "Nueva nota" hace lo contrario)
+function mostrarFormNota(mostrar) {
+  notasForm.hidden = !mostrar;
+  notasNuevaBtn.hidden = mostrar;
+  if (mostrar) {
+    notasFecha.value = fechaActualInput();
+    setEstado(notasEstado, "");
+    notasNombre.focus();
+  }
+}
+
+// Fecha de una tarjeta: texto + lápiz para cambiarla
+function dibujarFechaNota(cont, n) {
+  cont.innerHTML = "";
+  const txt = document.createElement("span");
+  txt.textContent = n.fecha;
+  const editar = document.createElement("button");
+  editar.type = "button";
+  editar.className = "tarjeta-editar-fecha";
+  editar.title = "Cambiar fecha y hora";
+  editar.setAttribute("aria-label", "Cambiar fecha y hora de la nota");
+  editar.textContent = "✎";
+  editar.addEventListener("click", () => editarFechaNota(cont, n));
+  cont.append(txt, editar);
+}
+
+function editarFechaNota(cont, n) {
+  cont.innerHTML = "";
+  const inp = document.createElement("input");
+  inp.type = "datetime-local";
+  inp.className = "tarjeta-fecha-input";
+  inp.value = fechaAInput(n.fecha) || fechaActualInput();
+  const ok = document.createElement("button");
+  ok.type = "button";
+  ok.className = "tarjeta-fecha-ok";
+  ok.textContent = "Guardar";
+  const no = document.createElement("button");
+  no.type = "button";
+  no.className = "tarjeta-fecha-no";
+  no.textContent = "Cancelar";
+  ok.addEventListener("click", () => guardarFechaNota(n, inp.value, ok));
+  no.addEventListener("click", () => dibujarFechaNota(cont, n));
+  cont.append(inp, ok, no);
+  inp.focus();
+}
+
+async function guardarFechaNota(n, valor, boton) {
+  const fecha = inputAFecha(valor);
+  if (!fecha) {
+    setEstado(notasEstadoLista, "Elige una fecha y hora", "error");
+    return;
+  }
+  boton.disabled = true;
+  setEstado(notasEstadoLista, "Guardando fecha…");
+  try {
+    await llamarNotas("nota_fecha", { id: n.id, fecha });
+    n.fecha = fecha;
+    dibujarNotas();
+    setEstado(notasEstadoLista, "Fecha actualizada ✓", "ok");
+  } catch (e) {
+    boton.disabled = false;
+    setEstado(notasEstadoLista, "Error: " + e.message, "error");
+  }
+}
+
+// Todas las notas, de la más reciente a la más antigua según su fecha
+// (si dos tienen la misma, sale primero la última guardada)
+function notasOrdenadas() {
+  const orden = notas.map((n, i) => ({ n, i, t: marcaTiempo(n.fecha) }));
+  orden.sort((x, y) => {
+    const tx = isNaN(x.t) ? -Infinity : x.t;
+    const ty = isNaN(y.t) ? -Infinity : y.t;
+    return tx === ty ? y.i - x.i : ty - tx;
+  });
+  return orden.map((o) => o.n);
+}
+
+// Agrupa por etiqueta: primero las etiquetas conocidas (en su orden) y luego cualquier otra.
+// Las etiquetas sin notas no se muestran.
+function notasPorEtiqueta(lista) {
+  const mapa = new Map();
+  ETIQUETAS_NOTA.forEach((e) => mapa.set(e, []));
+  lista.forEach((n) => {
+    const e = n.etiqueta || "General";
+    if (!mapa.has(e)) mapa.set(e, []);
+    mapa.get(e).push(n);
+  });
+  return [...mapa].filter(([, l]) => l.length);
+}
+
+function crearTarjetaNota(n) {
+  const hex = hexDeColor(n.color);
+  const tarjeta = document.createElement("div");
+  tarjeta.className = "tarjeta-nota";
+  tarjeta.style.setProperty("--fondo", hex);
+  aplicarContraste(tarjeta, hex);
+  const nombre = document.createElement("div");
+  nombre.className = "tarjeta-nombre";
+  nombre.textContent = n.nombre || "Sin nombre";
+  const etiqueta = document.createElement("span");
+  etiqueta.className = "tarjeta-etiqueta";
+  etiqueta.textContent = n.etiqueta || "General";
+  const fecha = document.createElement("div");
+  fecha.className = "tarjeta-fecha";
+  dibujarFechaNota(fecha, n);
+  const texto = document.createElement("p");
+  texto.className = "tarjeta-texto";
+  texto.textContent = n.texto;
+  const borrar = document.createElement("button");
+  borrar.type = "button";
+  borrar.className = "tarjeta-borrar";
+  borrar.setAttribute("aria-label", "Eliminar nota");
+  borrar.textContent = "×";
+  borrar.addEventListener("click", () => borrarNota(n.id));
+  tarjeta.append(nombre, etiqueta, fecha, texto, borrar);
+  return tarjeta;
+}
+
 function dibujarNotas() {
   notasLista.innerHTML = "";
   if (!notas.length) {
@@ -811,46 +1034,82 @@ function dibujarNotas() {
     p.className = "notas-vacio";
     p.textContent = "Aún no hay notas. ¡Escribe la primera! ✨";
     notasLista.appendChild(p);
+    cerrarSubmenu();
     return;
   }
-  // Las más recientes primero (en la hoja se van agregando al final)
-  notas.slice().reverse().forEach((n) => {
-    const tarjeta = document.createElement("div");
-    tarjeta.className = "tarjeta-nota";
-    tarjeta.style.setProperty("--fondo", hexDeColor(n.color));
-    const nombre = document.createElement("div");
-    nombre.className = "tarjeta-nombre";
-    nombre.textContent = n.nombre || "Sin nombre";
-    const etiqueta = document.createElement("span");
-    etiqueta.className = "tarjeta-etiqueta";
-    etiqueta.textContent = n.etiqueta || "General";
-    const fecha = document.createElement("div");
-    fecha.className = "tarjeta-fecha";
-    fecha.textContent = n.fecha;
-    const texto = document.createElement("p");
-    texto.className = "tarjeta-texto";
-    texto.textContent = n.texto;
-    const borrar = document.createElement("button");
-    borrar.type = "button";
-    borrar.className = "tarjeta-borrar";
-    borrar.setAttribute("aria-label", "Eliminar nota");
-    borrar.textContent = "×";
-    borrar.addEventListener("click", () => borrarNota(n.id));
-    tarjeta.append(nombre, etiqueta, fecha, texto, borrar);
-    notasLista.appendChild(tarjeta);
+  notasPorEtiqueta(notasOrdenadas()).forEach(([etiqueta, lista]) => {
+    const seccion = document.createElement("section");
+    seccion.className = "notas-grupo";
+
+    const titulo = document.createElement("h3");
+    titulo.className = "notas-grupo-titulo";
+    const nombreEt = document.createElement("span");
+    nombreEt.textContent = etiqueta;
+    const cuenta = document.createElement("span");
+    cuenta.className = "notas-grupo-cuenta";
+    cuenta.textContent = String(lista.length);
+    titulo.append(nombreEt, cuenta);
+
+    // Fila: las primeras 4 notas una al lado de la otra y, si hay más, el botón a la derecha
+    const fila = document.createElement("div");
+    fila.className = "notas-grupo-fila";
+    const tarjetas = document.createElement("div");
+    tarjetas.className = "notas-grupo-cards";
+    lista.slice(0, MAX_FILA_NOTAS).forEach((n) => tarjetas.appendChild(crearTarjetaNota(n)));
+    fila.appendChild(tarjetas);
+    if (lista.length > MAX_FILA_NOTAS) {
+      const mas = document.createElement("button");
+      mas.type = "button";
+      mas.className = "notas-grupo-mas";
+      mas.setAttribute("aria-label", "Ver las " + lista.length + " notas de " + etiqueta);
+      mas.innerHTML =
+        '<span>Ver todas</span><span class="notas-grupo-num"></span>' +
+        '<span class="flecha-mas" aria-hidden="true">›</span>';
+      mas.querySelector(".notas-grupo-num").textContent = "(" + lista.length + ")";
+      mas.addEventListener("click", () => abrirSubmenu(etiqueta));
+      fila.appendChild(mas);
+    }
+
+    seccion.append(titulo, fila);
+    notasLista.appendChild(seccion);
   });
+  dibujarSubmenu(); // si hay un submenú abierto, se actualiza también
+}
+
+// Submenú: todas las notas de una etiqueta
+function abrirSubmenu(etiqueta) {
+  etiquetaAbierta = etiqueta;
+  notasSubmenu.hidden = false;
+  dibujarSubmenu();
+  notasSubVolver.focus();
+}
+function cerrarSubmenu() {
+  etiquetaAbierta = null;
+  notasSubmenu.hidden = true;
+  notasSubLista.innerHTML = "";
+}
+function dibujarSubmenu() {
+  if (etiquetaAbierta === null) return;
+  const lista = notasOrdenadas().filter((n) => (n.etiqueta || "General") === etiquetaAbierta);
+  if (!lista.length) {
+    cerrarSubmenu();
+    return;
+  }
+  notasSubTitulo.textContent = etiquetaAbierta + " (" + lista.length + ")";
+  notasSubLista.innerHTML = "";
+  lista.forEach((n) => notasSubLista.appendChild(crearTarjetaNota(n)));
 }
 
 async function cargarNotas() {
-  setEstado(notasEstado, "Cargando…");
+  setEstado(notasEstadoLista, "Cargando…");
   try {
     const j = await llamarNotas("nota_listar");
     notas = Array.isArray(j.notas) ? j.notas : [];
     notasCargadas = true;
     dibujarNotas();
-    setEstado(notasEstado, "");
+    setEstado(notasEstadoLista, "");
   } catch (e) {
-    setEstado(notasEstado, "Error: " + e.message, "error");
+    setEstado(notasEstadoLista, "Error: " + e.message, "error");
   }
 }
 
@@ -863,7 +1122,8 @@ async function agregarNota() {
   const nota = {
     id: String(Date.now()),
     nombre: notasNombre.value.trim() || "Sin nombre",
-    fecha: selloFechaHora(),
+    // La fecha se puede cambiar en el formulario; si queda vacía se usa la actual
+    fecha: inputAFecha(notasFecha.value) || selloFechaHora(),
     etiqueta: notasEtiqueta.value,
     texto,
     color: colorElegido,
@@ -878,7 +1138,9 @@ async function agregarNota() {
     notasEtiqueta.selectedIndex = 0;
     elegirColor("Blanco");
     dibujarNotas();
-    setEstado(notasEstado, "Guardada ✓", "ok");
+    setEstado(notasEstado, "");
+    mostrarFormNota(false);
+    setEstado(notasEstadoLista, "Guardada ✓", "ok");
   } catch (e) {
     setEstado(notasEstado, "Error: " + e.message, "error");
   } finally {
@@ -888,14 +1150,14 @@ async function agregarNota() {
 
 async function borrarNota(id) {
   if (!window.confirm("¿Eliminar esta nota?")) return;
-  setEstado(notasEstado, "Eliminando…");
+  setEstado(notasEstadoLista, "Eliminando…");
   try {
     await llamarNotas("nota_borrar", { id });
     notas = notas.filter((n) => n.id !== id);
     dibujarNotas();
-    setEstado(notasEstado, "Eliminada", "ok");
+    setEstado(notasEstadoLista, "Eliminada", "ok");
   } catch (e) {
-    setEstado(notasEstado, "Error: " + e.message, "error");
+    setEstado(notasEstadoLista, "Error: " + e.message, "error");
   }
 }
 
@@ -916,10 +1178,13 @@ function actualizarPanelNotas() {
 function abrirNotas() {
   cerrarLateral();
   panelNotas.hidden = false;
+  mostrarFormNota(false); // al abrir, primero se ve la lista de notas
+  cerrarSubmenu();
   actualizarPanelNotas();
 }
 
 function cerrarNotas() {
+  cerrarSubmenu();
   panelNotas.hidden = true;
 }
 
@@ -934,12 +1199,19 @@ document.getElementById("notas-ir-login").addEventListener("click", () => {
   abrirLateral();
 });
 notasGuardar.addEventListener("click", agregarNota);
+notasNuevaBtn.addEventListener("click", () => mostrarFormNota(true));
+notasCancelar.addEventListener("click", () => mostrarFormNota(false));
+notasSubVolver.addEventListener("click", cerrarSubmenu);
 // Tocar el fondo oscuro (fuera de la caja) cierra el panel; Esc también
 panelNotas.addEventListener("click", (e) => {
   if (e.target === panelNotas) cerrarNotas();
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && !panelNotas.hidden) cerrarNotas();
+  if (e.key === "Escape" && !panelNotas.hidden) {
+    // Esc cierra primero el submenú y, si no hay, el panel de notas
+    if (etiquetaAbierta !== null) cerrarSubmenu();
+    else cerrarNotas();
+  }
 });
 
 dibujarCuenta();
