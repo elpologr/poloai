@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "13";
+const VERSION = "17";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -11,6 +11,9 @@ const VERSION = "13";
     "btn-menu-lateral", "barra-lateral", "google-boton", "btn-notas", "panel-notas",
     "notas-nueva-btn", "notas-fecha", "notas-cancelar", "notas-estado-lista",
     "notas-submenu", "notas-sub-lista", "notas-mas-colores", "notas-color-personal",
+    "notas-identificador", "notas-form-titulo", "btn-proyectos", "panel-proyectos", "proy-form",
+    "btn-yeso", "btn-galeria", "panel-galeria", "gal-form",
+    "zona-actividades", "zona-pendientes", "zona-trabajo",
   ];
   const problemas = [];
 
@@ -742,10 +745,16 @@ const notasPaletaFamilias = document.getElementById("notas-paleta-familias");
 const notasColorPersonal = document.getElementById("notas-color-personal");
 const notasPersonal = document.getElementById("notas-personal");
 const notasLista = document.getElementById("notas-lista");
+const notasIdent = document.getElementById("notas-identificador");
+const notasFormTitulo = document.getElementById("notas-form-titulo");
+const notasCaja = document.querySelector(".notas-caja");
 
-let notas = []; // [{ id, nombre, fecha, etiqueta, texto, color }]
+let notaEditando = null; // nota que se está editando en el formulario (null = nota nueva)
+
+let notas = []; // [{ id, nombre, fecha, etiqueta, texto, color, identificador }]
 let notasCargadas = false;
 let etiquetaAbierta = null; // etiqueta cuyo submenú está abierto (null = ninguno)
+let etiquetaPendiente = null; // etiqueta a abrir en cuanto terminen de cargar las notas (acceso directo)
 const MAX_FILA_NOTAS = 4; // notas visibles por fila; el resto va en el submenú
 
 // Etiquetas y colores (los nombres se guardan tal cual en la hoja; deben coincidir con el Apps Script)
@@ -756,6 +765,9 @@ const ETIQUETAS_NOTA = [
   "Sueños",
   "Pendiente Importante",
   "Pedidos de Yeso",
+  "Actividades",
+  "Pendientes",
+  "Trabajo",
 ];
 const COLORES_NOTA = [
   { nombre: "Blanco", hex: "#ffffff" },
@@ -911,6 +923,7 @@ function marcaTiempo(s) {
 
 // Muestra u oculta las opciones para crear una nota (el botón "Nueva nota" hace lo contrario)
 function mostrarFormNota(mostrar) {
+  salirModoEdicion();
   notasForm.hidden = !mostrar;
   notasNuevaBtn.hidden = mostrar;
   if (mostrar) {
@@ -918,6 +931,59 @@ function mostrarFormNota(mostrar) {
     setEstado(notasEstado, "");
     notasNombre.focus();
   }
+}
+
+// Vacía el formulario (deja los valores de una nota nueva)
+function limpiarFormNota() {
+  notasTexto.value = "";
+  notasNombre.value = "";
+  notasIdent.value = "";
+  notasEtiqueta.selectedIndex = 0;
+  elegirColor("Blanco");
+  notasFecha.value = fechaActualInput();
+}
+
+// Vuelve el formulario a su lugar normal (arriba de la lista) y a modo "Nueva nota"
+function salirModoEdicion() {
+  if (!notaEditando) return;
+  notaEditando = null;
+  notasForm.classList.remove("modo-editar");
+  notasContenido.insertBefore(notasForm, notasLista);
+  notasFormTitulo.textContent = "Nueva nota";
+  notasGuardar.textContent = "Guardar nota";
+}
+
+// Abre la edición de una nota: el mismo formulario, con sus datos, como ventana encima del panel
+function abrirEdicionNota(n) {
+  const borrador = !notaEditando && !notasForm.hidden &&
+    (notasTexto.value.trim() || notasNombre.value.trim() || notasIdent.value.trim());
+  if (borrador && !window.confirm("Tienes una nota nueva sin guardar. ¿Descartarla para editar esta?")) return;
+
+  salirModoEdicion();
+  notaEditando = n;
+  notasNombre.value = n.nombre === "Sin nombre" ? "" : n.nombre || "";
+  notasEtiqueta.value = ETIQUETAS_NOTA.includes(n.etiqueta) ? n.etiqueta : "General";
+  const c = String(n.color || "").trim();
+  const colorValido = /^#[0-9a-fA-F]{6}$/.test(c) || COLORES_NOTA.some((x) => x.nombre === c);
+  elegirColor(colorValido ? (c.startsWith("#") ? c.toLowerCase() : c) : "Blanco");
+  notasFecha.value = fechaAInput(n.fecha) || fechaActualInput();
+  notasIdent.value = n.identificador || "";
+  notasTexto.value = n.texto || "";
+  notasFormTitulo.textContent = "Editar nota";
+  notasGuardar.textContent = "Guardar cambios";
+  setEstado(notasEstado, "");
+
+  notasForm.hidden = false;
+  notasForm.classList.add("modo-editar");
+  notasCaja.appendChild(notasForm); // al final de la caja: queda por encima de la lista y del submenú
+  notasForm.scrollTop = 0;
+  notasNombre.focus();
+}
+
+// Cierra la edición sin guardar
+function cancelarEdicionNota() {
+  limpiarFormNota();
+  mostrarFormNota(false);
 }
 
 // Fecha de una tarjeta: texto + lápiz para cambiarla
@@ -974,11 +1040,26 @@ async function guardarFechaNota(n, valor, boton) {
   }
 }
 
-// Todas las notas, de la más reciente a la más antigua según su fecha
-// (si dos tienen la misma, sale primero la última guardada)
+// Clave de orden del identificador: 0 = número, 1 = palabra, 2 = sin identificador
+function claveIdent(s) {
+  const v = String(s || "").trim();
+  if (!v) return { tipo: 2 };
+  if (/^-?\d+([.,]\d+)?$/.test(v)) return { tipo: 0, num: parseFloat(v.replace(",", ".")) };
+  return { tipo: 1, txt: v };
+}
+
+// Orden de las notas: primero las que tienen identificador numérico (1, 2, 3…), luego las de
+// palabra (A a Z) y al final las que no tienen. Con el mismo identificador (o sin él),
+// la más reciente según su fecha va primero (si la fecha es igual, la última guardada).
 function notasOrdenadas() {
-  const orden = notas.map((n, i) => ({ n, i, t: marcaTiempo(n.fecha) }));
+  const orden = notas.map((n, i) => ({ n, i, t: marcaTiempo(n.fecha), k: claveIdent(n.identificador) }));
   orden.sort((x, y) => {
+    if (x.k.tipo !== y.k.tipo) return x.k.tipo - y.k.tipo;
+    if (x.k.tipo === 0 && x.k.num !== y.k.num) return x.k.num - y.k.num;
+    if (x.k.tipo === 1) {
+      const c = x.k.txt.localeCompare(y.k.txt, "es", { sensitivity: "base", numeric: true });
+      if (c) return c;
+    }
     const tx = isNaN(x.t) ? -Infinity : x.t;
     const ty = isNaN(y.t) ? -Infinity : y.t;
     return tx === ty ? y.i - x.i : ty - tx;
@@ -1011,6 +1092,16 @@ function crearTarjetaNota(n) {
   const etiqueta = document.createElement("span");
   etiqueta.className = "tarjeta-etiqueta";
   etiqueta.textContent = n.etiqueta || "General";
+  const meta = document.createElement("div");
+  meta.className = "tarjeta-meta";
+  meta.appendChild(etiqueta);
+  if (n.identificador) {
+    const ident = document.createElement("span");
+    ident.className = "tarjeta-ident";
+    ident.title = "Identificador";
+    ident.textContent = "#" + n.identificador;
+    meta.appendChild(ident);
+  }
   const fecha = document.createElement("div");
   fecha.className = "tarjeta-fecha";
   dibujarFechaNota(fecha, n);
@@ -1022,8 +1113,27 @@ function crearTarjetaNota(n) {
   borrar.className = "tarjeta-borrar";
   borrar.setAttribute("aria-label", "Eliminar nota");
   borrar.textContent = "×";
-  borrar.addEventListener("click", () => borrarNota(n.id));
-  tarjeta.append(nombre, etiqueta, fecha, texto, borrar);
+  borrar.addEventListener("click", (e) => {
+    e.stopPropagation();
+    borrarNota(n.id);
+  });
+  tarjeta.append(nombre, meta, fecha, texto, borrar);
+
+  // Tocar la tarjeta en cualquier zona abre su edición (los botones ✎ y × siguen con su función)
+  tarjeta.tabIndex = 0;
+  tarjeta.setAttribute("role", "button");
+  tarjeta.setAttribute("aria-label", "Editar la nota " + (n.nombre || "Sin nombre"));
+  tarjeta.addEventListener("click", (e) => {
+    if (e.target.closest("button, input")) return;
+    if (String(window.getSelection()).length) return; // si estaba seleccionando texto, no se abre
+    abrirEdicionNota(n);
+  });
+  tarjeta.addEventListener("keydown", (e) => {
+    if (e.target === tarjeta && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      abrirEdicionNota(n);
+    }
+  });
   return tarjeta;
 }
 
@@ -1035,6 +1145,7 @@ function dibujarNotas() {
     p.textContent = "Aún no hay notas. ¡Escribe la primera! ✨";
     notasLista.appendChild(p);
     cerrarSubmenu();
+    dibujarZonasEtiqueta(); // Actividades, Pendientes y Trabajo usan las mismas notas
     return;
   }
   notasPorEtiqueta(notasOrdenadas()).forEach(([etiqueta, lista]) => {
@@ -1074,6 +1185,7 @@ function dibujarNotas() {
     notasLista.appendChild(seccion);
   });
   dibujarSubmenu(); // si hay un submenú abierto, se actualiza también
+  dibujarZonasEtiqueta(); // Actividades, Pendientes y Trabajo usan las mismas notas
 }
 
 // Submenú: todas las notas de una etiqueta
@@ -1108,7 +1220,9 @@ async function cargarNotas() {
     notasCargadas = true;
     dibujarNotas();
     setEstado(notasEstadoLista, "");
+    if (etiquetaPendiente) irAEtiquetaNotas(etiquetaPendiente);
   } catch (e) {
+    etiquetaPendiente = null;
     setEstado(notasEstadoLista, "Error: " + e.message, "error");
   }
 }
@@ -1127,20 +1241,50 @@ async function agregarNota() {
     etiqueta: notasEtiqueta.value,
     texto,
     color: colorElegido,
+    identificador: notasIdent.value.trim(),
   };
   notasGuardar.disabled = true;
   setEstado(notasEstado, "Guardando…");
   try {
     await llamarNotas("nota_agregar", nota);
     notas.push(nota);
-    notasTexto.value = "";
-    notasNombre.value = "";
-    notasEtiqueta.selectedIndex = 0;
-    elegirColor("Blanco");
+    limpiarFormNota();
     dibujarNotas();
     setEstado(notasEstado, "");
     mostrarFormNota(false);
     setEstado(notasEstadoLista, "Guardada ✓", "ok");
+  } catch (e) {
+    setEstado(notasEstado, "Error: " + e.message, "error");
+  } finally {
+    notasGuardar.disabled = false;
+  }
+}
+
+async function editarNota() {
+  const n = notaEditando;
+  if (!n) return;
+  const texto = notasTexto.value.trim();
+  if (!texto) {
+    setEstado(notasEstado, "Escribe algo primero", "error");
+    return;
+  }
+  const cambios = {
+    nombre: notasNombre.value.trim() || "Sin nombre",
+    fecha: inputAFecha(notasFecha.value) || n.fecha || selloFechaHora(),
+    etiqueta: notasEtiqueta.value,
+    texto,
+    color: colorElegido,
+    identificador: notasIdent.value.trim(),
+  };
+  notasGuardar.disabled = true;
+  setEstado(notasEstado, "Guardando…");
+  try {
+    await llamarNotas("nota_editar", Object.assign({ id: n.id }, cambios));
+    Object.assign(n, cambios);
+    limpiarFormNota();
+    mostrarFormNota(false);
+    dibujarNotas();
+    setEstado(notasEstadoLista, "Cambios guardados ✓", "ok");
   } catch (e) {
     setEstado(notasEstado, "Error: " + e.message, "error");
   } finally {
@@ -1163,6 +1307,9 @@ async function borrarNota(id) {
 
 // Muestra el aviso de inicio de sesión o el contenido, según la sesión
 function actualizarPanelNotas() {
+  actualizarPanelProyectos(); // la sesión también afecta a los paneles de Proyectos y Galería
+  actualizarPanelGaleria();
+  actualizarZonasEtiqueta(); // y a las zonas de Actividades, Pendientes y Trabajo
   if (panelNotas.hidden) return;
   const dentro = sesionVigente();
   notasSinSesion.hidden = dentro;
@@ -1176,6 +1323,7 @@ function actualizarPanelNotas() {
 }
 
 function abrirNotas() {
+  etiquetaPendiente = null;
   cerrarLateral();
   panelNotas.hidden = false;
   mostrarFormNota(false); // al abrir, primero se ve la lista de notas
@@ -1184,6 +1332,7 @@ function abrirNotas() {
 }
 
 function cerrarNotas() {
+  if (notaEditando) cancelarEdicionNota();
   cerrarSubmenu();
   panelNotas.hidden = true;
 }
@@ -1198,9 +1347,9 @@ document.getElementById("notas-ir-login").addEventListener("click", () => {
   cerrarNotas();
   abrirLateral();
 });
-notasGuardar.addEventListener("click", agregarNota);
+notasGuardar.addEventListener("click", () => (notaEditando ? editarNota() : agregarNota()));
 notasNuevaBtn.addEventListener("click", () => mostrarFormNota(true));
-notasCancelar.addEventListener("click", () => mostrarFormNota(false));
+notasCancelar.addEventListener("click", () => (notaEditando ? cancelarEdicionNota() : mostrarFormNota(false)));
 notasSubVolver.addEventListener("click", cerrarSubmenu);
 // Tocar el fondo oscuro (fuera de la caja) cierra el panel; Esc también
 panelNotas.addEventListener("click", (e) => {
@@ -1208,11 +1357,1047 @@ panelNotas.addEventListener("click", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !panelNotas.hidden) {
-    // Esc cierra primero el submenú y, si no hay, el panel de notas
-    if (etiquetaAbierta !== null) cerrarSubmenu();
+    // Esc cierra primero la edición, luego el submenú y, si no hay, el panel de notas
+    if (notaEditando) cancelarEdicionNota();
+    else if (etiquetaAbierta !== null) cerrarSubmenu();
     else cerrarNotas();
   }
 });
+
+// ---------- Proyectos (hoja «Proyectos» de Google Sheets; imágenes en imgbb) ----------
+const btnProyectos = document.getElementById("btn-proyectos");
+const panelProyectos = document.getElementById("panel-proyectos");
+const proySinSesion = document.getElementById("proy-sin-sesion");
+const proyContenido = document.getElementById("proy-contenido");
+const proyGrid = document.getElementById("proy-grid");
+const proyEstadoLista = document.getElementById("proy-estado-lista");
+const proyForm = document.getElementById("proy-form");
+const proyFormTitulo = document.getElementById("proy-form-titulo");
+const proyVista = document.getElementById("proy-vista");
+const proyElegirImg = document.getElementById("proy-elegir-img");
+const proyQuitarImg = document.getElementById("proy-quitar-img");
+const proyArchivo = document.getElementById("proy-archivo");
+const proyNombre = document.getElementById("proy-nombre");
+const proyFecha = document.getElementById("proy-fecha");
+const proyDescripcion = document.getElementById("proy-descripcion");
+const proyLinks = document.getElementById("proy-links");
+const proyLinksVista = document.getElementById("proy-links-vista");
+const proyGuardar = document.getElementById("proy-guardar");
+const proyCancelar = document.getElementById("proy-cancelar");
+const proyBorrar = document.getElementById("proy-borrar");
+const proyEstado = document.getElementById("proy-estado");
+
+let proyectos = []; // [{ id, nombre, fecha, descripcion, imagen, links }]
+let proyectosCargados = false;
+let proyectoEditando = null; // proyecto abierto en el formulario (null = proyecto nuevo)
+let proyImagenUrl = ""; // imagen actual del proyecto (URL de imgbb)
+let proyImagenNueva = null; // { base64, vista } cuando se eligió una imagen que aún no se sube
+const MAX_LADO_IMAGEN = 1600; // las fotos se reducen a este tamaño antes de subirlas
+
+// Más recientes primero (según su fecha)
+function proyectosOrdenados() {
+  const orden = proyectos.map((p, i) => ({ p, i, t: marcaTiempo(p.fecha) }));
+  orden.sort((x, y) => {
+    const tx = isNaN(x.t) ? -Infinity : x.t;
+    const ty = isNaN(y.t) ? -Infinity : y.t;
+    return tx === ty ? y.i - x.i : ty - tx;
+  });
+  return orden.map((o) => o.p);
+}
+
+// ----- Links: uno por línea en la hoja y en el formulario -----
+function enlacesDeTexto(t) {
+  return String(t || "").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+}
+// Solo se enlazan direcciones http(s) (o dominios sin "https://"); lo demás se muestra como texto
+function hrefSeguro(s) {
+  if (/^https?:\/\/\S+$/i.test(s)) return s;
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(s) && /^[^\s\/]+\.[^\s\/]{2,}(\/\S*)?$/.test(s)) return "https://" + s;
+  return "";
+}
+function dibujarLinksProyecto() {
+  proyLinksVista.innerHTML = "";
+  enlacesDeTexto(proyLinks.value).forEach((l) => {
+    const href = hrefSeguro(l);
+    const el = document.createElement(href ? "a" : "span");
+    if (href) {
+      el.href = href;
+      el.target = "_blank";
+      el.rel = "noopener noreferrer";
+    }
+    el.textContent = l;
+    proyLinksVista.appendChild(el);
+  });
+}
+proyLinks.addEventListener("input", dibujarLinksProyecto);
+
+// ----- Imagen: se reduce en el navegador y el Apps Script la sube a imgbb -----
+function leerImagenReducida(archivo) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(archivo);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const k = Math.min(1, MAX_LADO_IMAGEN / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * k));
+      const h = Math.max(1, Math.round(img.naturalHeight * k));
+      const lienzo = document.createElement("canvas");
+      lienzo.width = w;
+      lienzo.height = h;
+      const ctx = lienzo.getContext("2d");
+      ctx.fillStyle = "#fff"; // las transparencias quedan en blanco al guardar como JPG
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      const vista = lienzo.toDataURL("image/jpeg", 0.85);
+      resolve({ vista, base64: vista.split(",")[1] });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("No se pudo leer la imagen"));
+    };
+    img.src = url;
+  });
+}
+
+function imagenValida(u) {
+  return /^https?:\/\/\S+$/i.test(String(u || ""));
+}
+
+function dibujarVistaImagen() {
+  proyVista.innerHTML = "";
+  const src = proyImagenNueva ? proyImagenNueva.vista : proyImagenUrl;
+  if (src && (proyImagenNueva || imagenValida(src))) {
+    const img = document.createElement("img");
+    img.alt = "Imagen del proyecto";
+    img.referrerPolicy = "no-referrer";
+    img.src = src;
+    proyVista.appendChild(img);
+  } else {
+    proyVista.textContent = "Sin imagen";
+  }
+  proyQuitarImg.hidden = !(proyImagenNueva || proyImagenUrl);
+  proyElegirImg.textContent = proyImagenNueva || proyImagenUrl ? "Cambiar imagen" : "Elegir imagen";
+}
+
+proyElegirImg.addEventListener("click", () => proyArchivo.click());
+proyQuitarImg.addEventListener("click", () => {
+  proyImagenNueva = null;
+  proyImagenUrl = "";
+  proyArchivo.value = "";
+  dibujarVistaImagen();
+});
+proyArchivo.addEventListener("change", async () => {
+  const archivo = proyArchivo.files && proyArchivo.files[0];
+  if (!archivo) return;
+  setEstado(proyEstado, "Preparando imagen…");
+  try {
+    proyImagenNueva = await leerImagenReducida(archivo);
+    dibujarVistaImagen();
+    setEstado(proyEstado, "");
+  } catch (e) {
+    setEstado(proyEstado, "Error: " + e.message, "error");
+  }
+  proyArchivo.value = "";
+});
+
+// ----- Cuadrícula -----
+function crearTileProyecto(p) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "proy-tile";
+  b.setAttribute("aria-label", "Editar el proyecto " + (p.nombre || "Sin nombre"));
+  const vacio = () => {
+    const v = document.createElement("span");
+    v.className = "proy-tile-vacio";
+    v.setAttribute("aria-hidden", "true");
+    v.textContent = "🖼️";
+    return v;
+  };
+  if (imagenValida(p.imagen)) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.loading = "lazy";
+    img.referrerPolicy = "no-referrer";
+    img.src = p.imagen;
+    img.addEventListener("error", () => img.replaceWith(vacio()));
+    b.appendChild(img);
+  } else {
+    b.appendChild(vacio());
+  }
+  const nombre = document.createElement("span");
+  nombre.className = "proy-tile-nombre";
+  nombre.textContent = p.nombre || "Sin nombre";
+  b.appendChild(nombre);
+  b.addEventListener("click", () => abrirFormProyecto(p));
+  return b;
+}
+
+function dibujarProyectos() {
+  proyGrid.innerHTML = "";
+  const nuevo = document.createElement("button");
+  nuevo.type = "button";
+  nuevo.className = "proy-tile proy-tile-nuevo";
+  nuevo.setAttribute("aria-label", "Agregar un proyecto nuevo");
+  nuevo.innerHTML = '<span class="proy-mas" aria-hidden="true">+</span><span>Nuevo proyecto</span>';
+  nuevo.addEventListener("click", () => abrirFormProyecto(null));
+  proyGrid.appendChild(nuevo);
+  proyectosOrdenados().forEach((p) => proyGrid.appendChild(crearTileProyecto(p)));
+}
+
+// ----- Ventana de edición -----
+function abrirFormProyecto(p) {
+  proyectoEditando = p;
+  proyImagenUrl = p ? p.imagen || "" : "";
+  proyImagenNueva = null;
+  proyFormTitulo.textContent = p ? "Editar proyecto" : "Nuevo proyecto";
+  proyNombre.value = p ? (p.nombre === "Sin nombre" ? "" : p.nombre || "") : "";
+  proyFecha.value = (p && fechaAInput(p.fecha)) || fechaActualInput();
+  proyDescripcion.value = p ? p.descripcion || "" : "";
+  proyLinks.value = p ? enlacesDeTexto(p.links).join("\n") : "";
+  proyGuardar.textContent = p ? "Guardar cambios" : "Guardar proyecto";
+  proyBorrar.hidden = !p;
+  setEstado(proyEstado, "");
+  dibujarVistaImagen();
+  dibujarLinksProyecto();
+  proyForm.hidden = false;
+  proyForm.scrollTop = 0;
+  proyNombre.focus();
+}
+
+function cerrarFormProyecto() {
+  proyForm.hidden = true;
+  proyectoEditando = null;
+  proyImagenNueva = null;
+  proyImagenUrl = "";
+  proyArchivo.value = "";
+}
+
+async function guardarProyecto() {
+  const nombre = proyNombre.value.trim();
+  if (!nombre) {
+    setEstado(proyEstado, "Escribe un nombre", "error");
+    return;
+  }
+  proyGuardar.disabled = true;
+  try {
+    // 1) Si se eligió una imagen nueva, se sube a imgbb a través del Apps Script
+    if (proyImagenNueva) {
+      setEstado(proyEstado, "Subiendo imagen…");
+      const j = await llamarNotas("proyecto_imagen", { imagen: proyImagenNueva.base64 });
+      proyImagenUrl = j.url;
+      proyImagenNueva = null; // si el guardado falla, no se vuelve a subir
+    }
+    // 2) Se guarda el proyecto en la hoja
+    setEstado(proyEstado, "Guardando…");
+    const datos = {
+      nombre,
+      fecha: inputAFecha(proyFecha.value) || (proyectoEditando && proyectoEditando.fecha) || selloFechaHora(),
+      descripcion: proyDescripcion.value.trim(),
+      imagen: proyImagenUrl,
+      links: enlacesDeTexto(proyLinks.value).join("\n"),
+    };
+    if (proyectoEditando) {
+      await llamarNotas("proyecto_editar", Object.assign({ id: proyectoEditando.id }, datos));
+      Object.assign(proyectoEditando, datos);
+    } else {
+      const nuevo = Object.assign({ id: String(Date.now()) }, datos);
+      await llamarNotas("proyecto_agregar", nuevo);
+      proyectos.push(nuevo);
+    }
+    cerrarFormProyecto();
+    dibujarProyectos();
+    setEstado(proyEstadoLista, "Guardado ✓", "ok");
+  } catch (e) {
+    setEstado(proyEstado, "Error: " + e.message, "error");
+  } finally {
+    proyGuardar.disabled = false;
+  }
+}
+
+async function borrarProyecto() {
+  const p = proyectoEditando;
+  if (!p || !window.confirm("¿Eliminar este proyecto? (la imagen seguirá en imgbb)")) return;
+  proyBorrar.disabled = true;
+  setEstado(proyEstado, "Eliminando…");
+  try {
+    await llamarNotas("proyecto_borrar", { id: p.id });
+    proyectos = proyectos.filter((x) => x.id !== p.id);
+    cerrarFormProyecto();
+    dibujarProyectos();
+    setEstado(proyEstadoLista, "Eliminado", "ok");
+  } catch (e) {
+    setEstado(proyEstado, "Error: " + e.message, "error");
+  } finally {
+    proyBorrar.disabled = false;
+  }
+}
+
+async function cargarProyectos() {
+  setEstado(proyEstadoLista, "Cargando…");
+  try {
+    const j = await llamarNotas("proyecto_listar");
+    proyectos = Array.isArray(j.proyectos) ? j.proyectos : [];
+    proyectosCargados = true;
+    dibujarProyectos();
+    setEstado(proyEstadoLista, "");
+  } catch (e) {
+    setEstado(proyEstadoLista, "Error: " + e.message, "error");
+  }
+}
+
+function actualizarPanelProyectos() {
+  if (panelProyectos.hidden) return;
+  const dentro = sesionVigente();
+  proySinSesion.hidden = dentro;
+  proyContenido.hidden = !dentro;
+  if (dentro) {
+    if (!proyectosCargados) cargarProyectos();
+  } else {
+    proyectosCargados = false;
+    proyectos = [];
+    cerrarFormProyecto();
+  }
+}
+
+function abrirProyectos() {
+  cerrarLateral();
+  panelProyectos.hidden = false;
+  cerrarFormProyecto();
+  actualizarPanelProyectos();
+}
+function cerrarProyectos() {
+  cerrarFormProyecto();
+  panelProyectos.hidden = true;
+}
+
+btnProyectos.addEventListener("click", abrirProyectos);
+document.getElementById("proy-cerrar").addEventListener("click", cerrarProyectos);
+document.getElementById("proy-actualizar").addEventListener("click", () => {
+  if (sesionVigente()) cargarProyectos();
+  else actualizarPanelProyectos();
+});
+document.getElementById("proy-ir-login").addEventListener("click", () => {
+  cerrarProyectos();
+  abrirLateral();
+});
+proyGuardar.addEventListener("click", guardarProyecto);
+proyCancelar.addEventListener("click", cerrarFormProyecto);
+proyBorrar.addEventListener("click", borrarProyecto);
+// Tocar el fondo oscuro (fuera de la caja) cierra el panel; Esc cierra primero la ventana de edición
+panelProyectos.addEventListener("click", (e) => {
+  if (e.target === panelProyectos) cerrarProyectos();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !panelProyectos.hidden) {
+    if (!proyForm.hidden) cerrarFormProyecto();
+    else cerrarProyectos();
+  }
+});
+
+// ---------- Acceso directo: notas con la etiqueta «Pedidos de Yeso» ----------
+const ETIQUETA_ACCESO_DIRECTO = "Pedidos de Yeso";
+
+// Muestra el submenú con todas las notas de una etiqueta (o avisa si todavía no hay ninguna)
+function irAEtiquetaNotas(etiqueta) {
+  etiquetaPendiente = null;
+  if (notas.some((n) => (n.etiqueta || "General") === etiqueta)) abrirSubmenu(etiqueta);
+  else setEstado(notasEstadoLista, "Aún no hay notas con la etiqueta «" + etiqueta + "»");
+}
+
+function abrirNotasEtiqueta(etiqueta) {
+  abrirNotas(); // cierra la barra, abre el panel y (con sesión) carga las notas
+  if (!sesionVigente()) return; // sin sesión, el panel pide iniciarla
+  if (notasCargadas) irAEtiquetaNotas(etiqueta);
+  else etiquetaPendiente = etiqueta; // cargarNotas la abre al terminar
+}
+document.getElementById("btn-yeso").addEventListener("click", () => abrirNotasEtiqueta(ETIQUETA_ACCESO_DIRECTO));
+
+// ---------- Galería (hoja «Galeria» de Google Sheets; imágenes en imgbb) ----------
+const ETIQUETAS_GALERIA = ["General", "Programacion", "Contenido Digital", "Perfiles"];
+
+const panelGaleria = document.getElementById("panel-galeria");
+const galSinSesion = document.getElementById("gal-sin-sesion");
+const galContenido = document.getElementById("gal-contenido");
+const galFiltros = document.getElementById("gal-filtros");
+const galGrid = document.getElementById("gal-grid");
+const galEstadoLista = document.getElementById("gal-estado-lista");
+const galForm = document.getElementById("gal-form");
+const galFormTitulo = document.getElementById("gal-form-titulo");
+const galVista = document.getElementById("gal-vista");
+const galElegirImg = document.getElementById("gal-elegir-img");
+const galArchivo = document.getElementById("gal-archivo");
+const galEtiqueta = document.getElementById("gal-etiqueta");
+const galDescripcion = document.getElementById("gal-descripcion");
+const galGuardar = document.getElementById("gal-guardar");
+const galBorrar = document.getElementById("gal-borrar");
+const galEstado = document.getElementById("gal-estado");
+
+let galeria = []; // [{ id, imagen, descripcion, etiqueta }]
+let galeriaCargada = false;
+let galeriaEditando = null; // imagen abierta en el formulario (null = imagen nueva)
+let galImagenUrl = ""; // imagen actual (URL de imgbb)
+let galImagenNueva = null; // { base64, vista } cuando se eligió una imagen que aún no se sube
+let galFiltro = "Todas";
+
+ETIQUETAS_GALERIA.forEach((e) => {
+  const op = document.createElement("option");
+  op.value = e;
+  op.textContent = e;
+  galEtiqueta.appendChild(op);
+});
+
+// Las más recientes (las últimas de la hoja) primero, y solo las de la etiqueta elegida
+function galeriaVisible() {
+  const lista = galeria.slice().reverse();
+  return galFiltro === "Todas" ? lista : lista.filter((g) => (g.etiqueta || "General") === galFiltro);
+}
+
+function dibujarFiltrosGaleria() {
+  galFiltros.innerHTML = "";
+  ["Todas"].concat(ETIQUETAS_GALERIA).forEach((e) => {
+    const n = e === "Todas" ? galeria.length : galeria.filter((g) => (g.etiqueta || "General") === e).length;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "gal-chip" + (e === galFiltro ? " activo" : "");
+    b.setAttribute("aria-pressed", e === galFiltro ? "true" : "false");
+    b.textContent = e + " (" + n + ")";
+    b.addEventListener("click", () => {
+      galFiltro = e;
+      dibujarGaleria();
+    });
+    galFiltros.appendChild(b);
+  });
+}
+
+function crearTileGaleria(g) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "proy-tile";
+  b.setAttribute("aria-label", "Editar la imagen " + (g.descripcion || g.etiqueta || ""));
+  const vacio = () => {
+    const v = document.createElement("span");
+    v.className = "proy-tile-vacio";
+    v.setAttribute("aria-hidden", "true");
+    v.textContent = "🖼️";
+    return v;
+  };
+  if (imagenValida(g.imagen)) {
+    const img = document.createElement("img");
+    img.alt = g.descripcion || "";
+    img.loading = "lazy";
+    img.referrerPolicy = "no-referrer";
+    img.src = g.imagen;
+    img.addEventListener("error", () => img.replaceWith(vacio()));
+    b.appendChild(img);
+  } else {
+    b.appendChild(vacio());
+  }
+  const pildora = document.createElement("span");
+  pildora.className = "gal-pildora";
+  pildora.textContent = g.etiqueta || "General";
+  b.appendChild(pildora);
+  if (g.descripcion) {
+    const d = document.createElement("span");
+    d.className = "proy-tile-nombre";
+    d.textContent = g.descripcion;
+    b.appendChild(d);
+  }
+  b.addEventListener("click", () => abrirFormGaleria(g));
+  return b;
+}
+
+function dibujarGaleria() {
+  dibujarFiltrosGaleria();
+  galGrid.innerHTML = "";
+  const nuevo = document.createElement("button");
+  nuevo.type = "button";
+  nuevo.className = "proy-tile proy-tile-nuevo";
+  nuevo.setAttribute("aria-label", "Agregar una imagen nueva");
+  nuevo.innerHTML = '<span class="proy-mas" aria-hidden="true">+</span><span>Nueva imagen</span>';
+  nuevo.addEventListener("click", () => abrirFormGaleria(null));
+  galGrid.appendChild(nuevo);
+  galeriaVisible().forEach((g) => galGrid.appendChild(crearTileGaleria(g)));
+}
+
+// ----- Ventana de edición -----
+function dibujarVistaGaleria() {
+  galVista.innerHTML = "";
+  const src = galImagenNueva ? galImagenNueva.vista : galImagenUrl;
+  if (src && (galImagenNueva || imagenValida(src))) {
+    const img = document.createElement("img");
+    img.alt = "Imagen de la galería";
+    img.referrerPolicy = "no-referrer";
+    img.src = src;
+    galVista.appendChild(img);
+  } else {
+    galVista.textContent = "Sin imagen";
+  }
+  galElegirImg.textContent = galImagenNueva || galImagenUrl ? "Cambiar imagen" : "Elegir imagen";
+}
+
+galElegirImg.addEventListener("click", () => galArchivo.click());
+galArchivo.addEventListener("change", async () => {
+  const archivo = galArchivo.files && galArchivo.files[0];
+  if (!archivo) return;
+  setEstado(galEstado, "Preparando imagen…");
+  try {
+    galImagenNueva = await leerImagenReducida(archivo);
+    dibujarVistaGaleria();
+    setEstado(galEstado, "");
+  } catch (e) {
+    setEstado(galEstado, "Error: " + e.message, "error");
+  }
+  galArchivo.value = "";
+});
+
+function abrirFormGaleria(g) {
+  galeriaEditando = g;
+  galImagenUrl = g ? g.imagen || "" : "";
+  galImagenNueva = null;
+  galFormTitulo.textContent = g ? "Editar imagen" : "Nueva imagen";
+  // Al agregar, se preselecciona la etiqueta del filtro activo
+  const sugerida = g ? g.etiqueta : galFiltro;
+  galEtiqueta.value = ETIQUETAS_GALERIA.includes(sugerida) ? sugerida : "General";
+  galDescripcion.value = g ? g.descripcion || "" : "";
+  galGuardar.textContent = g ? "Guardar cambios" : "Guardar imagen";
+  galBorrar.hidden = !g;
+  setEstado(galEstado, "");
+  dibujarVistaGaleria();
+  galForm.hidden = false;
+  galForm.scrollTop = 0;
+  galElegirImg.focus();
+}
+
+function cerrarFormGaleria() {
+  galForm.hidden = true;
+  galeriaEditando = null;
+  galImagenNueva = null;
+  galImagenUrl = "";
+  galArchivo.value = "";
+}
+
+async function guardarGaleria() {
+  if (!galImagenNueva && !galImagenUrl) {
+    setEstado(galEstado, "Elige una imagen", "error");
+    return;
+  }
+  galGuardar.disabled = true;
+  try {
+    if (galImagenNueva) {
+      setEstado(galEstado, "Subiendo imagen…");
+      const j = await llamarNotas("proyecto_imagen", { imagen: galImagenNueva.base64 });
+      galImagenUrl = j.url;
+      galImagenNueva = null; // si el guardado falla, no se vuelve a subir
+    }
+    setEstado(galEstado, "Guardando…");
+    const datos = {
+      imagen: galImagenUrl,
+      descripcion: galDescripcion.value.trim(),
+      etiqueta: galEtiqueta.value,
+    };
+    if (galeriaEditando) {
+      await llamarNotas("galeria_editar", Object.assign({ id: galeriaEditando.id }, datos));
+      Object.assign(galeriaEditando, datos);
+    } else {
+      const nueva = Object.assign({ id: String(Date.now()) }, datos);
+      await llamarNotas("galeria_agregar", nueva);
+      galeria.push(nueva);
+    }
+    cerrarFormGaleria();
+    dibujarGaleria();
+    setEstado(galEstadoLista, "Guardado ✓", "ok");
+  } catch (e) {
+    setEstado(galEstado, "Error: " + e.message, "error");
+  } finally {
+    galGuardar.disabled = false;
+  }
+}
+
+async function borrarGaleria() {
+  const g = galeriaEditando;
+  if (!g || !window.confirm("¿Eliminar esta imagen de la galería? (seguirá en imgbb)")) return;
+  galBorrar.disabled = true;
+  setEstado(galEstado, "Eliminando…");
+  try {
+    await llamarNotas("galeria_borrar", { id: g.id });
+    galeria = galeria.filter((x) => x.id !== g.id);
+    cerrarFormGaleria();
+    dibujarGaleria();
+    setEstado(galEstadoLista, "Eliminada", "ok");
+  } catch (e) {
+    setEstado(galEstado, "Error: " + e.message, "error");
+  } finally {
+    galBorrar.disabled = false;
+  }
+}
+
+async function cargarGaleria() {
+  setEstado(galEstadoLista, "Cargando…");
+  try {
+    const j = await llamarNotas("galeria_listar");
+    galeria = Array.isArray(j.galeria) ? j.galeria : [];
+    galeriaCargada = true;
+    dibujarGaleria();
+    setEstado(galEstadoLista, "");
+  } catch (e) {
+    setEstado(galEstadoLista, "Error: " + e.message, "error");
+  }
+}
+
+function actualizarPanelGaleria() {
+  if (panelGaleria.hidden) return;
+  const dentro = sesionVigente();
+  galSinSesion.hidden = dentro;
+  galContenido.hidden = !dentro;
+  if (dentro) {
+    if (!galeriaCargada) cargarGaleria();
+  } else {
+    galeriaCargada = false;
+    galeria = [];
+    cerrarFormGaleria();
+  }
+}
+
+function abrirGaleria() {
+  cerrarLateral();
+  panelGaleria.hidden = false;
+  cerrarFormGaleria();
+  actualizarPanelGaleria();
+}
+function cerrarGaleria() {
+  cerrarFormGaleria();
+  panelGaleria.hidden = true;
+}
+
+document.getElementById("btn-galeria").addEventListener("click", abrirGaleria);
+document.getElementById("gal-cerrar").addEventListener("click", cerrarGaleria);
+document.getElementById("gal-actualizar").addEventListener("click", () => {
+  if (sesionVigente()) cargarGaleria();
+  else actualizarPanelGaleria();
+});
+document.getElementById("gal-ir-login").addEventListener("click", () => {
+  cerrarGaleria();
+  abrirLateral();
+});
+galGuardar.addEventListener("click", guardarGaleria);
+document.getElementById("gal-cancelar").addEventListener("click", cerrarFormGaleria);
+galBorrar.addEventListener("click", borrarGaleria);
+// Tocar el fondo oscuro cierra el panel; Esc cierra primero la ventana de edición
+panelGaleria.addEventListener("click", (e) => {
+  if (e.target === panelGaleria) cerrarGaleria();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !panelGaleria.hidden) {
+    if (!galForm.hidden) cerrarFormGaleria();
+    else cerrarGaleria();
+  }
+});
+
+// ---------- Actividades, Pendientes y Trabajo (hoja «Notas» con una etiqueta fija) ----------
+// Cada zona vive dentro de su sección del menú superior y tiene su propio botón de crear, con el
+// mismo formulario de las notas, pero la etiqueta ya viene fija (Actividades, Pendientes o Trabajo).
+// Usan la misma lista `notas` y la misma hoja que el panel de Notas: lo que se crea aquí también
+// aparece allí, en su fila de etiqueta, y lo que se cambia en un lado se ve en el otro.
+// Las etiquetas deben estar también en ETIQUETAS_NOTA (arriba) y en el Apps Script.
+const ZONAS_ETIQUETA = [
+  {
+    seccion: "actividades", etiqueta: "Actividades", datos: "tus actividades",
+    crear: "+ Crear actividad", nuevo: "Nueva actividad", editar: "Editar actividad",
+    guardar: "Guardar actividad", marcador: "Escribe una actividad nueva…",
+    vacio: "Aún no hay actividades. ¡Crea la primera! ✨", borrar: "¿Eliminar esta actividad?",
+  },
+  {
+    seccion: "pendientes", etiqueta: "Pendientes", datos: "tus pendientes",
+    crear: "+ Crear pendiente", nuevo: "Nuevo pendiente", editar: "Editar pendiente",
+    guardar: "Guardar pendiente", marcador: "Escribe un pendiente nuevo…",
+    vacio: "Aún no hay pendientes. ¡Crea el primero! ✨", borrar: "¿Eliminar este pendiente?",
+  },
+  {
+    seccion: "trabajo", etiqueta: "Trabajo", datos: "tus trabajos",
+    crear: "+ Crear trabajo", nuevo: "Nuevo trabajo", editar: "Editar trabajo",
+    guardar: "Guardar trabajo", marcador: "Escribe un trabajo nuevo…",
+    vacio: "Aún no hay trabajos. ¡Crea el primero! ✨", borrar: "¿Eliminar este trabajo?",
+  },
+];
+
+// Arma una zona: formulario (igual al de Notas), botón de crear y lista de tarjetas de su etiqueta
+function crearZonaEtiqueta(cfg) {
+  const cont = document.getElementById("zona-" + cfg.seccion);
+  cont.innerHTML = `
+    <div class="zona-sin-sesion notas-aviso-sesion" hidden>
+      <p>Inicia sesión con tu cuenta de Google para ver y guardar ${cfg.datos}.</p>
+      <button type="button" class="notas-btn zona-ir-login">Iniciar sesión</button>
+    </div>
+    <div class="zona-contenido" hidden>
+      <div class="notas-barra">
+        <button type="button" class="notas-btn zona-nueva-btn">${cfg.crear}</button>
+        <button type="button" class="notas-btn-icono zona-actualizar"
+                title="Volver a leer ${cfg.datos} de Google Sheets" aria-label="Actualizar ${cfg.datos}">&#8635;</button>
+        <span class="notas-estado zona-estado-lista"></span>
+      </div>
+      <div class="notas-nueva zona-form" hidden>
+        <h3 class="notas-form-titulo zona-form-titulo">${cfg.nuevo}</h3>
+        <div class="notas-campos">
+          <label class="notas-campo">
+            <span>Nombre</span>
+            <input class="zona-nombre" type="text" maxlength="80" placeholder="Nombre" autocomplete="off" />
+          </label>
+          <label class="notas-campo">
+            <span>Etiqueta</span>
+            <input class="zona-etiqueta-fija" type="text" value="${cfg.etiqueta}" readonly tabindex="-1" />
+          </label>
+        </div>
+        <div class="notas-campo">
+          <span>Color</span>
+          <div class="notas-colores zona-colores" role="radiogroup" aria-label="Color"></div>
+          <button type="button" class="notas-enlace zona-mas-colores" aria-expanded="false">Más colores ▾</button>
+          <div class="notas-paleta zona-paleta" hidden>
+            <div class="zona-paleta-familias"></div>
+            <label class="notas-personal zona-personal">
+              <input class="zona-color-personal" type="color" value="#ffffff" aria-label="Elegir cualquier color" />
+              <span>Elegir cualquier otro color</span>
+            </label>
+          </div>
+        </div>
+        <div class="notas-campos notas-campos-par">
+          <label class="notas-campo">
+            <span>Fecha y hora</span>
+            <input class="zona-fecha" type="datetime-local" />
+          </label>
+          <label class="notas-campo">
+            <span>Identificador (1, 2, 3… o una palabra)</span>
+            <input class="zona-ident" type="text" maxlength="40" placeholder="Opcional" autocomplete="off" />
+          </label>
+        </div>
+        <textarea class="zona-texto" rows="4" maxlength="5000"
+                  placeholder="${cfg.marcador}" aria-label="${cfg.nuevo}"></textarea>
+        <div class="notas-fila">
+          <button type="button" class="notas-btn zona-guardar">${cfg.guardar}</button>
+          <button type="button" class="notas-btn notas-btn-sec zona-cancelar">Cancelar</button>
+          <span class="notas-estado zona-estado"></span>
+        </div>
+      </div>
+      <div class="notas-grid zona-lista"></div>
+    </div>`;
+
+  const q = (s) => cont.querySelector(s);
+  const z = {
+    cfg,
+    seccion: document.getElementById(cfg.seccion),
+    sinSesion: q(".zona-sin-sesion"),
+    contenido: q(".zona-contenido"),
+    nuevoBtn: q(".zona-nueva-btn"),
+    estadoLista: q(".zona-estado-lista"),
+    form: q(".zona-form"),
+    titulo: q(".zona-form-titulo"),
+    nombre: q(".zona-nombre"),
+    colores: q(".zona-colores"),
+    masColores: q(".zona-mas-colores"),
+    paleta: q(".zona-paleta"),
+    familias: q(".zona-paleta-familias"),
+    personal: q(".zona-personal"),
+    colorPersonal: q(".zona-color-personal"),
+    fecha: q(".zona-fecha"),
+    ident: q(".zona-ident"),
+    texto: q(".zona-texto"),
+    guardarBtn: q(".zona-guardar"),
+    estado: q(".zona-estado"),
+    lista: q(".zona-lista"),
+    editando: null, // nota que se está editando (null = nueva)
+    color: "Blanco",
+  };
+
+  // ----- Color (igual que en Notas: pasteles, paleta completa y selector libre) -----
+  function elegirColorZona(valor) {
+    z.color = valor;
+    const hex = hexDeColor(valor);
+    z.form.style.setProperty("--fondo-nota", hex);
+    aplicarContraste(z.form, hex);
+    let enMuestra = false;
+    z.form.querySelectorAll(".color-op").forEach((b) => {
+      const activo = b.dataset.color.toLowerCase() === String(valor).toLowerCase();
+      if (activo) enMuestra = true;
+      b.classList.toggle("elegido", activo);
+      b.setAttribute("aria-checked", activo ? "true" : "false");
+    });
+    z.colorPersonal.value = hex;
+    z.personal.classList.toggle("elegido", !enMuestra);
+  }
+  function muestraColorZona(valor, hex, titulo) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "color-op";
+    b.dataset.color = valor;
+    b.title = titulo;
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-label", titulo);
+    b.style.background = hex;
+    b.addEventListener("click", () => elegirColorZona(valor));
+    return b;
+  }
+  COLORES_NOTA.forEach((c) => z.colores.appendChild(muestraColorZona(c.nombre, c.hex, c.nombre)));
+  PALETA_COLORES.forEach((f) => {
+    const fila = document.createElement("div");
+    fila.className = "paleta-fila";
+    const nombre = document.createElement("span");
+    nombre.className = "paleta-nombre";
+    nombre.textContent = f.titulo;
+    const grupo = document.createElement("div");
+    grupo.className = "notas-colores";
+    grupo.setAttribute("role", "radiogroup");
+    grupo.setAttribute("aria-label", f.titulo);
+    f.colores.forEach((hex) => grupo.appendChild(muestraColorZona(hex, hex, f.titulo + " " + hex)));
+    fila.append(nombre, grupo);
+    z.familias.appendChild(fila);
+  });
+  z.colorPersonal.addEventListener("input", () => elegirColorZona(z.colorPersonal.value.toLowerCase()));
+  z.masColores.addEventListener("click", () => {
+    const abrir = z.paleta.hidden;
+    z.paleta.hidden = !abrir;
+    z.masColores.setAttribute("aria-expanded", abrir ? "true" : "false");
+    z.masColores.textContent = abrir ? "Menos colores ▴" : "Más colores ▾";
+  });
+  elegirColorZona("Blanco");
+
+  // ----- Formulario -----
+  function limpiarForm() {
+    z.texto.value = "";
+    z.nombre.value = "";
+    z.ident.value = "";
+    elegirColorZona("Blanco");
+    z.fecha.value = fechaActualInput();
+  }
+  // Muestra u oculta el formulario (el botón de crear hace lo contrario); siempre vuelve a modo «nuevo»
+  function mostrarForm(mostrar) {
+    z.editando = null;
+    z.titulo.textContent = cfg.nuevo;
+    z.guardarBtn.textContent = cfg.guardar;
+    z.form.hidden = !mostrar;
+    z.nuevoBtn.hidden = mostrar;
+    if (mostrar) {
+      z.fecha.value = fechaActualInput();
+      setEstado(z.estado, "");
+      z.nombre.focus();
+    }
+  }
+  function cancelar() {
+    limpiarForm();
+    mostrarForm(false);
+  }
+
+  // Tocar una tarjeta: el mismo formulario, con sus datos, aquí mismo en la zona
+  function abrirEdicion(n) {
+    const borrador = !z.editando && !z.form.hidden &&
+      (z.texto.value.trim() || z.nombre.value.trim() || z.ident.value.trim());
+    if (borrador && !window.confirm("Tienes un formulario sin guardar. ¿Descartarlo para editar este?")) return;
+    z.editando = n;
+    z.nombre.value = n.nombre === "Sin nombre" ? "" : n.nombre || "";
+    const c = String(n.color || "").trim();
+    const colorValido = /^#[0-9a-fA-F]{6}$/.test(c) || COLORES_NOTA.some((x) => x.nombre === c);
+    elegirColorZona(colorValido ? (c.startsWith("#") ? c.toLowerCase() : c) : "Blanco");
+    z.fecha.value = fechaAInput(n.fecha) || fechaActualInput();
+    z.ident.value = n.identificador || "";
+    z.texto.value = n.texto || "";
+    z.titulo.textContent = cfg.editar;
+    z.guardarBtn.textContent = "Guardar cambios";
+    setEstado(z.estado, "");
+    z.form.hidden = false;
+    z.nuevoBtn.hidden = true;
+    z.form.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    z.nombre.focus();
+  }
+
+  // ----- Guardar (nueva o editada) y borrar -----
+  async function guardar() {
+    const texto = z.texto.value.trim();
+    if (!texto) {
+      setEstado(z.estado, "Escribe algo primero", "error");
+      return;
+    }
+    const n = z.editando;
+    const datos = {
+      nombre: z.nombre.value.trim() || "Sin nombre",
+      fecha: inputAFecha(z.fecha.value) || (n && n.fecha) || selloFechaHora(),
+      etiqueta: cfg.etiqueta, // siempre la de la zona
+      texto,
+      color: z.color,
+      identificador: z.ident.value.trim(),
+    };
+    z.guardarBtn.disabled = true;
+    setEstado(z.estado, "Guardando…");
+    try {
+      if (n) {
+        await llamarNotas("nota_editar", Object.assign({ id: n.id }, datos));
+        Object.assign(n, datos);
+      } else {
+        const nota = Object.assign({ id: String(Date.now()) }, datos);
+        await llamarNotas("nota_agregar", nota);
+        notas.push(nota);
+      }
+      limpiarForm();
+      mostrarForm(false);
+      dibujarNotas(); // redibuja el panel de Notas y todas las zonas
+      setEstado(z.estadoLista, n ? "Cambios guardados ✓" : "Guardada ✓", "ok");
+    } catch (e) {
+      setEstado(z.estado, "Error: " + e.message, "error");
+    } finally {
+      z.guardarBtn.disabled = false;
+    }
+  }
+
+  async function borrar(id) {
+    if (!window.confirm(cfg.borrar)) return;
+    setEstado(z.estadoLista, "Eliminando…");
+    try {
+      await llamarNotas("nota_borrar", { id });
+      notas = notas.filter((n) => n.id !== id);
+      if (z.editando && z.editando.id === id) cancelar();
+      dibujarNotas();
+      setEstado(z.estadoLista, "Eliminada", "ok");
+    } catch (e) {
+      setEstado(z.estadoLista, "Error: " + e.message, "error");
+    }
+  }
+
+  // ----- Lista de tarjetas (solo las de esta etiqueta) -----
+  function crearTarjeta(n) {
+    const hex = hexDeColor(n.color);
+    const tarjeta = document.createElement("div");
+    tarjeta.className = "tarjeta-nota";
+    tarjeta.style.setProperty("--fondo", hex);
+    aplicarContraste(tarjeta, hex);
+    const nombre = document.createElement("div");
+    nombre.className = "tarjeta-nombre";
+    nombre.textContent = n.nombre || "Sin nombre";
+    tarjeta.appendChild(nombre);
+    if (n.identificador) {
+      const meta = document.createElement("div");
+      meta.className = "tarjeta-meta";
+      const ident = document.createElement("span");
+      ident.className = "tarjeta-ident";
+      ident.title = "Identificador";
+      ident.textContent = "#" + n.identificador;
+      meta.appendChild(ident);
+      tarjeta.appendChild(meta);
+    }
+    const fecha = document.createElement("div");
+    fecha.className = "tarjeta-fecha";
+    fecha.textContent = n.fecha;
+    const texto = document.createElement("p");
+    texto.className = "tarjeta-texto";
+    texto.textContent = n.texto;
+    const x = document.createElement("button");
+    x.type = "button";
+    x.className = "tarjeta-borrar";
+    x.setAttribute("aria-label", "Eliminar");
+    x.textContent = "×";
+    x.addEventListener("click", (e) => {
+      e.stopPropagation();
+      borrar(n.id);
+    });
+    tarjeta.append(fecha, texto, x);
+
+    // Tocar la tarjeta en cualquier zona abre su edición (la × sigue con su función)
+    tarjeta.tabIndex = 0;
+    tarjeta.setAttribute("role", "button");
+    tarjeta.setAttribute("aria-label", "Editar " + (n.nombre || "Sin nombre"));
+    tarjeta.addEventListener("click", (e) => {
+      if (e.target.closest("button, input")) return;
+      if (String(window.getSelection()).length) return; // si estaba seleccionando texto, no se abre
+      abrirEdicion(n);
+    });
+    tarjeta.addEventListener("keydown", (e) => {
+      if (e.target === tarjeta && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        abrirEdicion(n);
+      }
+    });
+    return tarjeta;
+  }
+
+  z.dibujar = function () {
+    z.lista.innerHTML = "";
+    const lista = notasOrdenadas().filter((n) => (n.etiqueta || "General") === cfg.etiqueta);
+    if (!lista.length) {
+      const p = document.createElement("p");
+      p.className = "notas-vacio";
+      p.textContent = cfg.vacio;
+      z.lista.appendChild(p);
+      return;
+    }
+    lista.forEach((n) => z.lista.appendChild(crearTarjeta(n)));
+  };
+
+  // Aviso de inicio de sesión o contenido, según la sesión (devuelve si hay sesión)
+  z.actualizar = function () {
+    const dentro = sesionVigente();
+    z.sinSesion.hidden = dentro;
+    z.contenido.hidden = !dentro;
+    if (!dentro) cancelar();
+    return dentro;
+  };
+
+  z.nuevoBtn.addEventListener("click", () => mostrarForm(true));
+  z.guardarBtn.addEventListener("click", guardar);
+  z.form.querySelector(".zona-cancelar").addEventListener("click", cancelar);
+  z.form.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") cancelar();
+  });
+  q(".zona-actualizar").addEventListener("click", () => {
+    if (sesionVigente()) cargarNotasZonas();
+    else z.actualizar();
+  });
+  q(".zona-ir-login").addEventListener("click", abrirLateral);
+  return z;
+}
+
+const zonas = ZONAS_ETIQUETA.map(crearZonaEtiqueta);
+let cargandoZonas = false;
+
+// Lee las notas de la hoja (las mismas que usa el panel de Notas) y redibuja todo
+async function cargarNotasZonas() {
+  if (cargandoZonas) return;
+  cargandoZonas = true;
+  zonas.forEach((z) => setEstado(z.estadoLista, "Cargando…"));
+  try {
+    const j = await llamarNotas("nota_listar");
+    notas = Array.isArray(j.notas) ? j.notas : [];
+    notasCargadas = true;
+    dibujarNotas();
+    zonas.forEach((z) => setEstado(z.estadoLista, ""));
+  } catch (e) {
+    zonas.forEach((z) => setEstado(z.estadoLista, "Error: " + e.message, "error"));
+  } finally {
+    cargandoZonas = false;
+  }
+}
+
+function dibujarZonasEtiqueta() {
+  zonas.forEach((z) => z.dibujar());
+}
+
+// Se llama cuando cambia la sesión (desde actualizarPanelNotas)
+function actualizarZonasEtiqueta() {
+  const dentro = sesionVigente();
+  zonas.forEach((z) => z.actualizar());
+  if (!dentro) {
+    notasCargadas = false;
+    notas = [];
+    dibujarZonasEtiqueta();
+  } else if (!notasCargadas && zonas.some((z) => !z.seccion.hidden)) {
+    cargarNotasZonas();
+  }
+}
+
+// Al abrir una de estas secciones se muestra su zona (y se leen las notas si aún no se han leído)
+botonesMenu.forEach((b) =>
+  b.addEventListener("click", () => {
+    const z = zonas.find((x) => x.cfg.seccion === b.dataset.seccion);
+    if (!z) return;
+    if (z.actualizar() && !notasCargadas) cargarNotasZonas();
+    else z.dibujar();
+  })
+);
 
 dibujarCuenta();
 programarCaducidad();

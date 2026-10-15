@@ -1,5 +1,5 @@
 :root {
-  --app-version: "13"; /* debe coincidir con VERSION en app.js */
+  --app-version: "17"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -987,4 +987,201 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   .notas-sub-cabecera { padding: 14px 14px 8px; }
   .notas-sub-cuerpo { padding: 4px 14px 16px; }
   .notas-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+
+/* ---------- Notas: editar una nota e identificador ---------- */
+.notas-form-titulo { margin: 0 0 12px; font-size: 1.05rem; color: inherit; }
+.notas-campos-par { grid-template-columns: 1fr 1fr; margin-bottom: 12px; }
+
+/* Tocar una tarjeta abre su edición */
+.tarjeta-nota { cursor: pointer; transition: transform 0.12s, box-shadow 0.12s; }
+.tarjeta-nota:hover { transform: translateY(-2px); box-shadow: 0 12px 22px rgba(60, 110, 170, 0.28); }
+.tarjeta-nota:focus-visible { outline: 3px solid var(--nb-acento); outline-offset: 2px; }
+.tarjeta-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+.tarjeta-meta .tarjeta-etiqueta { margin-bottom: 0; }
+.tarjeta-ident {
+  padding: 2px 9px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--nb-acento-oscuro);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(80, 120, 170, 0.3);
+  border-radius: 999px;
+}
+
+/* El formulario, en modo edición, se muestra como ventana encima del panel (también sobre el submenú) */
+.notas-nueva.modo-editar {
+  position: absolute;
+  inset: 12px;
+  z-index: 6;
+  margin: 0;
+  overflow-y: auto;
+  box-shadow: 0 0 0 9999px rgba(10, 25, 50, 0.5), 0 12px 40px rgba(10, 30, 70, 0.4);
+}
+
+@media (max-width: 480px) {
+  .notas-campos-par { grid-template-columns: 1fr; }
+  .notas-nueva.modo-editar { inset: 6px; }
+}
+
+/* ---------- Proyectos: cuadrícula 1:1 y ventana de edición ---------- */
+#proy-contenido[hidden] { display: none; }
+.proy-estado-lista { min-height: 1.2em; margin: 4px 0 0; }
+
+.proy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.proy-tile {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  overflow: hidden;
+  font: inherit;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(80, 120, 170, 0.3);
+  border-radius: 10px;
+  box-shadow: 0 6px 14px rgba(60, 110, 170, 0.2);
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.proy-tile:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(60, 110, 170, 0.3); }
+.proy-tile:focus-visible { outline: 3px solid var(--nb-acento); outline-offset: 2px; }
+.proy-tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.proy-tile-vacio {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.4rem;
+  opacity: 0.55;
+}
+.proy-tile-nombre {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 24px 10px 8px;
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: linear-gradient(transparent, rgba(10, 25, 50, 0.78));
+}
+.proy-tile-nuevo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--nb-acento-oscuro);
+  font-weight: 600;
+  border: 2px dashed var(--nb-acento);
+  box-shadow: none;
+}
+.proy-tile-nuevo .proy-mas { font-size: 3rem; line-height: 1; }
+
+.proy-form { --fondo-nota: #f4f9ff; }
+.proy-form-cuerpo {
+  display: grid;
+  grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.proy-vista {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  color: var(--nb-suave);
+  background: rgba(255, 255, 255, 0.7);
+  border: 2px dashed var(--nb-borde);
+  border-radius: 12px;
+}
+.proy-vista img { width: 100%; height: 100%; object-fit: cover; }
+.proy-imagen-botones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.proy-links-vista { margin-bottom: 4px; }
+.proy-links-vista a,
+.proy-links-vista span {
+  display: block;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+.proy-links-vista a { color: var(--nb-acento-oscuro); }
+.notas-btn.proy-btn-borrar { margin-left: auto; background: #c0392b; }
+.notas-btn.proy-btn-borrar:hover:not(:disabled) { background: #a93226; }
+
+@media (max-width: 720px) {
+  .proy-form-cuerpo { grid-template-columns: 1fr; }
+  .proy-vista { max-width: 260px; }
+}
+@media (max-width: 480px) {
+  .proy-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
+}
+
+/* ---------- Barra lateral: separación entre botones, filtros y etiquetas de la galería ---------- */
+.btn-lateral-notas + .btn-lateral-notas { margin-top: 10px; }
+
+#gal-contenido[hidden] { display: none; }
+.gal-filtros { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.gal-chip {
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--nb-acento-oscuro);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--nb-borde);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.gal-chip:hover { background: #fff; }
+.gal-chip.activo { color: #fff; background: var(--nb-acento); border-color: var(--nb-acento-oscuro); }
+.gal-chip:focus-visible { outline: 3px solid var(--nb-acento); outline-offset: 2px; }
+
+.gal-pildora {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  max-width: calc(100% - 16px);
+  padding: 2px 9px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--nb-acento-oscuro);
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+}
+
+/* ---------- Actividades, Pendientes y Trabajo: zonas con el formulario de notas ---------- */
+.zona-etiqueta {
+  --nb-texto: #1d3a5c;
+  --nb-suave: #55789f;
+  --nb-acento: #4f94d4;
+  --nb-acento-oscuro: #3a7ebd;
+  --nb-borde: #bcd9f3;
+  padding: 16px;
+  color: var(--nb-texto);
+  background: #d9ecfb;
+  border: 1px solid var(--nb-borde);
+  border-radius: 16px;
+}
+.zona-contenido[hidden] { display: none; }
+.zona-lista { margin-top: 18px; }
+.zona-form .zona-etiqueta-fija { opacity: 0.75; cursor: default; }
+@media (max-width: 480px) {
+  .zona-etiqueta { padding: 12px; }
+  .zona-lista { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 }

@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="13" />
+  <meta name="app-version" content="17" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=13" />
+  <link rel="stylesheet" href="styles.css?v=17" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -49,6 +49,19 @@
       <span class="btn-lateral-icono" aria-hidden="true">&#128221;</span>
       <span>Notas</span>
     </button>
+    <button id="btn-proyectos" class="btn-lateral-notas btn-lateral-proyectos" type="button">
+      <span class="btn-lateral-icono" aria-hidden="true">&#128444;&#65039;</span>
+      <span>Proyectos</span>
+    </button>
+    <!-- Acceso directo: abre las notas con la etiqueta «Pedidos de Yeso» -->
+    <button id="btn-yeso" class="btn-lateral-notas btn-lateral-yeso" type="button">
+      <span class="btn-lateral-icono" aria-hidden="true">&#128230;</span>
+      <span>Pedidos de Yeso</span>
+    </button>
+    <button id="btn-galeria" class="btn-lateral-notas btn-lateral-galeria" type="button">
+      <span class="btn-lateral-icono" aria-hidden="true">&#128247;</span>
+      <span>Galería</span>
+    </button>
   </aside>
 
   <!-- Panel grande de Notas (azul pastel). Las notas viven en la hoja «Notas» de Google Sheets -->
@@ -89,6 +102,7 @@
 
           <!-- Opciones para crear una nota (ocultas hasta pulsar "Nueva nota") -->
           <div id="notas-form" class="notas-nueva" hidden>
+            <h3 id="notas-form-titulo" class="notas-form-titulo">Nueva nota</h3>
             <div class="notas-campos">
               <label class="notas-campo">
                 <span>Nombre</span>
@@ -113,10 +127,16 @@
                 </label>
               </div>
             </div>
-            <label class="notas-campo">
-              <span>Fecha y hora</span>
-              <input id="notas-fecha" type="datetime-local" />
-            </label>
+            <div class="notas-campos notas-campos-par">
+              <label class="notas-campo">
+                <span>Fecha y hora</span>
+                <input id="notas-fecha" type="datetime-local" />
+              </label>
+              <label class="notas-campo">
+                <span>Identificador (1, 2, 3… o una palabra)</span>
+                <input id="notas-identificador" type="text" maxlength="40" placeholder="Opcional" autocomplete="off" />
+              </label>
+            </div>
             <textarea id="notas-texto" rows="4" maxlength="5000"
                       placeholder="Escribe una nota nueva…" aria-label="Nueva nota"></textarea>
             <div class="notas-fila">
@@ -137,6 +157,152 @@
         </header>
         <div class="notas-sub-cuerpo">
           <div id="notas-sub-lista" class="notas-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel grande de Proyectos. Los proyectos viven en la hoja «Proyectos» de Google Sheets
+       y sus imágenes se suben a imgbb desde el Apps Script -->
+  <div id="panel-proyectos" class="panel-notas" hidden>
+    <div class="notas-caja proyectos-caja" role="dialog" aria-modal="true" aria-labelledby="proy-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#9729;&#65039;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#127769;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+        <span class="decor decor-6">&#128153;</span>
+      </div>
+
+      <header class="notas-cabecera">
+        <h2 id="proy-titulo">Proyectos</h2>
+        <div class="notas-cab-botones">
+          <button id="proy-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer los proyectos de Google Sheets" aria-label="Actualizar proyectos">&#8635;</button>
+          <button id="proy-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar proyectos">&times;</button>
+        </div>
+      </header>
+
+      <div class="notas-cuerpo">
+        <div id="proy-sin-sesion" class="notas-aviso-sesion" hidden>
+          <p>Inicia sesión con tu cuenta de Google para ver y guardar tus proyectos.</p>
+          <button id="proy-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
+        </div>
+
+        <div id="proy-contenido">
+          <p id="proy-estado-lista" class="notas-estado proy-estado-lista"></p>
+          <!-- Cuadrícula de recuadros 1:1 (el primero sirve para agregar un proyecto) -->
+          <div id="proy-grid" class="proy-grid"></div>
+        </div>
+      </div>
+
+      <!-- Ventana para crear o editar un proyecto -->
+      <div id="proy-form" class="notas-nueva proy-form modo-editar" hidden>
+        <h3 id="proy-form-titulo" class="notas-form-titulo">Nuevo proyecto</h3>
+        <div class="proy-form-cuerpo">
+          <div class="proy-imagen-col">
+            <div id="proy-vista" class="proy-vista"></div>
+            <div class="proy-imagen-botones">
+              <button id="proy-elegir-img" class="notas-btn notas-btn-sec" type="button">Elegir imagen</button>
+              <button id="proy-quitar-img" class="notas-btn notas-btn-sec" type="button" hidden>Quitar imagen</button>
+            </div>
+            <input id="proy-archivo" type="file" accept="image/*" hidden />
+          </div>
+          <div class="proy-datos-col">
+            <label class="notas-campo">
+              <span>Nombre</span>
+              <input id="proy-nombre" type="text" maxlength="120" placeholder="Nombre del proyecto" autocomplete="off" />
+            </label>
+            <label class="notas-campo">
+              <span>Fecha y hora</span>
+              <input id="proy-fecha" type="datetime-local" />
+            </label>
+            <label class="notas-campo">
+              <span>Descripción</span>
+              <textarea id="proy-descripcion" rows="4" maxlength="5000" placeholder="Describe el proyecto…"></textarea>
+            </label>
+            <label class="notas-campo">
+              <span>Links (uno por línea)</span>
+              <textarea id="proy-links" rows="3" maxlength="3000" placeholder="https://…"></textarea>
+            </label>
+            <div id="proy-links-vista" class="proy-links-vista"></div>
+          </div>
+        </div>
+        <div class="notas-fila">
+          <button id="proy-guardar" class="notas-btn" type="button">Guardar proyecto</button>
+          <button id="proy-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <button id="proy-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+          <span id="proy-estado" class="notas-estado"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel grande de Galería. Las imágenes viven en la hoja «Galeria» de Google Sheets
+       (Imagen | Descripcion | Etiqueta) y se suben a imgbb desde el Apps Script -->
+  <div id="panel-galeria" class="panel-notas" hidden>
+    <div class="notas-caja proyectos-caja" role="dialog" aria-modal="true" aria-labelledby="gal-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#9729;&#65039;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#127769;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+        <span class="decor decor-6">&#128153;</span>
+      </div>
+
+      <header class="notas-cabecera">
+        <h2 id="gal-titulo">Galería</h2>
+        <div class="notas-cab-botones">
+          <button id="gal-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer la galería de Google Sheets" aria-label="Actualizar galería">&#8635;</button>
+          <button id="gal-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar galería">&times;</button>
+        </div>
+      </header>
+
+      <div class="notas-cuerpo">
+        <div id="gal-sin-sesion" class="notas-aviso-sesion" hidden>
+          <p>Inicia sesión con tu cuenta de Google para ver y guardar tu galería.</p>
+          <button id="gal-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
+        </div>
+
+        <div id="gal-contenido">
+          <!-- Filtro por etiqueta -->
+          <div id="gal-filtros" class="gal-filtros" role="group" aria-label="Filtrar por etiqueta"></div>
+          <p id="gal-estado-lista" class="notas-estado proy-estado-lista"></p>
+          <!-- Cuadrícula de recuadros 1:1 (el primero sirve para agregar una imagen) -->
+          <div id="gal-grid" class="proy-grid"></div>
+        </div>
+      </div>
+
+      <!-- Ventana para agregar o editar una imagen -->
+      <div id="gal-form" class="notas-nueva proy-form modo-editar" hidden>
+        <h3 id="gal-form-titulo" class="notas-form-titulo">Nueva imagen</h3>
+        <div class="proy-form-cuerpo">
+          <div class="proy-imagen-col">
+            <div id="gal-vista" class="proy-vista"></div>
+            <div class="proy-imagen-botones">
+              <button id="gal-elegir-img" class="notas-btn notas-btn-sec" type="button">Elegir imagen</button>
+            </div>
+            <input id="gal-archivo" type="file" accept="image/*" hidden />
+          </div>
+          <div class="proy-datos-col">
+            <label class="notas-campo">
+              <span>Etiqueta</span>
+              <select id="gal-etiqueta"></select>
+            </label>
+            <label class="notas-campo">
+              <span>Descripción (opcional)</span>
+              <textarea id="gal-descripcion" rows="4" maxlength="2000" placeholder="Describe la imagen…"></textarea>
+            </label>
+          </div>
+        </div>
+        <div class="notas-fila">
+          <button id="gal-guardar" class="notas-btn" type="button">Guardar imagen</button>
+          <button id="gal-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <button id="gal-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+          <span id="gal-estado" class="notas-estado"></span>
         </div>
       </div>
     </div>
@@ -260,24 +426,27 @@
     <!-- ACTIVIDADES -->
     <section id="actividades" class="seccion" hidden>
       <h2>Actividades</h2>
-      <p>Próximamente.</p>
+      <!-- Zona con el formulario de notas y la etiqueta «Actividades» (la arma app.js; usa la hoja «Notas») -->
+      <div id="zona-actividades" class="zona-etiqueta"></div>
     </section>
 
     <!-- PENDIENTES -->
     <section id="pendientes" class="seccion" hidden>
       <h2>Pendientes</h2>
-      <p>Próximamente.</p>
+      <!-- Zona con el formulario de notas y la etiqueta «Pendientes» (la arma app.js; usa la hoja «Notas») -->
+      <div id="zona-pendientes" class="zona-etiqueta"></div>
     </section>
 
     <!-- TRABAJO -->
     <section id="trabajo" class="seccion" hidden>
       <h2>Trabajo</h2>
-      <p>Próximamente.</p>
+      <!-- Zona con el formulario de notas y la etiqueta «Trabajo» (la arma app.js; usa la hoja «Notas») -->
+      <div id="zona-trabajo" class="zona-etiqueta"></div>
     </section>
   </main>
 
-  <script src="config.js?v=13"></script>
-  <script src="app.js?v=13"></script>
-  <script type="module" src="firebase.js?v=13"></script>
+  <script src="config.js?v=17"></script>
+  <script src="app.js?v=17"></script>
+  <script type="module" src="firebase.js?v=17"></script>
 </body>
 </html>
