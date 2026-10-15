@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "10";
+const VERSION = "11";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -720,12 +720,73 @@ const panelNotas = document.getElementById("panel-notas");
 const notasSinSesion = document.getElementById("notas-sin-sesion");
 const notasContenido = document.getElementById("notas-contenido");
 const notasTexto = document.getElementById("notas-texto");
+const notasForm = document.getElementById("notas-form");
+const notasNombre = document.getElementById("notas-nombre");
+const notasEtiqueta = document.getElementById("notas-etiqueta");
+const notasColores = document.getElementById("notas-colores");
 const notasGuardar = document.getElementById("notas-guardar");
 const notasEstado = document.getElementById("notas-estado");
 const notasLista = document.getElementById("notas-lista");
 
-let notas = []; // [{ id, fecha, texto }]
+let notas = []; // [{ id, nombre, fecha, etiqueta, texto, color }]
 let notasCargadas = false;
+
+// Etiquetas y colores (los nombres se guardan tal cual en la hoja; deben coincidir con el Apps Script)
+const ETIQUETAS_NOTA = [
+  "General",
+  "Tarea/Actividad",
+  "Conjunto de Datos",
+  "Sueños",
+  "Pendiente Importante",
+  "Pedidos de Yeso",
+];
+const COLORES_NOTA = [
+  { nombre: "Blanco", hex: "#ffffff" },
+  { nombre: "Azul", hex: "#c4e1fb" },
+  { nombre: "Rosa", hex: "#fbd3e3" },
+  { nombre: "Menta", hex: "#cdf1de" },
+  { nombre: "Lila", hex: "#e3d7f8" },
+  { nombre: "Durazno", hex: "#fddcc6" },
+  { nombre: "Amarillo", hex: "#fff4bd" },
+  { nombre: "Turquesa", hex: "#c8f0f0" },
+];
+let colorElegido = "Blanco";
+
+function hexDeColor(nombre) {
+  const c = COLORES_NOTA.find((x) => x.nombre === nombre);
+  return c ? c.hex : "#ffffff";
+}
+
+// El color elegido se ve de fondo en el formulario mientras escribes la nota
+function elegirColor(nombre) {
+  colorElegido = nombre;
+  notasForm.style.setProperty("--fondo-nota", hexDeColor(nombre));
+  notasColores.querySelectorAll(".color-op").forEach((b) => {
+    const activo = b.dataset.color === nombre;
+    b.classList.toggle("elegido", activo);
+    b.setAttribute("aria-checked", activo ? "true" : "false");
+  });
+}
+
+ETIQUETAS_NOTA.forEach((e) => {
+  const op = document.createElement("option");
+  op.value = e;
+  op.textContent = e;
+  notasEtiqueta.appendChild(op);
+});
+COLORES_NOTA.forEach((c) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "color-op";
+  b.dataset.color = c.nombre;
+  b.title = c.nombre;
+  b.setAttribute("role", "radio");
+  b.setAttribute("aria-label", c.nombre);
+  b.style.background = c.hex;
+  b.addEventListener("click", () => elegirColor(c.nombre));
+  notasColores.appendChild(b);
+});
+elegirColor("Blanco");
 
 // Llama al Apps Script para las notas (siempre con la sesión de Google)
 async function llamarNotas(accion, extra) {
@@ -752,11 +813,17 @@ function dibujarNotas() {
     notasLista.appendChild(p);
     return;
   }
-  // Las más recientes primero (el id es la hora en milisegundos)
-  const ordenadas = notas.slice().sort((x, y) => Number(y.id) - Number(x.id));
-  ordenadas.forEach((n) => {
+  // Las más recientes primero (en la hoja se van agregando al final)
+  notas.slice().reverse().forEach((n) => {
     const tarjeta = document.createElement("div");
     tarjeta.className = "tarjeta-nota";
+    tarjeta.style.setProperty("--fondo", hexDeColor(n.color));
+    const nombre = document.createElement("div");
+    nombre.className = "tarjeta-nombre";
+    nombre.textContent = n.nombre || "Sin nombre";
+    const etiqueta = document.createElement("span");
+    etiqueta.className = "tarjeta-etiqueta";
+    etiqueta.textContent = n.etiqueta || "General";
     const fecha = document.createElement("div");
     fecha.className = "tarjeta-fecha";
     fecha.textContent = n.fecha;
@@ -769,7 +836,7 @@ function dibujarNotas() {
     borrar.setAttribute("aria-label", "Eliminar nota");
     borrar.textContent = "×";
     borrar.addEventListener("click", () => borrarNota(n.id));
-    tarjeta.append(fecha, texto, borrar);
+    tarjeta.append(nombre, etiqueta, fecha, texto, borrar);
     notasLista.appendChild(tarjeta);
   });
 }
@@ -793,13 +860,23 @@ async function agregarNota() {
     setEstado(notasEstado, "Escribe algo primero", "error");
     return;
   }
-  const nota = { id: String(Date.now()), fecha: selloFechaHora(), texto };
+  const nota = {
+    id: String(Date.now()),
+    nombre: notasNombre.value.trim() || "Sin nombre",
+    fecha: selloFechaHora(),
+    etiqueta: notasEtiqueta.value,
+    texto,
+    color: colorElegido,
+  };
   notasGuardar.disabled = true;
   setEstado(notasEstado, "Guardando…");
   try {
     await llamarNotas("nota_agregar", nota);
     notas.push(nota);
     notasTexto.value = "";
+    notasNombre.value = "";
+    notasEtiqueta.selectedIndex = 0;
+    elegirColor("Blanco");
     dibujarNotas();
     setEstado(notasEstado, "Guardada ✓", "ok");
   } catch (e) {
