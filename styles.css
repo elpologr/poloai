@@ -1,5 +1,5 @@
 :root {
-  --app-version: "21"; /* debe coincidir con VERSION en app.js */
+  --app-version: "22"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -1309,3 +1309,51 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 @media (max-width: 480px) {
   .notas-superior { grid-template-columns: 1fr; gap: 10px; }
 }
+
+/* ---------- Ejercicio: calendario aparte y botones cuadrados por día ---------- */
+#ej-contenido[hidden] { display: none; }
+.ejercicio-caja .cal-controles { margin-top: 6px; }
+.ejercicio-caja .cal-dia.con-datos::after { background: var(--nb-acento-oscuro); }
+.ejercicio-caja .cal-dia.hoy.con-datos::after { background: #fff; }
+.ej-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.ej-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 88px;
+  height: 88px;
+  padding: 6px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  color: var(--nb-texto);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--nb-borde);
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(60, 110, 170, 0.2);
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.ej-chip:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(60, 110, 170, 0.3); }
+.ej-chip:focus-visible { outline: 3px solid var(--nb-acento); outline-offset: 2px; }
+.ej-chip-icono { font-size: 1.5rem; line-height: 1; }
+.ej-chip-nombre {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.ej-chip-nuevo {
+  color: var(--nb-acento-oscuro);
+  background: transparent;
+  border: 2px dashed var(--nb-acento);
+  box-shadow: none;
+}
+.ej-chip-nuevo .ej-chip-icono { font-size: 2rem; }
+@media (max-width: 480px) { .ej-chip { width: 76px; height: 76px; } }

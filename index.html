@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="21" />
+  <meta name="app-version" content="22" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=21" />
+  <link rel="stylesheet" href="styles.css?v=22" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -310,10 +310,83 @@
     </div>
   </div>
 
+  <!-- Panel de Ejercicio: calendario aparte del principal. Los ejercicios viven en la hoja «Ejercicio»
+       de Google Sheets (Nombre | Fecha | Descripcion | Id) -->
+  <div id="panel-ejercicio" class="panel-notas" hidden>
+    <div class="notas-caja ejercicio-caja" role="dialog" aria-modal="true" aria-labelledby="ej-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#128170;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#127939;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+      </div>
+
+      <header class="notas-cabecera">
+        <h2 id="ej-titulo">Ejercicio</h2>
+        <div class="notas-cab-botones">
+          <button id="ej-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer los ejercicios de Google Sheets" aria-label="Actualizar ejercicios">&#8635;</button>
+          <button id="ej-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar ejercicio">&times;</button>
+        </div>
+      </header>
+
+      <div class="notas-cuerpo">
+        <div id="ej-sin-sesion" class="notas-aviso-sesion" hidden>
+          <p>Inicia sesión con tu cuenta de Google para ver y guardar tus ejercicios.</p>
+          <button id="ej-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
+        </div>
+
+        <div id="ej-contenido">
+          <div class="cal-controles">
+            <button id="ej-anterior" class="btn-cal" type="button" aria-label="Mes anterior">&#8249;</button>
+            <select id="ej-mes" aria-label="Mes"></select>
+            <select id="ej-anio" aria-label="Año"></select>
+            <button id="ej-siguiente" class="btn-cal" type="button" aria-label="Mes siguiente">&#8250;</button>
+            <button id="ej-hoy" class="btn-cal btn-hoy" type="button">Hoy</button>
+          </div>
+          <p id="ej-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="ej-cuadricula" class="cal-cuadricula" role="grid"></div>
+        </div>
+      </div>
+
+      <!-- Submenú del día: un botón cuadrado pequeño por cada ejercicio hecho ese día -->
+      <div id="ej-dia" class="notas-submenu" hidden>
+        <header class="notas-sub-cabecera">
+          <button id="ej-dia-volver" class="notas-btn notas-btn-sec" type="button">‹ Volver</button>
+          <h3 id="ej-dia-titulo"></h3>
+        </header>
+        <div class="notas-sub-cuerpo">
+          <p id="ej-dia-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="ej-chips" class="ej-chips"></div>
+        </div>
+      </div>
+
+      <!-- Ventana para agregar o editar un ejercicio -->
+      <div id="ej-form" class="notas-nueva modo-editar" hidden>
+        <h3 id="ej-form-titulo" class="notas-form-titulo">Nuevo ejercicio</h3>
+        <label class="notas-campo">
+          <span>Nombre</span>
+          <input id="ej-nombre" type="text" maxlength="80" placeholder="Ej. Sentadillas" autocomplete="off" />
+        </label>
+        <label class="notas-campo">
+          <span>Descripción</span>
+          <textarea id="ej-descripcion" rows="4" maxlength="5000" placeholder="Series, repeticiones, tiempo…"></textarea>
+        </label>
+        <div class="notas-fila">
+          <button id="ej-guardar" class="notas-btn" type="button">Guardar</button>
+          <button id="ej-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <button id="ej-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+          <span id="ej-form-estado" class="notas-estado"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <header class="encabezado">
     <h1>Polo AI</h1>
     <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Ejercicio, Actividades, Trabajo.
-         Notas abre el panel de notas; Ejercicio todavía no hace nada. -->
+         Notas abre el panel de notas; Ejercicio abre su propio calendario. -->
     <nav class="menu" aria-label="Secciones">
       <button class="btn-menu" type="button" data-seccion="calendario">
         <span class="btn-menu-icono" aria-hidden="true">&#128197;</span><span class="btn-menu-texto">Calendario</span>
@@ -474,8 +547,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=21"></script>
-  <script src="app.js?v=21"></script>
-  <script type="module" src="firebase.js?v=21"></script>
+  <script src="config.js?v=22"></script>
+  <script src="app.js?v=22"></script>
+  <script type="module" src="firebase.js?v=22"></script>
 </body>
 </html>

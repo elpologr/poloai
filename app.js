@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "21";
+const VERSION = "22";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -14,6 +14,7 @@ const VERSION = "21";
     "notas-identificador", "notas-form-titulo", "btn-proyectos", "panel-proyectos", "proy-form",
     "btn-yeso", "btn-galeria", "panel-galeria", "gal-form",
     "zona-actividades", "zona-trabajo", "btn-menu-notas", "btn-menu-ejercicio",
+    "panel-ejercicio", "ej-cuadricula", "ej-dia", "ej-form",
     "pop-color", "pop-colores", "pop-mas-colores", "pop-paleta", "pop-color-personal",
   ];
   const problemas = [];
@@ -1482,6 +1483,7 @@ async function borrarNota(id) {
 function actualizarPanelNotas() {
   actualizarPanelProyectos(); // la sesión también afecta a los paneles de Proyectos y Galería
   actualizarPanelGaleria();
+  actualizarPanelEjercicio(); // y al de Ejercicio
   actualizarZonasEtiqueta(); // y a las zonas de Actividades y Trabajo
   actualizarCalendarioSesion(); // y a los datos del calendario
   if (panelNotas.hidden) return;
@@ -1514,7 +1516,7 @@ function cerrarNotas() {
 btnNotas.addEventListener("click", abrirNotas);
 // Botón «Notas» del menú principal: abre el mismo panel que el de la barra lateral
 document.getElementById("btn-menu-notas").addEventListener("click", abrirNotas);
-// El botón «Ejercicio» del menú principal todavía no hace nada (id: btn-menu-ejercicio)
+// El botón «Ejercicio» del menú principal (btn-menu-ejercicio) abre su propio calendario (más abajo)
 document.getElementById("notas-cerrar").addEventListener("click", cerrarNotas);
 document.getElementById("notas-actualizar").addEventListener("click", () => {
   if (sesionVigente()) cargarNotas();
@@ -2694,6 +2696,267 @@ popMasColores.addEventListener("click", () => {
   popPaleta.hidden = !abrir;
   popMasColores.setAttribute("aria-expanded", abrir ? "true" : "false");
   popMasColores.textContent = abrir ? "Menos colores ▴" : "Más colores ▾";
+});
+
+// ---------- Ejercicio (hoja «Ejercicio» de Google Sheets) ----------
+// Calendario aparte del principal: cada día guarda los ejercicios que hiciste (Nombre | Fecha | Descripcion | Id).
+const ejEl = (id) => document.getElementById(id);
+const panelEj = ejEl("panel-ejercicio");
+const ejSinSesion = ejEl("ej-sin-sesion");
+const ejContenido = ejEl("ej-contenido");
+const ejEstado = ejEl("ej-estado");
+const ejSelMes = ejEl("ej-mes");
+const ejSelAnio = ejEl("ej-anio");
+const ejAnterior = ejEl("ej-anterior");
+const ejSiguiente = ejEl("ej-siguiente");
+const ejCuad = ejEl("ej-cuadricula");
+const ejDiaPanel = ejEl("ej-dia");
+const ejDiaTitulo = ejEl("ej-dia-titulo");
+const ejDiaEstado = ejEl("ej-dia-estado");
+const ejChips = ejEl("ej-chips");
+const ejForm = ejEl("ej-form");
+const ejFormTitulo = ejEl("ej-form-titulo");
+const ejNombre = ejEl("ej-nombre");
+const ejDescripcion = ejEl("ej-descripcion");
+const ejGuardar = ejEl("ej-guardar");
+const ejBorrar = ejEl("ej-borrar");
+const ejFormEstado = ejEl("ej-form-estado");
+
+let ejercicios = []; // [{ id, nombre, fecha: "AAAA-MM-DD", descripcion }]
+let ejCargados = false;
+let ejMes = new Date().getMonth();
+let ejAnio = new Date().getFullYear();
+let ejDia = null; // día abierto en el submenú
+let ejEditando = null; // ejercicio abierto en la ventana (null = ejercicio nuevo)
+
+MESES.forEach((n, i) => ejSelMes.add(new Option(n, i)));
+for (let a = ANIO_MIN; a <= ANIO_MAX; a++) ejSelAnio.add(new Option(a, a));
+
+const ejDeDia = (fecha) => ejercicios.filter((e) => e.fecha === fecha);
+
+// ----- Calendario de ejercicio (igual al principal, pero con sus propios datos) -----
+function dibujarCalendarioEj() {
+  ejSelMes.value = ejMes;
+  ejSelAnio.value = ejAnio;
+  ejAnterior.disabled = ejAnio === ANIO_MIN && ejMes === 0;
+  ejSiguiente.disabled = ejAnio === ANIO_MAX && ejMes === 11;
+  ejCuad.innerHTML = "";
+  DIAS.forEach((d) => {
+    const el = document.createElement("div");
+    el.className = "cal-dia-semana";
+    el.textContent = d;
+    ejCuad.appendChild(el);
+  });
+  const ahora = new Date();
+  const primerDia = (new Date(ejAnio, ejMes, 1).getDay() + 6) % 7;
+  const diasEnMes = new Date(ejAnio, ejMes + 1, 0).getDate();
+  for (let i = 0; i < primerDia; i++) {
+    const vacio = document.createElement("div");
+    vacio.className = "cal-dia vacio";
+    ejCuad.appendChild(vacio);
+  }
+  for (let d = 1; d <= diasEnMes; d++) {
+    const fecha = claveFecha(ejAnio, ejMes, d);
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "cal-dia";
+    el.textContent = d;
+    el.dataset.fecha = fecha;
+    if ((primerDia + d - 1) % 7 >= 5) el.classList.add("finde");
+    if (d === ahora.getDate() && ejMes === ahora.getMonth() && ejAnio === ahora.getFullYear()) el.classList.add("hoy");
+    if (fecha === ejDia) el.classList.add("seleccionado");
+    if (ejDeDia(fecha).length) el.classList.add("con-datos");
+    el.addEventListener("click", () => abrirDiaEj(fecha));
+    ejCuad.appendChild(el);
+  }
+}
+
+function ejCambiarMes(delta) {
+  ejMes += delta;
+  if (ejMes < 0) { ejMes = 11; ejAnio--; }
+  if (ejMes > 11) { ejMes = 0; ejAnio++; }
+  ejAnio = Math.max(ANIO_MIN, Math.min(ANIO_MAX, ejAnio));
+  dibujarCalendarioEj();
+}
+
+// ----- Submenú del día: un botón cuadrado por ejercicio + un "+" para añadir -----
+function dibujarChipsEj() {
+  ejChips.innerHTML = "";
+  ejDeDia(ejDia).forEach((e) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ej-chip";
+    b.title = e.nombre;
+    b.setAttribute("aria-label", "Ver o editar el ejercicio " + e.nombre);
+    b.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">💪</span><span class="ej-chip-nombre"></span>';
+    b.querySelector(".ej-chip-nombre").textContent = e.nombre;
+    b.addEventListener("click", () => abrirFormEj(e));
+    ejChips.appendChild(b);
+  });
+  const nuevo = document.createElement("button");
+  nuevo.type = "button";
+  nuevo.className = "ej-chip ej-chip-nuevo";
+  nuevo.setAttribute("aria-label", "Añadir un ejercicio");
+  nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
+  nuevo.addEventListener("click", () => abrirFormEj(null));
+  ejChips.appendChild(nuevo);
+}
+
+function abrirDiaEj(fecha) {
+  ejDia = fecha;
+  ejDiaTitulo.textContent = textoFecha(fecha);
+  setEstado(ejDiaEstado, "");
+  dibujarChipsEj();
+  ejDiaPanel.hidden = false;
+  dibujarCalendarioEj();
+}
+function cerrarDiaEj() {
+  cerrarFormEj();
+  ejDiaPanel.hidden = true;
+  ejDia = null;
+  dibujarCalendarioEj();
+}
+
+// ----- Ventana para añadir / editar -----
+function abrirFormEj(e) {
+  ejEditando = e;
+  ejFormTitulo.textContent = e ? "Editar ejercicio" : "Nuevo ejercicio";
+  ejNombre.value = e ? e.nombre : "";
+  ejDescripcion.value = e ? e.descripcion : "";
+  ejBorrar.hidden = !e;
+  setEstado(ejFormEstado, "");
+  ejForm.hidden = false;
+  ejNombre.focus();
+}
+function cerrarFormEj() {
+  ejForm.hidden = true;
+  ejEditando = null;
+}
+
+async function guardarEj() {
+  const nombre = ejNombre.value.trim();
+  if (!nombre) {
+    setEstado(ejFormEstado, "Escribe el nombre del ejercicio", "error");
+    return;
+  }
+  const editando = ejEditando;
+  const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
+  const e = { id, nombre, fecha: editando ? editando.fecha : ejDia, descripcion: ejDescripcion.value.trim() };
+  ejGuardar.disabled = true;
+  setEstado(ejFormEstado, "Guardando…");
+  try {
+    await llamarNotas(editando ? "ejercicio_editar" : "ejercicio_agregar", e);
+    if (editando) ejercicios = ejercicios.map((x) => (x.id === id ? e : x));
+    else ejercicios.push(e);
+    cerrarFormEj();
+    dibujarChipsEj();
+    dibujarCalendarioEj();
+  } catch (err) {
+    setEstado(ejFormEstado, "Error: " + err.message, "error");
+  } finally {
+    ejGuardar.disabled = false;
+  }
+}
+
+async function borrarEj() {
+  const e = ejEditando;
+  if (!e || !window.confirm("¿Eliminar el ejercicio «" + e.nombre + "»?")) return;
+  ejBorrar.disabled = true;
+  setEstado(ejFormEstado, "Eliminando…");
+  try {
+    await llamarNotas("ejercicio_borrar", { id: e.id });
+    ejercicios = ejercicios.filter((x) => x.id !== e.id);
+    cerrarFormEj();
+    dibujarChipsEj();
+    dibujarCalendarioEj();
+  } catch (err) {
+    setEstado(ejFormEstado, "Error: " + err.message, "error");
+  } finally {
+    ejBorrar.disabled = false;
+  }
+}
+
+// ----- Carga y sesión -----
+async function cargarEjercicios() {
+  setEstado(ejEstado, "Cargando…");
+  try {
+    const j = await llamarNotas("ejercicio_listar");
+    ejercicios = Array.isArray(j.ejercicios) ? j.ejercicios : [];
+    ejCargados = true;
+    setEstado(ejEstado, "");
+    dibujarCalendarioEj();
+    if (ejDia) dibujarChipsEj();
+  } catch (err) {
+    setEstado(ejEstado, "Error: " + err.message, "error");
+  }
+}
+
+function actualizarPanelEjercicio() {
+  if (panelEj.hidden) return;
+  const dentro = sesionVigente();
+  ejSinSesion.hidden = dentro;
+  ejContenido.hidden = !dentro;
+  if (dentro) {
+    if (!ejCargados) cargarEjercicios();
+  } else {
+    ejCargados = false;
+    ejercicios = [];
+    cerrarDiaEj();
+  }
+}
+
+function abrirEjercicio() {
+  cerrarLateral();
+  const ahora = new Date();
+  ejMes = ahora.getMonth(); // siempre abre en el mes actual
+  ejAnio = ahora.getFullYear();
+  ejDia = null;
+  ejDiaPanel.hidden = true;
+  cerrarFormEj();
+  panelEj.hidden = false;
+  dibujarCalendarioEj();
+  actualizarPanelEjercicio();
+}
+function cerrarEjercicio() {
+  cerrarFormEj();
+  ejDiaPanel.hidden = true;
+  ejDia = null;
+  panelEj.hidden = true;
+}
+
+ejEl("btn-menu-ejercicio").addEventListener("click", abrirEjercicio);
+ejEl("ej-cerrar").addEventListener("click", cerrarEjercicio);
+ejEl("ej-actualizar").addEventListener("click", () => {
+  if (sesionVigente()) cargarEjercicios();
+  else actualizarPanelEjercicio();
+});
+ejEl("ej-ir-login").addEventListener("click", () => {
+  cerrarEjercicio();
+  abrirLateral();
+});
+ejAnterior.addEventListener("click", () => ejCambiarMes(-1));
+ejSiguiente.addEventListener("click", () => ejCambiarMes(1));
+ejEl("ej-hoy").addEventListener("click", () => {
+  const ahora = new Date();
+  ejMes = ahora.getMonth();
+  ejAnio = ahora.getFullYear();
+  dibujarCalendarioEj();
+});
+ejSelMes.addEventListener("change", () => { ejMes = Number(ejSelMes.value); dibujarCalendarioEj(); });
+ejSelAnio.addEventListener("change", () => { ejAnio = Number(ejSelAnio.value); dibujarCalendarioEj(); });
+ejEl("ej-dia-volver").addEventListener("click", cerrarDiaEj);
+ejGuardar.addEventListener("click", guardarEj);
+ejEl("ej-cancelar").addEventListener("click", cerrarFormEj);
+ejBorrar.addEventListener("click", borrarEj);
+// Tocar el fondo oscuro cierra el panel; Esc cierra primero la ventana, luego el día y al final el panel
+panelEj.addEventListener("click", (e) => {
+  if (e.target === panelEj) cerrarEjercicio();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || panelEj.hidden) return;
+  if (!ejForm.hidden) cerrarFormEj();
+  else if (!ejDiaPanel.hidden) cerrarDiaEj();
+  else cerrarEjercicio();
 });
 
 dibujarCuenta();
