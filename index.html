@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="20" />
+  <meta name="app-version" content="21" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=20" />
+  <link rel="stylesheet" href="styles.css?v=21" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -312,11 +312,24 @@
 
   <header class="encabezado">
     <h1>Polo AI</h1>
+    <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Ejercicio, Actividades, Trabajo.
+         Notas abre el panel de notas; Ejercicio todavía no hace nada. -->
     <nav class="menu" aria-label="Secciones">
-      <button class="btn-menu" data-seccion="calendario">Calendario</button>
-      <button class="btn-menu" data-seccion="actividades">Actividades</button>
-      <button class="btn-menu" data-seccion="pendientes">Pendientes</button>
-      <button class="btn-menu" data-seccion="trabajo">Trabajo</button>
+      <button class="btn-menu" type="button" data-seccion="calendario">
+        <span class="btn-menu-icono" aria-hidden="true">&#128197;</span><span class="btn-menu-texto">Calendario</span>
+      </button>
+      <button id="btn-menu-notas" class="btn-menu" type="button">
+        <span class="btn-menu-icono" aria-hidden="true">&#128221;</span><span class="btn-menu-texto">Notas</span>
+      </button>
+      <button id="btn-menu-ejercicio" class="btn-menu" type="button">
+        <span class="btn-menu-icono" aria-hidden="true">&#128170;</span><span class="btn-menu-texto">Ejercicio</span>
+      </button>
+      <button class="btn-menu" type="button" data-seccion="actividades">
+        <span class="btn-menu-icono" aria-hidden="true">&#127919;</span><span class="btn-menu-texto">Actividades</span>
+      </button>
+      <button class="btn-menu" type="button" data-seccion="trabajo">
+        <span class="btn-menu-icono" aria-hidden="true">&#128188;</span><span class="btn-menu-texto">Trabajo</span>
+      </button>
     </nav>
   </header>
 
@@ -453,13 +466,6 @@
       <div id="zona-actividades" class="zona-etiqueta"></div>
     </section>
 
-    <!-- PENDIENTES -->
-    <section id="pendientes" class="seccion" hidden>
-      <h2>Pendientes</h2>
-      <!-- Zona con el formulario de notas y la etiqueta «Pendientes» (la arma app.js; usa la hoja «Notas») -->
-      <div id="zona-pendientes" class="zona-etiqueta"></div>
-    </section>
-
     <!-- TRABAJO -->
     <section id="trabajo" class="seccion" hidden>
       <h2>Trabajo</h2>
@@ -468,8 +474,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=20"></script>
-  <script src="app.js?v=20"></script>
-  <script type="module" src="firebase.js?v=20"></script>
+  <script src="config.js?v=21"></script>
+  <script src="app.js?v=21"></script>
+  <script type="module" src="firebase.js?v=21"></script>
 </body>
 </html>

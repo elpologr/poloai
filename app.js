@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "20";
+const VERSION = "21";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -13,7 +13,7 @@ const VERSION = "20";
     "notas-submenu", "notas-sub-lista", "notas-mas-colores", "notas-color-personal",
     "notas-identificador", "notas-form-titulo", "btn-proyectos", "panel-proyectos", "proy-form",
     "btn-yeso", "btn-galeria", "panel-galeria", "gal-form",
-    "zona-actividades", "zona-pendientes", "zona-trabajo",
+    "zona-actividades", "zona-trabajo", "btn-menu-notas", "btn-menu-ejercicio",
     "pop-color", "pop-colores", "pop-mas-colores", "pop-paleta", "pop-color-personal",
   ];
   const problemas = [];
@@ -58,9 +58,10 @@ function mostrarSeccion(id) {
   else cerrarPopover();
 }
 
-botonesMenu.forEach((b) =>
-  b.addEventListener("click", () => mostrarSeccion(b.dataset.seccion))
-);
+// Solo los botones con data-seccion cambian de sección (Notas y Ejercicio se manejan aparte)
+botonesMenu.forEach((b) => {
+  if (b.dataset.seccion) b.addEventListener("click", () => mostrarSeccion(b.dataset.seccion));
+});
 
 // ---------- Datos (Google Sheets mediante Apps Script) ----------
 // Columnas de la hoja: A Fecha | B Actividades | C Descripcion | D Anotaciones
@@ -939,7 +940,6 @@ const ETIQUETAS_NOTA = [
   "Pendiente Importante",
   "Pedidos de Yeso",
   "Actividades",
-  "Pendientes",
   "Trabajo",
 ];
 const COLORES_NOTA = [
@@ -1318,7 +1318,7 @@ function dibujarNotas() {
     p.textContent = "Aún no hay notas. ¡Escribe la primera! ✨";
     notasLista.appendChild(p);
     cerrarSubmenu();
-    dibujarZonasEtiqueta(); // Actividades, Pendientes y Trabajo usan las mismas notas
+    dibujarZonasEtiqueta(); // Actividades y Trabajo usan las mismas notas
     return;
   }
   notasPorEtiqueta(notasOrdenadas()).forEach(([etiqueta, lista]) => {
@@ -1358,7 +1358,7 @@ function dibujarNotas() {
     notasLista.appendChild(seccion);
   });
   dibujarSubmenu(); // si hay un submenú abierto, se actualiza también
-  dibujarZonasEtiqueta(); // Actividades, Pendientes y Trabajo usan las mismas notas
+  dibujarZonasEtiqueta(); // Actividades y Trabajo usan las mismas notas
 }
 
 // Submenú: todas las notas de una etiqueta
@@ -1482,7 +1482,7 @@ async function borrarNota(id) {
 function actualizarPanelNotas() {
   actualizarPanelProyectos(); // la sesión también afecta a los paneles de Proyectos y Galería
   actualizarPanelGaleria();
-  actualizarZonasEtiqueta(); // y a las zonas de Actividades, Pendientes y Trabajo
+  actualizarZonasEtiqueta(); // y a las zonas de Actividades y Trabajo
   actualizarCalendarioSesion(); // y a los datos del calendario
   if (panelNotas.hidden) return;
   const dentro = sesionVigente();
@@ -1512,6 +1512,9 @@ function cerrarNotas() {
 }
 
 btnNotas.addEventListener("click", abrirNotas);
+// Botón «Notas» del menú principal: abre el mismo panel que el de la barra lateral
+document.getElementById("btn-menu-notas").addEventListener("click", abrirNotas);
+// El botón «Ejercicio» del menú principal todavía no hace nada (id: btn-menu-ejercicio)
 document.getElementById("notas-cerrar").addEventListener("click", cerrarNotas);
 document.getElementById("notas-actualizar").addEventListener("click", () => {
   if (sesionVigente()) cargarNotas();
@@ -2167,9 +2170,9 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// ---------- Actividades, Pendientes y Trabajo (hoja «Notas» con una etiqueta fija) ----------
+// ---------- Actividades y Trabajo (hoja «Notas» con una etiqueta fija) ----------
 // Cada zona vive dentro de su sección del menú superior y tiene su propio botón de crear, con el
-// mismo formulario de las notas, pero la etiqueta ya viene fija (Actividades, Pendientes o Trabajo).
+// mismo formulario de las notas, pero la etiqueta ya viene fija (Actividades o Trabajo).
 // Usan la misma lista `notas` y la misma hoja que el panel de Notas: lo que se crea aquí también
 // aparece allí, en su fila de etiqueta, y lo que se cambia en un lado se ve en el otro.
 // Las etiquetas deben estar también en ETIQUETAS_NOTA (arriba) y en el Apps Script.
@@ -2179,12 +2182,6 @@ const ZONAS_ETIQUETA = [
     crear: "+ Crear actividad", nuevo: "Nueva actividad", editar: "Editar actividad",
     guardar: "Guardar actividad", marcador: "Escribe una actividad nueva…",
     vacio: "Aún no hay actividades. ¡Crea la primera! ✨", borrar: "¿Eliminar esta actividad?",
-  },
-  {
-    seccion: "pendientes", etiqueta: "Pendientes", datos: "tus pendientes",
-    crear: "+ Crear pendiente", nuevo: "Nuevo pendiente", editar: "Editar pendiente",
-    guardar: "Guardar pendiente", marcador: "Escribe un pendiente nuevo…",
-    vacio: "Aún no hay pendientes. ¡Crea el primero! ✨", borrar: "¿Eliminar este pendiente?",
   },
   {
     seccion: "trabajo", etiqueta: "Trabajo", datos: "tus trabajos",

@@ -1,5 +1,5 @@
 :root {
-  --app-version: "20"; /* debe coincidir con VERSION en app.js */
+  --app-version: "21"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -69,14 +69,30 @@ main { position: relative; z-index: 1; }
 }
 
 .btn-menu {
-  padding: 10px 22px;
-  font-size: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 104px;
+  aspect-ratio: 1 / 1;
+  padding: 6px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
   border: 1px solid var(--borde);
-  border-radius: 999px;
+  border-radius: 18px;
   background: var(--tarjeta);
   color: var(--texto);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
+}
+.btn-menu-icono { font-size: 2rem; line-height: 1; }
+.btn-menu-texto { line-height: 1.1; }
+
+@media (max-width: 480px) {
+  .btn-menu { width: 96px; font-size: 0.8rem; }
+  .btn-menu-icono { font-size: 1.8rem; }
 }
 
 .btn-menu:hover { background: var(--acento-claro); }
@@ -1175,7 +1191,7 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   border-radius: 999px;
 }
 
-/* ---------- Actividades, Pendientes y Trabajo: zonas con el formulario de notas ---------- */
+/* ---------- Actividades y Trabajo: zonas con el formulario de notas ---------- */
 .zona-etiqueta {
   --nb-texto: #1d3a5c;
   --nb-suave: #55789f;
