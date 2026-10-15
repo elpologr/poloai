@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="22" />
+  <meta name="app-version" content="24" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=22" />
+  <link rel="stylesheet" href="styles.css?v=24" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -63,106 +63,6 @@
       <span>Galería</span>
     </button>
   </aside>
-
-  <!-- Panel grande de Notas (azul pastel). Las notas viven en la hoja «Notas» de Google Sheets -->
-  <div id="panel-notas" class="panel-notas" hidden>
-    <div class="notas-caja" role="dialog" aria-modal="true" aria-labelledby="notas-titulo">
-      <div class="notas-decor" aria-hidden="true">
-        <span class="decor decor-1">&#9729;&#65039;</span>
-        <span class="decor decor-2">&#10024;</span>
-        <span class="decor decor-3">&#127769;</span>
-        <span class="decor decor-4">&#9729;&#65039;</span>
-        <span class="decor decor-5">&#10024;</span>
-        <span class="decor decor-6">&#128153;</span>
-      </div>
-
-      <header class="notas-cabecera">
-        <h2 id="notas-titulo">Notas</h2>
-        <div class="notas-cab-botones">
-          <button id="notas-actualizar" class="notas-btn-icono" type="button"
-                  title="Volver a leer las notas de Google Sheets" aria-label="Actualizar notas">&#8635;</button>
-          <button id="notas-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar notas">&times;</button>
-        </div>
-      </header>
-
-      <div class="notas-cuerpo">
-        <!-- Sin sesión -->
-        <div id="notas-sin-sesion" class="notas-aviso-sesion" hidden>
-          <p>Inicia sesión con tu cuenta de Google para ver y guardar tus notas.</p>
-          <button id="notas-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
-        </div>
-
-        <!-- Con sesión -->
-        <div id="notas-contenido">
-          <!-- Zona de arriba: botón para crear una nota y mensajes de la lista -->
-          <div class="notas-barra">
-            <button id="notas-nueva-btn" class="notas-btn" type="button">+ Nueva nota</button>
-            <span id="notas-estado-lista" class="notas-estado"></span>
-          </div>
-
-          <!-- Opciones para crear una nota (ocultas hasta pulsar "Nueva nota") -->
-          <div id="notas-form" class="notas-nueva" hidden>
-            <h3 id="notas-form-titulo" class="notas-form-titulo">Nueva nota</h3>
-            <!-- Arriba: etiqueta (esquina superior izquierda) y, a su derecha, los colores -->
-            <div class="notas-superior">
-              <label class="notas-campo notas-campo-etiqueta">
-                <span>Etiqueta</span>
-                <select id="notas-etiqueta"></select>
-              </label>
-              <div class="notas-campo notas-campo-color">
-                <span>Color</span>
-                <!-- Colores principales (pasteles) -->
-                <div id="notas-colores" class="notas-colores" role="radiogroup" aria-label="Color de la nota"></div>
-                <button id="notas-mas-colores" class="notas-enlace" type="button" aria-expanded="false">Más colores ▾</button>
-                <!-- Paleta completa y selector libre (ocultos hasta pulsar "Más colores") -->
-                <div id="notas-paleta" class="notas-paleta" hidden>
-                  <div id="notas-paleta-familias"></div>
-                  <label id="notas-personal" class="notas-personal">
-                    <input id="notas-color-personal" type="color" value="#ffffff" aria-label="Elegir cualquier color" />
-                    <span>Elegir cualquier otro color</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div class="notas-campos notas-campos-par">
-              <label class="notas-campo">
-                <span>Fecha y hora</span>
-                <input id="notas-fecha" type="datetime-local" />
-              </label>
-              <label class="notas-campo">
-                <span>Identificador (1, 2, 3… o una palabra)</span>
-                <input id="notas-identificador" type="text" maxlength="40" placeholder="Opcional" autocomplete="off" />
-              </label>
-            </div>
-            <!-- Nombre de la nota y, justo debajo, la zona para escribirla -->
-            <label class="notas-campo notas-campo-nombre">
-              <span>Nombre</span>
-              <input id="notas-nombre" type="text" maxlength="80" placeholder="Nombre de la nota" autocomplete="off" />
-            </label>
-            <textarea id="notas-texto" rows="4" maxlength="5000"
-                      placeholder="Escribe una nota nueva…" aria-label="Nueva nota"></textarea>
-            <div class="notas-fila">
-              <button id="notas-guardar" class="notas-btn" type="button">Guardar nota</button>
-              <button id="notas-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
-              <span id="notas-estado" class="notas-estado"></span>
-            </div>
-          </div>
-          <div id="notas-lista" class="notas-lista"></div>
-        </div>
-      </div>
-
-      <!-- Submenú: todas las notas de una etiqueta -->
-      <div id="notas-submenu" class="notas-submenu" hidden>
-        <header class="notas-sub-cabecera">
-          <button id="notas-sub-volver" class="notas-btn notas-btn-sec" type="button">‹ Volver</button>
-          <h3 id="notas-sub-titulo"></h3>
-        </header>
-        <div class="notas-sub-cuerpo">
-          <div id="notas-sub-lista" class="notas-grid"></div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Panel grande de Proyectos. Los proyectos viven en la hoja «Proyectos» de Google Sheets
        y sus imágenes se suben a imgbb desde el Apps Script -->
@@ -383,15 +283,88 @@
     </div>
   </div>
 
+  <!-- Panel de Diario: calendario aparte del principal. Los anotacións viven en la hoja «Diario»
+       de Google Sheets (Nombre | Fecha | Descripcion | Id) -->
+  <div id="panel-diario" class="panel-notas" hidden>
+    <div class="notas-caja ejercicio-caja diario-caja" role="dialog" aria-modal="true" aria-labelledby="di-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#128211;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#9999;&#65039;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+      </div>
+
+      <header class="notas-cabecera">
+        <h2 id="di-titulo">Diario</h2>
+        <div class="notas-cab-botones">
+          <button id="di-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer las anotaciones de Google Sheets" aria-label="Actualizar diario">&#8635;</button>
+          <button id="di-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar diario">&times;</button>
+        </div>
+      </header>
+
+      <div class="notas-cuerpo">
+        <div id="di-sin-sesion" class="notas-aviso-sesion" hidden>
+          <p>Inicia sesión con tu cuenta de Google para ver y guardar tus anotaciones.</p>
+          <button id="di-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
+        </div>
+
+        <div id="di-contenido">
+          <div class="cal-controles">
+            <button id="di-anterior" class="btn-cal" type="button" aria-label="Mes anterior">&#8249;</button>
+            <select id="di-mes" aria-label="Mes"></select>
+            <select id="di-anio" aria-label="Año"></select>
+            <button id="di-siguiente" class="btn-cal" type="button" aria-label="Mes siguiente">&#8250;</button>
+            <button id="di-hoy" class="btn-cal btn-hoy" type="button">Hoy</button>
+          </div>
+          <p id="di-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="di-cuadricula" class="cal-cuadricula" role="grid"></div>
+        </div>
+      </div>
+
+      <!-- Submenú del día: un botón cuadrado pequeño por cada anotación de ese día -->
+      <div id="di-dia" class="notas-submenu" hidden>
+        <header class="notas-sub-cabecera">
+          <button id="di-dia-volver" class="notas-btn notas-btn-sec" type="button">‹ Volver</button>
+          <h3 id="di-dia-titulo"></h3>
+        </header>
+        <div class="notas-sub-cuerpo">
+          <p id="di-dia-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="di-chips" class="ej-chips"></div>
+        </div>
+      </div>
+
+      <!-- Ventana para agregar o editar una anotación -->
+      <div id="di-form" class="notas-nueva modo-editar" hidden>
+        <h3 id="di-form-titulo" class="notas-form-titulo">Nueva anotación</h3>
+        <label class="notas-campo">
+          <span>Nombre</span>
+          <input id="di-nombre" type="text" maxlength="80" placeholder="Ej. Idea del día" autocomplete="off" />
+        </label>
+        <label class="notas-campo">
+          <span>Descripción</span>
+          <textarea id="di-descripcion" rows="4" maxlength="5000" placeholder="Escribe tu anotación…"></textarea>
+        </label>
+        <div class="notas-fila">
+          <button id="di-guardar" class="notas-btn" type="button">Guardar</button>
+          <button id="di-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <button id="di-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+          <span id="di-form-estado" class="notas-estado"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <header class="encabezado">
     <h1>Polo AI</h1>
-    <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Ejercicio, Actividades, Trabajo.
-         Notas abre el panel de notas; Ejercicio abre su propio calendario. -->
+    <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Ejercicio, Actividades, Trabajo, Diario.
+         Notas cambia a la página de Notas; Ejercicio abre su propio calendario. -->
     <nav class="menu" aria-label="Secciones">
       <button class="btn-menu" type="button" data-seccion="calendario">
         <span class="btn-menu-icono" aria-hidden="true">&#128197;</span><span class="btn-menu-texto">Calendario</span>
       </button>
-      <button id="btn-menu-notas" class="btn-menu" type="button">
+      <button id="btn-menu-notas" class="btn-menu" type="button" data-seccion="seccion-notas">
         <span class="btn-menu-icono" aria-hidden="true">&#128221;</span><span class="btn-menu-texto">Notas</span>
       </button>
       <button id="btn-menu-ejercicio" class="btn-menu" type="button">
@@ -402,6 +375,9 @@
       </button>
       <button class="btn-menu" type="button" data-seccion="trabajo">
         <span class="btn-menu-icono" aria-hidden="true">&#128188;</span><span class="btn-menu-texto">Trabajo</span>
+      </button>
+      <button id="btn-menu-diario" class="btn-menu" type="button">
+        <span class="btn-menu-icono" aria-hidden="true">&#128211;</span><span class="btn-menu-texto">Diario</span>
       </button>
     </nav>
   </header>
@@ -532,6 +508,109 @@
       </div>
     </section>
 
+    <!-- NOTAS (página, como Calendario, Actividades y Trabajo) -->
+    <section id="seccion-notas" class="seccion seccion-notas" hidden>
+    <!-- Página de Notas (azul pastel). Las notas viven en la hoja «Notas» de Google Sheets -->
+    <div id="panel-notas" class="panel-notas panel-pagina" hidden>
+      <div class="notas-caja" role="dialog" aria-modal="true" aria-labelledby="notas-titulo">
+        <div class="notas-decor" aria-hidden="true">
+          <span class="decor decor-1">&#9729;&#65039;</span>
+          <span class="decor decor-2">&#10024;</span>
+          <span class="decor decor-3">&#127769;</span>
+          <span class="decor decor-4">&#9729;&#65039;</span>
+          <span class="decor decor-5">&#10024;</span>
+          <span class="decor decor-6">&#128153;</span>
+        </div>
+
+        <header class="notas-cabecera">
+          <h2 id="notas-titulo">Notas</h2>
+          <div class="notas-cab-botones">
+            <button id="notas-actualizar" class="notas-btn-icono" type="button"
+                    title="Volver a leer las notas de Google Sheets" aria-label="Actualizar notas">&#8635;</button>
+            <button id="notas-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar notas">&times;</button>
+          </div>
+        </header>
+
+        <div class="notas-cuerpo">
+          <!-- Sin sesión -->
+          <div id="notas-sin-sesion" class="notas-aviso-sesion" hidden>
+            <p>Inicia sesión con tu cuenta de Google para ver y guardar tus notas.</p>
+            <button id="notas-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
+          </div>
+
+          <!-- Con sesión -->
+          <div id="notas-contenido">
+            <!-- Zona de arriba: botón para crear una nota y mensajes de la lista -->
+            <div class="notas-barra">
+              <button id="notas-nueva-btn" class="notas-btn" type="button">+ Nueva nota</button>
+              <span id="notas-estado-lista" class="notas-estado"></span>
+            </div>
+
+            <!-- Opciones para crear una nota (ocultas hasta pulsar "Nueva nota") -->
+            <div id="notas-form" class="notas-nueva" hidden>
+              <h3 id="notas-form-titulo" class="notas-form-titulo">Nueva nota</h3>
+              <!-- Arriba: etiqueta (esquina superior izquierda) y, a su derecha, los colores -->
+              <div class="notas-superior">
+                <label class="notas-campo notas-campo-etiqueta">
+                  <span>Etiqueta</span>
+                  <select id="notas-etiqueta"></select>
+                </label>
+                <div class="notas-campo notas-campo-color">
+                  <span>Color</span>
+                  <!-- Colores principales (pasteles) -->
+                  <div id="notas-colores" class="notas-colores" role="radiogroup" aria-label="Color de la nota"></div>
+                  <button id="notas-mas-colores" class="notas-enlace" type="button" aria-expanded="false">Más colores ▾</button>
+                  <!-- Paleta completa y selector libre (ocultos hasta pulsar "Más colores") -->
+                  <div id="notas-paleta" class="notas-paleta" hidden>
+                    <div id="notas-paleta-familias"></div>
+                    <label id="notas-personal" class="notas-personal">
+                      <input id="notas-color-personal" type="color" value="#ffffff" aria-label="Elegir cualquier color" />
+                      <span>Elegir cualquier otro color</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div class="notas-campos notas-campos-par">
+                <label class="notas-campo">
+                  <span>Fecha y hora</span>
+                  <input id="notas-fecha" type="datetime-local" />
+                </label>
+                <label class="notas-campo">
+                  <span>Identificador (1, 2, 3… o una palabra)</span>
+                  <input id="notas-identificador" type="text" maxlength="40" placeholder="Opcional" autocomplete="off" />
+                </label>
+              </div>
+              <!-- Nombre de la nota y, justo debajo, la zona para escribirla -->
+              <label class="notas-campo notas-campo-nombre">
+                <span>Nombre</span>
+                <input id="notas-nombre" type="text" maxlength="80" placeholder="Nombre de la nota" autocomplete="off" />
+              </label>
+              <textarea id="notas-texto" rows="4" maxlength="5000"
+                        placeholder="Escribe una nota nueva…" aria-label="Nueva nota"></textarea>
+              <div class="notas-fila">
+                <button id="notas-guardar" class="notas-btn" type="button">Guardar nota</button>
+                <button id="notas-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+                <span id="notas-estado" class="notas-estado"></span>
+              </div>
+            </div>
+            <div id="notas-lista" class="notas-lista"></div>
+          </div>
+        </div>
+
+        <!-- Submenú: todas las notas de una etiqueta -->
+        <div id="notas-submenu" class="notas-submenu" hidden>
+          <header class="notas-sub-cabecera">
+            <button id="notas-sub-volver" class="notas-btn notas-btn-sec" type="button">‹ Volver</button>
+            <h3 id="notas-sub-titulo"></h3>
+          </header>
+          <div class="notas-sub-cuerpo">
+            <div id="notas-sub-lista" class="notas-grid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </section>
+
     <!-- ACTIVIDADES -->
     <section id="actividades" class="seccion" hidden>
       <h2>Actividades</h2>
@@ -547,8 +626,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=22"></script>
-  <script src="app.js?v=22"></script>
-  <script type="module" src="firebase.js?v=22"></script>
+  <script src="config.js?v=24"></script>
+  <script src="app.js?v=24"></script>
+  <script type="module" src="firebase.js?v=24"></script>
 </body>
 </html>

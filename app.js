@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "22";
+const VERSION = "24";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -13,8 +13,9 @@ const VERSION = "22";
     "notas-submenu", "notas-sub-lista", "notas-mas-colores", "notas-color-personal",
     "notas-identificador", "notas-form-titulo", "btn-proyectos", "panel-proyectos", "proy-form",
     "btn-yeso", "btn-galeria", "panel-galeria", "gal-form",
-    "zona-actividades", "zona-trabajo", "btn-menu-notas", "btn-menu-ejercicio",
+    "zona-actividades", "zona-trabajo", "btn-menu-notas", "seccion-notas", "btn-menu-ejercicio",
     "panel-ejercicio", "ej-cuadricula", "ej-dia", "ej-form",
+    "btn-menu-diario", "panel-diario", "di-cuadricula", "di-dia", "di-form",
     "pop-color", "pop-colores", "pop-mas-colores", "pop-paleta", "pop-color-personal",
   ];
   const problemas = [];
@@ -57,9 +58,12 @@ function mostrarSeccion(id) {
   );
   if (id === "calendario") irAHoy(); // siempre abre en la fecha actual
   else cerrarPopover();
+  // La página de Notas se prepara al entrar (lista primero, sin formularios abiertos)
+  panelNotas.hidden = id !== "seccion-notas";
+  if (id === "seccion-notas") entrarNotas();
 }
 
-// Solo los botones con data-seccion cambian de sección (Notas y Ejercicio se manejan aparte)
+// Solo los botones con data-seccion cambian de sección (Ejercicio y Diario abren su panel aparte)
 botonesMenu.forEach((b) => {
   if (b.dataset.seccion) b.addEventListener("click", () => mostrarSeccion(b.dataset.seccion));
 });
@@ -922,7 +926,7 @@ const notasPersonal = document.getElementById("notas-personal");
 const notasLista = document.getElementById("notas-lista");
 const notasIdent = document.getElementById("notas-identificador");
 const notasFormTitulo = document.getElementById("notas-form-titulo");
-const notasCaja = document.querySelector(".notas-caja");
+const notasCaja = document.querySelector("#panel-notas .notas-caja");
 
 let notaEditando = null; // nota que se está editando en el formulario (null = nota nueva)
 
@@ -1484,6 +1488,7 @@ function actualizarPanelNotas() {
   actualizarPanelProyectos(); // la sesión también afecta a los paneles de Proyectos y Galería
   actualizarPanelGaleria();
   actualizarPanelEjercicio(); // y al de Ejercicio
+  actualizarPanelDiario(); // y al de Diario
   actualizarZonasEtiqueta(); // y a las zonas de Actividades y Trabajo
   actualizarCalendarioSesion(); // y a los datos del calendario
   if (panelNotas.hidden) return;
@@ -1498,24 +1503,29 @@ function actualizarPanelNotas() {
   }
 }
 
-function abrirNotas() {
-  etiquetaPendiente = null;
-  cerrarLateral();
+// Se llama al entrar a la página de Notas (desde mostrarSeccion)
+function entrarNotas() {
   panelNotas.hidden = false;
   mostrarFormNota(false); // al abrir, primero se ve la lista de notas
   cerrarSubmenu();
   actualizarPanelNotas();
 }
 
+// Desde la barra lateral o el acceso directo: cierra la barra y cambia a la página de Notas
+function abrirNotas() {
+  etiquetaPendiente = null;
+  cerrarLateral();
+  mostrarSeccion("seccion-notas");
+}
+
+// Notas ya es una página: aquí solo se sale de la edición o del submenú (se cambia de página con el menú)
 function cerrarNotas() {
   if (notaEditando) cancelarEdicionNota();
   cerrarSubmenu();
-  panelNotas.hidden = true;
 }
 
 btnNotas.addEventListener("click", abrirNotas);
-// Botón «Notas» del menú principal: abre el mismo panel que el de la barra lateral
-document.getElementById("btn-menu-notas").addEventListener("click", abrirNotas);
+// El botón «Notas» del menú principal (data-seccion="seccion-notas") cambia de página como los demás botones
 // El botón «Ejercicio» del menú principal (btn-menu-ejercicio) abre su propio calendario (más abajo)
 document.getElementById("notas-cerrar").addEventListener("click", cerrarNotas);
 document.getElementById("notas-actualizar").addEventListener("click", () => {
@@ -2957,6 +2967,267 @@ document.addEventListener("keydown", (e) => {
   if (!ejForm.hidden) cerrarFormEj();
   else if (!ejDiaPanel.hidden) cerrarDiaEj();
   else cerrarEjercicio();
+});
+
+// ---------- Diario (hoja «Diario» de Google Sheets) ----------
+// Calendario aparte del principal: cada día guarda los diarios que hiciste (Nombre | Fecha | Descripcion | Id).
+const diEl = (id) => document.getElementById(id);
+const panelDi = diEl("panel-diario");
+const diSinSesion = diEl("di-sin-sesion");
+const diContenido = diEl("di-contenido");
+const diEstado = diEl("di-estado");
+const diSelMes = diEl("di-mes");
+const diSelAnio = diEl("di-anio");
+const diAnterior = diEl("di-anterior");
+const diSiguiente = diEl("di-siguiente");
+const diCuad = diEl("di-cuadricula");
+const diDiaPanel = diEl("di-dia");
+const diDiaTitulo = diEl("di-dia-titulo");
+const diDiaEstado = diEl("di-dia-estado");
+const diChips = diEl("di-chips");
+const diForm = diEl("di-form");
+const diFormTitulo = diEl("di-form-titulo");
+const diNombre = diEl("di-nombre");
+const diDescripcion = diEl("di-descripcion");
+const diGuardar = diEl("di-guardar");
+const diBorrar = diEl("di-borrar");
+const diFormEstado = diEl("di-form-estado");
+
+let diarios = []; // [{ id, nombre, fecha: "AAAA-MM-DD", descripcion }]
+let diCargados = false;
+let diMes = new Date().getMonth();
+let diAnio = new Date().getFullYear();
+let diDia = null; // día abierto en el submenú
+let diEditando = null; // anotación abierto en la ventana (null = anotación nuevo)
+
+MESES.forEach((n, i) => diSelMes.add(new Option(n, i)));
+for (let a = ANIO_MIN; a <= ANIO_MAX; a++) diSelAnio.add(new Option(a, a));
+
+const diDeDia = (fecha) => diarios.filter((e) => e.fecha === fecha);
+
+// ----- Calendario de anotación (igual al principal, pero con sus propios datos) -----
+function dibujarCalendarioDi() {
+  diSelMes.value = diMes;
+  diSelAnio.value = diAnio;
+  diAnterior.disabled = diAnio === ANIO_MIN && diMes === 0;
+  diSiguiente.disabled = diAnio === ANIO_MAX && diMes === 11;
+  diCuad.innerHTML = "";
+  DIAS.forEach((d) => {
+    const el = document.createElement("div");
+    el.className = "cal-dia-semana";
+    el.textContent = d;
+    diCuad.appendChild(el);
+  });
+  const ahora = new Date();
+  const primerDia = (new Date(diAnio, diMes, 1).getDay() + 6) % 7;
+  const diasEnMes = new Date(diAnio, diMes + 1, 0).getDate();
+  for (let i = 0; i < primerDia; i++) {
+    const vacio = document.createElement("div");
+    vacio.className = "cal-dia vacio";
+    diCuad.appendChild(vacio);
+  }
+  for (let d = 1; d <= diasEnMes; d++) {
+    const fecha = claveFecha(diAnio, diMes, d);
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "cal-dia";
+    el.textContent = d;
+    el.dataset.fecha = fecha;
+    if ((primerDia + d - 1) % 7 >= 5) el.classList.add("finde");
+    if (d === ahora.getDate() && diMes === ahora.getMonth() && diAnio === ahora.getFullYear()) el.classList.add("hoy");
+    if (fecha === diDia) el.classList.add("seleccionado");
+    if (diDeDia(fecha).length) el.classList.add("con-datos");
+    el.addEventListener("click", () => abrirDiaDi(fecha));
+    diCuad.appendChild(el);
+  }
+}
+
+function diCambiarMes(delta) {
+  diMes += delta;
+  if (diMes < 0) { diMes = 11; diAnio--; }
+  if (diMes > 11) { diMes = 0; diAnio++; }
+  diAnio = Math.max(ANIO_MIN, Math.min(ANIO_MAX, diAnio));
+  dibujarCalendarioDi();
+}
+
+// ----- Submenú del día: un botón cuadrado por anotación + un "+" para añadir -----
+function dibujarChipsDi() {
+  diChips.innerHTML = "";
+  diDeDia(diDia).forEach((e) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ej-chip";
+    b.title = e.nombre;
+    b.setAttribute("aria-label", "Ver o editar la anotación " + e.nombre);
+    b.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">📓</span><span class="ej-chip-nombre"></span>';
+    b.querySelector(".ej-chip-nombre").textContent = e.nombre;
+    b.addEventListener("click", () => abrirFormDi(e));
+    diChips.appendChild(b);
+  });
+  const nuevo = document.createElement("button");
+  nuevo.type = "button";
+  nuevo.className = "ej-chip ej-chip-nuevo";
+  nuevo.setAttribute("aria-label", "Añadir una anotación");
+  nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
+  nuevo.addEventListener("click", () => abrirFormDi(null));
+  diChips.appendChild(nuevo);
+}
+
+function abrirDiaDi(fecha) {
+  diDia = fecha;
+  diDiaTitulo.textContent = textoFecha(fecha);
+  setEstado(diDiaEstado, "");
+  dibujarChipsDi();
+  diDiaPanel.hidden = false;
+  dibujarCalendarioDi();
+}
+function cerrarDiaDi() {
+  cerrarFormDi();
+  diDiaPanel.hidden = true;
+  diDia = null;
+  dibujarCalendarioDi();
+}
+
+// ----- Ventana para añadir / editar -----
+function abrirFormDi(e) {
+  diEditando = e;
+  diFormTitulo.textContent = e ? "Editar anotación" : "Nueva anotación";
+  diNombre.value = e ? e.nombre : "";
+  diDescripcion.value = e ? e.descripcion : "";
+  diBorrar.hidden = !e;
+  setEstado(diFormEstado, "");
+  diForm.hidden = false;
+  diNombre.focus();
+}
+function cerrarFormDi() {
+  diForm.hidden = true;
+  diEditando = null;
+}
+
+async function guardarDi() {
+  const nombre = diNombre.value.trim();
+  if (!nombre) {
+    setEstado(diFormEstado, "Escribe el nombre de la anotación", "error");
+    return;
+  }
+  const editando = diEditando;
+  const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
+  const e = { id, nombre, fecha: editando ? editando.fecha : diDia, descripcion: diDescripcion.value.trim() };
+  diGuardar.disabled = true;
+  setEstado(diFormEstado, "Guardando…");
+  try {
+    await llamarNotas(editando ? "diario_editar" : "diario_agregar", e);
+    if (editando) diarios = diarios.map((x) => (x.id === id ? e : x));
+    else diarios.push(e);
+    cerrarFormDi();
+    dibujarChipsDi();
+    dibujarCalendarioDi();
+  } catch (err) {
+    setEstado(diFormEstado, "Error: " + err.message, "error");
+  } finally {
+    diGuardar.disabled = false;
+  }
+}
+
+async function borrarDi() {
+  const e = diEditando;
+  if (!e || !window.confirm("¿Eliminar la anotación «" + e.nombre + "»?")) return;
+  diBorrar.disabled = true;
+  setEstado(diFormEstado, "Eliminando…");
+  try {
+    await llamarNotas("diario_borrar", { id: e.id });
+    diarios = diarios.filter((x) => x.id !== e.id);
+    cerrarFormDi();
+    dibujarChipsDi();
+    dibujarCalendarioDi();
+  } catch (err) {
+    setEstado(diFormEstado, "Error: " + err.message, "error");
+  } finally {
+    diBorrar.disabled = false;
+  }
+}
+
+// ----- Carga y sesión -----
+async function cargarDiarios() {
+  setEstado(diEstado, "Cargando…");
+  try {
+    const j = await llamarNotas("diario_listar");
+    diarios = Array.isArray(j.diarios) ? j.diarios : [];
+    diCargados = true;
+    setEstado(diEstado, "");
+    dibujarCalendarioDi();
+    if (diDia) dibujarChipsDi();
+  } catch (err) {
+    setEstado(diEstado, "Error: " + err.message, "error");
+  }
+}
+
+function actualizarPanelDiario() {
+  if (panelDi.hidden) return;
+  const dentro = sesionVigente();
+  diSinSesion.hidden = dentro;
+  diContenido.hidden = !dentro;
+  if (dentro) {
+    if (!diCargados) cargarDiarios();
+  } else {
+    diCargados = false;
+    diarios = [];
+    cerrarDiaDi();
+  }
+}
+
+function abrirDiario() {
+  cerrarLateral();
+  const ahora = new Date();
+  diMes = ahora.getMonth(); // siempre abre en el mes actual
+  diAnio = ahora.getFullYear();
+  diDia = null;
+  diDiaPanel.hidden = true;
+  cerrarFormDi();
+  panelDi.hidden = false;
+  dibujarCalendarioDi();
+  actualizarPanelDiario();
+}
+function cerrarDiario() {
+  cerrarFormDi();
+  diDiaPanel.hidden = true;
+  diDia = null;
+  panelDi.hidden = true;
+}
+
+diEl("btn-menu-diario").addEventListener("click", abrirDiario);
+diEl("di-cerrar").addEventListener("click", cerrarDiario);
+diEl("di-actualizar").addEventListener("click", () => {
+  if (sesionVigente()) cargarDiarios();
+  else actualizarPanelDiario();
+});
+diEl("di-ir-login").addEventListener("click", () => {
+  cerrarDiario();
+  abrirLateral();
+});
+diAnterior.addEventListener("click", () => diCambiarMes(-1));
+diSiguiente.addEventListener("click", () => diCambiarMes(1));
+diEl("di-hoy").addEventListener("click", () => {
+  const ahora = new Date();
+  diMes = ahora.getMonth();
+  diAnio = ahora.getFullYear();
+  dibujarCalendarioDi();
+});
+diSelMes.addEventListener("change", () => { diMes = Number(diSelMes.value); dibujarCalendarioDi(); });
+diSelAnio.addEventListener("change", () => { diAnio = Number(diSelAnio.value); dibujarCalendarioDi(); });
+diEl("di-dia-volver").addEventListener("click", cerrarDiaDi);
+diGuardar.addEventListener("click", guardarDi);
+diEl("di-cancelar").addEventListener("click", cerrarFormDi);
+diBorrar.addEventListener("click", borrarDi);
+// Tocar el fondo oscuro cierra el panel; Esc cierra primero la ventana, luego el día y al final el panel
+panelDi.addEventListener("click", (e) => {
+  if (e.target === panelDi) cerrarDiario();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || panelDi.hidden) return;
+  if (!diForm.hidden) cerrarFormDi();
+  else if (!diDiaPanel.hidden) cerrarDiaDi();
+  else cerrarDiario();
 });
 
 dibujarCuenta();

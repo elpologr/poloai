@@ -1,5 +1,5 @@
 :root {
-  --app-version: "22"; /* debe coincidir con VERSION en app.js */
+  --app-version: "24"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -1357,3 +1357,13 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 }
 .ej-chip-nuevo .ej-chip-icono { font-size: 2rem; }
 @media (max-width: 480px) { .ej-chip { width: 76px; height: 76px; } }
+
+/* Diario reutiliza los estilos de Ejercicio (.ejercicio-caja y .ej-chip) */
+#di-contenido[hidden] { display: none; }
+
+/* ---------- Notas como página (dentro de <main>, como Calendario, Actividades y Trabajo) ---------- */
+.seccion.seccion-notas { padding: 0; background: none; border: none; box-shadow: none; border-radius: 0; }
+.panel-notas.panel-pagina { position: static; inset: auto; z-index: auto; display: block; padding: 0; background: none; }
+.panel-notas.panel-pagina[hidden] { display: none; }
+.panel-pagina .notas-caja { width: 100%; max-height: none; height: min(78vh, 760px); box-shadow: 0 12px 34px rgba(40, 10, 80, 0.35); }
+.panel-pagina #notas-cerrar { display: none; } /* ya no hay nada que cerrar: se cambia de página con el menú */
