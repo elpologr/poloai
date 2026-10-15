@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="24" />
+  <meta name="app-version" content="25" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=24" />
+  <link rel="stylesheet" href="styles.css?v=25" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -210,156 +210,10 @@
     </div>
   </div>
 
-  <!-- Panel de Ejercicio: calendario aparte del principal. Los ejercicios viven en la hoja «Ejercicio»
-       de Google Sheets (Nombre | Fecha | Descripcion | Id) -->
-  <div id="panel-ejercicio" class="panel-notas" hidden>
-    <div class="notas-caja ejercicio-caja" role="dialog" aria-modal="true" aria-labelledby="ej-titulo">
-      <div class="notas-decor" aria-hidden="true">
-        <span class="decor decor-1">&#128170;</span>
-        <span class="decor decor-2">&#10024;</span>
-        <span class="decor decor-3">&#127939;</span>
-        <span class="decor decor-4">&#9729;&#65039;</span>
-        <span class="decor decor-5">&#10024;</span>
-      </div>
-
-      <header class="notas-cabecera">
-        <h2 id="ej-titulo">Ejercicio</h2>
-        <div class="notas-cab-botones">
-          <button id="ej-actualizar" class="notas-btn-icono" type="button"
-                  title="Volver a leer los ejercicios de Google Sheets" aria-label="Actualizar ejercicios">&#8635;</button>
-          <button id="ej-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar ejercicio">&times;</button>
-        </div>
-      </header>
-
-      <div class="notas-cuerpo">
-        <div id="ej-sin-sesion" class="notas-aviso-sesion" hidden>
-          <p>Inicia sesión con tu cuenta de Google para ver y guardar tus ejercicios.</p>
-          <button id="ej-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
-        </div>
-
-        <div id="ej-contenido">
-          <div class="cal-controles">
-            <button id="ej-anterior" class="btn-cal" type="button" aria-label="Mes anterior">&#8249;</button>
-            <select id="ej-mes" aria-label="Mes"></select>
-            <select id="ej-anio" aria-label="Año"></select>
-            <button id="ej-siguiente" class="btn-cal" type="button" aria-label="Mes siguiente">&#8250;</button>
-            <button id="ej-hoy" class="btn-cal btn-hoy" type="button">Hoy</button>
-          </div>
-          <p id="ej-estado" class="notas-estado proy-estado-lista"></p>
-          <div id="ej-cuadricula" class="cal-cuadricula" role="grid"></div>
-        </div>
-      </div>
-
-      <!-- Submenú del día: un botón cuadrado pequeño por cada ejercicio hecho ese día -->
-      <div id="ej-dia" class="notas-submenu" hidden>
-        <header class="notas-sub-cabecera">
-          <button id="ej-dia-volver" class="notas-btn notas-btn-sec" type="button">‹ Volver</button>
-          <h3 id="ej-dia-titulo"></h3>
-        </header>
-        <div class="notas-sub-cuerpo">
-          <p id="ej-dia-estado" class="notas-estado proy-estado-lista"></p>
-          <div id="ej-chips" class="ej-chips"></div>
-        </div>
-      </div>
-
-      <!-- Ventana para agregar o editar un ejercicio -->
-      <div id="ej-form" class="notas-nueva modo-editar" hidden>
-        <h3 id="ej-form-titulo" class="notas-form-titulo">Nuevo ejercicio</h3>
-        <label class="notas-campo">
-          <span>Nombre</span>
-          <input id="ej-nombre" type="text" maxlength="80" placeholder="Ej. Sentadillas" autocomplete="off" />
-        </label>
-        <label class="notas-campo">
-          <span>Descripción</span>
-          <textarea id="ej-descripcion" rows="4" maxlength="5000" placeholder="Series, repeticiones, tiempo…"></textarea>
-        </label>
-        <div class="notas-fila">
-          <button id="ej-guardar" class="notas-btn" type="button">Guardar</button>
-          <button id="ej-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
-          <button id="ej-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
-          <span id="ej-form-estado" class="notas-estado"></span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Panel de Diario: calendario aparte del principal. Los anotacións viven en la hoja «Diario»
-       de Google Sheets (Nombre | Fecha | Descripcion | Id) -->
-  <div id="panel-diario" class="panel-notas" hidden>
-    <div class="notas-caja ejercicio-caja diario-caja" role="dialog" aria-modal="true" aria-labelledby="di-titulo">
-      <div class="notas-decor" aria-hidden="true">
-        <span class="decor decor-1">&#128211;</span>
-        <span class="decor decor-2">&#10024;</span>
-        <span class="decor decor-3">&#9999;&#65039;</span>
-        <span class="decor decor-4">&#9729;&#65039;</span>
-        <span class="decor decor-5">&#10024;</span>
-      </div>
-
-      <header class="notas-cabecera">
-        <h2 id="di-titulo">Diario</h2>
-        <div class="notas-cab-botones">
-          <button id="di-actualizar" class="notas-btn-icono" type="button"
-                  title="Volver a leer las anotaciones de Google Sheets" aria-label="Actualizar diario">&#8635;</button>
-          <button id="di-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar diario">&times;</button>
-        </div>
-      </header>
-
-      <div class="notas-cuerpo">
-        <div id="di-sin-sesion" class="notas-aviso-sesion" hidden>
-          <p>Inicia sesión con tu cuenta de Google para ver y guardar tus anotaciones.</p>
-          <button id="di-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
-        </div>
-
-        <div id="di-contenido">
-          <div class="cal-controles">
-            <button id="di-anterior" class="btn-cal" type="button" aria-label="Mes anterior">&#8249;</button>
-            <select id="di-mes" aria-label="Mes"></select>
-            <select id="di-anio" aria-label="Año"></select>
-            <button id="di-siguiente" class="btn-cal" type="button" aria-label="Mes siguiente">&#8250;</button>
-            <button id="di-hoy" class="btn-cal btn-hoy" type="button">Hoy</button>
-          </div>
-          <p id="di-estado" class="notas-estado proy-estado-lista"></p>
-          <div id="di-cuadricula" class="cal-cuadricula" role="grid"></div>
-        </div>
-      </div>
-
-      <!-- Submenú del día: un botón cuadrado pequeño por cada anotación de ese día -->
-      <div id="di-dia" class="notas-submenu" hidden>
-        <header class="notas-sub-cabecera">
-          <button id="di-dia-volver" class="notas-btn notas-btn-sec" type="button">‹ Volver</button>
-          <h3 id="di-dia-titulo"></h3>
-        </header>
-        <div class="notas-sub-cuerpo">
-          <p id="di-dia-estado" class="notas-estado proy-estado-lista"></p>
-          <div id="di-chips" class="ej-chips"></div>
-        </div>
-      </div>
-
-      <!-- Ventana para agregar o editar una anotación -->
-      <div id="di-form" class="notas-nueva modo-editar" hidden>
-        <h3 id="di-form-titulo" class="notas-form-titulo">Nueva anotación</h3>
-        <label class="notas-campo">
-          <span>Nombre</span>
-          <input id="di-nombre" type="text" maxlength="80" placeholder="Ej. Idea del día" autocomplete="off" />
-        </label>
-        <label class="notas-campo">
-          <span>Descripción</span>
-          <textarea id="di-descripcion" rows="4" maxlength="5000" placeholder="Escribe tu anotación…"></textarea>
-        </label>
-        <div class="notas-fila">
-          <button id="di-guardar" class="notas-btn" type="button">Guardar</button>
-          <button id="di-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
-          <button id="di-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
-          <span id="di-form-estado" class="notas-estado"></span>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <header class="encabezado">
     <h1>Polo AI</h1>
     <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Ejercicio, Actividades, Trabajo, Diario.
-         Notas cambia a la página de Notas; Ejercicio abre su propio calendario. -->
+         Cada botón abre su propia sección (Ejercicio y Diario con su propio calendario). -->
     <nav class="menu" aria-label="Secciones">
       <button class="btn-menu" type="button" data-seccion="calendario">
         <span class="btn-menu-icono" aria-hidden="true">&#128197;</span><span class="btn-menu-texto">Calendario</span>
@@ -367,7 +221,7 @@
       <button id="btn-menu-notas" class="btn-menu" type="button" data-seccion="seccion-notas">
         <span class="btn-menu-icono" aria-hidden="true">&#128221;</span><span class="btn-menu-texto">Notas</span>
       </button>
-      <button id="btn-menu-ejercicio" class="btn-menu" type="button">
+      <button id="btn-menu-ejercicio" class="btn-menu" type="button" data-seccion="seccion-ejercicio">
         <span class="btn-menu-icono" aria-hidden="true">&#128170;</span><span class="btn-menu-texto">Ejercicio</span>
       </button>
       <button class="btn-menu" type="button" data-seccion="actividades">
@@ -376,7 +230,7 @@
       <button class="btn-menu" type="button" data-seccion="trabajo">
         <span class="btn-menu-icono" aria-hidden="true">&#128188;</span><span class="btn-menu-texto">Trabajo</span>
       </button>
-      <button id="btn-menu-diario" class="btn-menu" type="button">
+      <button id="btn-menu-diario" class="btn-menu" type="button" data-seccion="seccion-diario">
         <span class="btn-menu-icono" aria-hidden="true">&#128211;</span><span class="btn-menu-texto">Diario</span>
       </button>
     </nav>
@@ -611,6 +465,158 @@
     </div>
     </section>
 
+    <!-- EJERCICIO (página, como Notas) -->
+    <section id="seccion-ejercicio" class="seccion seccion-pagina" hidden>
+  <!-- Panel de Ejercicio: calendario aparte del principal. Los ejercicios viven en la hoja «Ejercicio»
+       de Google Sheets (Nombre | Fecha | Descripcion | Id) -->
+  <div id="panel-ejercicio" class="panel-notas panel-pagina" hidden>
+    <div class="notas-caja ejercicio-caja" role="dialog" aria-modal="true" aria-labelledby="ej-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#128170;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#127939;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+      </div>
+
+      <header class="notas-cabecera">
+        <h2 id="ej-titulo">Ejercicio</h2>
+        <div class="notas-cab-botones">
+          <button id="ej-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer los ejercicios de Google Sheets" aria-label="Actualizar ejercicios">&#8635;</button>
+          <button id="ej-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar ejercicio">&times;</button>
+        </div>
+      </header>
+
+      <div class="notas-cuerpo">
+        <div id="ej-sin-sesion" class="notas-aviso-sesion" hidden>
+          <p>Inicia sesión con tu cuenta de Google para ver y guardar tus ejercicios.</p>
+          <button id="ej-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
+        </div>
+
+        <div id="ej-contenido">
+          <div class="cal-controles">
+            <button id="ej-anterior" class="btn-cal" type="button" aria-label="Mes anterior">&#8249;</button>
+            <select id="ej-mes" aria-label="Mes"></select>
+            <select id="ej-anio" aria-label="Año"></select>
+            <button id="ej-siguiente" class="btn-cal" type="button" aria-label="Mes siguiente">&#8250;</button>
+            <button id="ej-hoy" class="btn-cal btn-hoy" type="button">Hoy</button>
+          </div>
+          <p id="ej-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="ej-cuadricula" class="cal-cuadricula" role="grid"></div>
+        </div>
+      </div>
+
+      <!-- Submenú del día: un botón cuadrado pequeño por cada ejercicio hecho ese día -->
+      <div id="ej-dia" class="notas-submenu" hidden>
+        <header class="notas-sub-cabecera">
+          <button id="ej-dia-volver" class="notas-btn notas-btn-sec" type="button">‹ Volver</button>
+          <h3 id="ej-dia-titulo"></h3>
+        </header>
+        <div class="notas-sub-cuerpo">
+          <p id="ej-dia-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="ej-chips" class="ej-chips"></div>
+        </div>
+      </div>
+
+      <!-- Ventana para agregar o editar un ejercicio -->
+      <div id="ej-form" class="notas-nueva modo-editar" hidden>
+        <h3 id="ej-form-titulo" class="notas-form-titulo">Nuevo ejercicio</h3>
+        <label class="notas-campo">
+          <span>Nombre</span>
+          <input id="ej-nombre" type="text" maxlength="80" placeholder="Ej. Sentadillas" autocomplete="off" />
+        </label>
+        <label class="notas-campo">
+          <span>Descripción</span>
+          <textarea id="ej-descripcion" rows="4" maxlength="5000" placeholder="Series, repeticiones, tiempo…"></textarea>
+        </label>
+        <div class="notas-fila">
+          <button id="ej-guardar" class="notas-btn" type="button">Guardar</button>
+          <button id="ej-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <button id="ej-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+          <span id="ej-form-estado" class="notas-estado"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </section>
+
+    <!-- DIARIO (página, como Notas) -->
+    <section id="seccion-diario" class="seccion seccion-pagina" hidden>
+  <!-- Panel de Diario: calendario aparte del principal. Los anotacións viven en la hoja «Diario»
+       de Google Sheets (Nombre | Fecha | Descripcion | Id) -->
+  <div id="panel-diario" class="panel-notas panel-pagina" hidden>
+    <div class="notas-caja ejercicio-caja diario-caja" role="dialog" aria-modal="true" aria-labelledby="di-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#128211;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#9999;&#65039;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+      </div>
+
+      <header class="notas-cabecera">
+        <h2 id="di-titulo">Diario</h2>
+        <div class="notas-cab-botones">
+          <button id="di-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer las anotaciones de Google Sheets" aria-label="Actualizar diario">&#8635;</button>
+          <button id="di-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar diario">&times;</button>
+        </div>
+      </header>
+
+      <div class="notas-cuerpo">
+        <div id="di-sin-sesion" class="notas-aviso-sesion" hidden>
+          <p>Inicia sesión con tu cuenta de Google para ver y guardar tus anotaciones.</p>
+          <button id="di-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
+        </div>
+
+        <div id="di-contenido">
+          <div class="cal-controles">
+            <button id="di-anterior" class="btn-cal" type="button" aria-label="Mes anterior">&#8249;</button>
+            <select id="di-mes" aria-label="Mes"></select>
+            <select id="di-anio" aria-label="Año"></select>
+            <button id="di-siguiente" class="btn-cal" type="button" aria-label="Mes siguiente">&#8250;</button>
+            <button id="di-hoy" class="btn-cal btn-hoy" type="button">Hoy</button>
+          </div>
+          <p id="di-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="di-cuadricula" class="cal-cuadricula" role="grid"></div>
+        </div>
+      </div>
+
+      <!-- Submenú del día: un botón cuadrado pequeño por cada anotación de ese día -->
+      <div id="di-dia" class="notas-submenu" hidden>
+        <header class="notas-sub-cabecera">
+          <button id="di-dia-volver" class="notas-btn notas-btn-sec" type="button">‹ Volver</button>
+          <h3 id="di-dia-titulo"></h3>
+        </header>
+        <div class="notas-sub-cuerpo">
+          <p id="di-dia-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="di-chips" class="ej-chips"></div>
+        </div>
+      </div>
+
+      <!-- Ventana para agregar o editar una anotación -->
+      <div id="di-form" class="notas-nueva modo-editar" hidden>
+        <h3 id="di-form-titulo" class="notas-form-titulo">Nueva anotación</h3>
+        <label class="notas-campo">
+          <span>Nombre</span>
+          <input id="di-nombre" type="text" maxlength="80" placeholder="Ej. Idea del día" autocomplete="off" />
+        </label>
+        <label class="notas-campo">
+          <span>Descripción</span>
+          <textarea id="di-descripcion" rows="4" maxlength="5000" placeholder="Escribe tu anotación…"></textarea>
+        </label>
+        <div class="notas-fila">
+          <button id="di-guardar" class="notas-btn" type="button">Guardar</button>
+          <button id="di-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <button id="di-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+          <span id="di-form-estado" class="notas-estado"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </section>
+
     <!-- ACTIVIDADES -->
     <section id="actividades" class="seccion" hidden>
       <h2>Actividades</h2>
@@ -626,8 +632,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=24"></script>
-  <script src="app.js?v=24"></script>
-  <script type="module" src="firebase.js?v=24"></script>
+  <script src="config.js?v=25"></script>
+  <script src="app.js?v=25"></script>
+  <script type="module" src="firebase.js?v=25"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "24";
+const VERSION = "25";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -16,6 +16,7 @@ const VERSION = "24";
     "zona-actividades", "zona-trabajo", "btn-menu-notas", "seccion-notas", "btn-menu-ejercicio",
     "panel-ejercicio", "ej-cuadricula", "ej-dia", "ej-form",
     "btn-menu-diario", "panel-diario", "di-cuadricula", "di-dia", "di-form",
+    "seccion-ejercicio", "seccion-diario",
     "pop-color", "pop-colores", "pop-mas-colores", "pop-paleta", "pop-color-personal",
   ];
   const problemas = [];
@@ -61,9 +62,14 @@ function mostrarSeccion(id) {
   // La página de Notas se prepara al entrar (lista primero, sin formularios abiertos)
   panelNotas.hidden = id !== "seccion-notas";
   if (id === "seccion-notas") entrarNotas();
+  // Ejercicio y Diario también son páginas: se preparan al entrar y se limpian al salir
+  if (id === "seccion-ejercicio") entrarEjercicio();
+  else cerrarEjercicio();
+  if (id === "seccion-diario") entrarDiario();
+  else cerrarDiario();
 }
 
-// Solo los botones con data-seccion cambian de sección (Ejercicio y Diario abren su panel aparte)
+// Todos los botones del menú cambian de sección (Ejercicio y Diario también son páginas)
 botonesMenu.forEach((b) => {
   if (b.dataset.seccion) b.addEventListener("click", () => mostrarSeccion(b.dataset.seccion));
 });
@@ -2915,8 +2921,8 @@ function actualizarPanelEjercicio() {
   }
 }
 
-function abrirEjercicio() {
-  cerrarLateral();
+// Se llama al entrar a la página de Ejercicio (desde mostrarSeccion)
+function entrarEjercicio() {
   const ahora = new Date();
   ejMes = ahora.getMonth(); // siempre abre en el mes actual
   ejAnio = ahora.getFullYear();
@@ -2927,14 +2933,13 @@ function abrirEjercicio() {
   dibujarCalendarioEj();
   actualizarPanelEjercicio();
 }
+// Ejercicio ya es una página: aquí solo se cierran el formulario y el submenú del día
 function cerrarEjercicio() {
   cerrarFormEj();
   ejDiaPanel.hidden = true;
   ejDia = null;
-  panelEj.hidden = true;
 }
 
-ejEl("btn-menu-ejercicio").addEventListener("click", abrirEjercicio);
 ejEl("ej-cerrar").addEventListener("click", cerrarEjercicio);
 ejEl("ej-actualizar").addEventListener("click", () => {
   if (sesionVigente()) cargarEjercicios();
@@ -2958,15 +2963,11 @@ ejEl("ej-dia-volver").addEventListener("click", cerrarDiaEj);
 ejGuardar.addEventListener("click", guardarEj);
 ejEl("ej-cancelar").addEventListener("click", cerrarFormEj);
 ejBorrar.addEventListener("click", borrarEj);
-// Tocar el fondo oscuro cierra el panel; Esc cierra primero la ventana, luego el día y al final el panel
-panelEj.addEventListener("click", (e) => {
-  if (e.target === panelEj) cerrarEjercicio();
-});
+// Esc cierra primero la ventana y luego el submenú del día
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelEj.hidden) return;
   if (!ejForm.hidden) cerrarFormEj();
   else if (!ejDiaPanel.hidden) cerrarDiaEj();
-  else cerrarEjercicio();
 });
 
 // ---------- Diario (hoja «Diario» de Google Sheets) ----------
@@ -3176,8 +3177,8 @@ function actualizarPanelDiario() {
   }
 }
 
-function abrirDiario() {
-  cerrarLateral();
+// Se llama al entrar a la página de Diario (desde mostrarSeccion)
+function entrarDiario() {
   const ahora = new Date();
   diMes = ahora.getMonth(); // siempre abre en el mes actual
   diAnio = ahora.getFullYear();
@@ -3188,14 +3189,13 @@ function abrirDiario() {
   dibujarCalendarioDi();
   actualizarPanelDiario();
 }
+// Diario ya es una página: aquí solo se cierran el formulario y el submenú del día
 function cerrarDiario() {
   cerrarFormDi();
   diDiaPanel.hidden = true;
   diDia = null;
-  panelDi.hidden = true;
 }
 
-diEl("btn-menu-diario").addEventListener("click", abrirDiario);
 diEl("di-cerrar").addEventListener("click", cerrarDiario);
 diEl("di-actualizar").addEventListener("click", () => {
   if (sesionVigente()) cargarDiarios();
@@ -3219,15 +3219,11 @@ diEl("di-dia-volver").addEventListener("click", cerrarDiaDi);
 diGuardar.addEventListener("click", guardarDi);
 diEl("di-cancelar").addEventListener("click", cerrarFormDi);
 diBorrar.addEventListener("click", borrarDi);
-// Tocar el fondo oscuro cierra el panel; Esc cierra primero la ventana, luego el día y al final el panel
-panelDi.addEventListener("click", (e) => {
-  if (e.target === panelDi) cerrarDiario();
-});
+// Esc cierra primero la ventana y luego el submenú del día
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelDi.hidden) return;
   if (!diForm.hidden) cerrarFormDi();
   else if (!diDiaPanel.hidden) cerrarDiaDi();
-  else cerrarDiario();
 });
 
 dibujarCuenta();
