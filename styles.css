@@ -1,5 +1,5 @@
 :root {
-  --app-version: "30"; /* debe coincidir con VERSION en app.js */
+  --app-version: "31"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -1360,6 +1360,12 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 
 /* Diario reutiliza los estilos de Ejercicio (.ejercicio-caja y .ej-chip) */
 #di-contenido[hidden] { display: none; }
+/* Días fuera del rango permitido del Diario (2/2/1999 - 2/2/2099) */
+.diario-caja .cal-dia.fuera-rango,
+.diario-caja .cal-dia:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+
+/* Deudas reutiliza los estilos de Ejercicio/Diario */
+#de-contenido[hidden] { display: none; }
 
 /* ---------- Notas como página (dentro de <main>, como Calendario, Actividades y Trabajo) ---------- */
 .seccion.seccion-notas,
@@ -1369,7 +1375,8 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 .panel-pagina .notas-caja { width: 100%; max-height: none; height: min(78vh, 760px); box-shadow: 0 12px 34px rgba(40, 10, 80, 0.35); }
 .panel-pagina #notas-cerrar,
 .panel-pagina #ej-cerrar,
-.panel-pagina #di-cerrar { display: none; } /* ya no hay nada que cerrar: se cambia de página con el menú */
+.panel-pagina #di-cerrar,
+.panel-pagina #de-cerrar { display: none; } /* ya no hay nada que cerrar: se cambia de página con el menú */
 
 /* ---------- Trabajo: nota sencilla (nombre, fecha y descripción) con tuerca para modificar ---------- */
 .zona-vista {

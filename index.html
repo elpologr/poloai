@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="30" />
+  <meta name="app-version" content="31" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=30" />
+  <link rel="stylesheet" href="styles.css?v=31" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -212,7 +212,7 @@
 
   <header class="encabezado">
     <h1>Polo AI</h1>
-    <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Ejercicio, Actividades, Trabajo, Diario.
+    <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Ejercicio, Actividades, Trabajo, Diario, Deudas.
          Cada botón abre su propia sección (Ejercicio y Diario con su propio calendario). -->
     <nav class="menu" aria-label="Secciones">
       <button class="btn-menu" type="button" data-seccion="calendario">
@@ -232,6 +232,9 @@
       </button>
       <button id="btn-menu-diario" class="btn-menu" type="button" data-seccion="seccion-diario">
         <span class="btn-menu-icono" aria-hidden="true">&#128211;</span><span class="btn-menu-texto">Diario</span>
+      </button>
+      <button id="btn-menu-deudas" class="btn-menu" type="button" data-seccion="seccion-deudas">
+        <span class="btn-menu-icono" aria-hidden="true">&#128176;</span><span class="btn-menu-texto">Deudas</span>
       </button>
     </nav>
   </header>
@@ -640,6 +643,61 @@
   </div>
     </section>
 
+    <!-- DEUDAS (página, como Diario; sus datos viven en la hoja «Diario», columnas H a J) -->
+    <section id="seccion-deudas" class="seccion seccion-pagina" hidden>
+  <div id="panel-deudas" class="panel-notas panel-pagina" hidden>
+    <div class="notas-caja ejercicio-caja deudas-caja" role="dialog" aria-modal="true" aria-labelledby="de-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#128176;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#128221;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+      </div>
+
+      <header class="notas-cabecera">
+        <h2 id="de-titulo">Deudas</h2>
+        <div class="notas-cab-botones">
+          <button id="de-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer las deudas de Google Sheets" aria-label="Actualizar deudas">&#8635;</button>
+          <button id="de-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar deudas">&times;</button>
+        </div>
+      </header>
+
+      <div class="notas-cuerpo">
+        <div id="de-sin-sesion" class="notas-aviso-sesion" hidden>
+          <p>Inicia sesión con tu cuenta de Google para ver y guardar tus deudas.</p>
+          <button id="de-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
+        </div>
+
+        <div id="de-contenido">
+          <p id="de-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="de-chips" class="ej-chips"></div>
+        </div>
+      </div>
+
+      <!-- Ventana para agregar o editar una deuda -->
+      <div id="de-form" class="notas-nueva modo-editar" hidden>
+        <h3 id="de-form-titulo" class="notas-form-titulo">Nueva deuda</h3>
+        <label class="notas-campo">
+          <span>Nombre</span>
+          <input id="de-nombre" type="text" maxlength="80" placeholder="Ej. Préstamo a Juan" autocomplete="off" />
+        </label>
+        <label class="notas-campo">
+          <span>Descripción</span>
+          <textarea id="de-descripcion" rows="4" maxlength="5000" placeholder="Monto, fechas de pago, detalles…"></textarea>
+        </label>
+        <div class="notas-fila">
+          <button id="de-guardar" class="notas-btn" type="button">Guardar</button>
+          <button id="de-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <button id="de-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+          <span id="de-form-estado" class="notas-estado"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </section>
+
     <!-- PEDIDOS DE YESO (sección propia; se abre desde la barra lateral) -->
     <section id="pedidos-yeso" class="seccion" hidden>
       <h2>&#128230; Pedidos de Yeso</h2>
@@ -662,8 +720,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=30"></script>
-  <script src="app.js?v=30"></script>
-  <script type="module" src="firebase.js?v=30"></script>
+  <script src="config.js?v=31"></script>
+  <script src="app.js?v=31"></script>
+  <script type="module" src="firebase.js?v=31"></script>
 </body>
 </html>

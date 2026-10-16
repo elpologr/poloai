@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "30";
+const VERSION = "31";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -18,6 +18,7 @@ const VERSION = "30";
     "btn-menu-diario", "panel-diario", "di-cuadricula", "di-dia", "di-form",
     "seccion-ejercicio", "seccion-diario", "di-ejercicios", "di-ej-detalle", "pedidos-yeso", "zona-pedidos-yeso",
     "pop-color", "pop-colores", "pop-mas-colores", "pop-paleta", "pop-color-personal",
+    "btn-menu-deudas", "seccion-deudas", "panel-deudas", "de-chips", "de-form",
   ];
   const problemas = [];
 
@@ -69,6 +70,9 @@ function mostrarSeccion(id) {
   else cerrarEjercicio();
   if (id === "seccion-diario") entrarDiario();
   else cerrarDiario();
+  // Deudas también es una página
+  if (id === "seccion-deudas") entrarDeudas();
+  else cerrarDeudas();
 }
 
 // Todos los botones del menú cambian de sección (Ejercicio y Diario también son páginas)
@@ -1537,6 +1541,7 @@ function actualizarPanelNotas() {
   actualizarPanelGaleria();
   actualizarPanelEjercicio(); // y al de Ejercicio
   actualizarPanelDiario(); // y al de Diario
+  actualizarPanelDeudas(); // y al de Deudas
   actualizarZonasEtiqueta(); // y a las zonas de Actividades y Trabajo
   actualizarCalendarioSesion(); // y a los datos del calendario
   if (panelNotas.hidden) return;
@@ -3203,8 +3208,31 @@ let diAnio = new Date().getFullYear();
 let diDia = null; // día abierto en el submenú
 let diEditando = null; // anotación abierto en la ventana (null = anotación nuevo)
 
+// El Diario solo se puede explorar del 2 de febrero de 1999 al 2 de febrero de 2099
+const DI_FECHA_MIN = "1999-02-02";
+const DI_FECHA_MAX = "2099-02-02";
+const DI_ANIO_MIN = Number(DI_FECHA_MIN.slice(0, 4));
+const DI_ANIO_MAX = Number(DI_FECHA_MAX.slice(0, 4));
+
 MESES.forEach((n, i) => diSelMes.add(new Option(n, i)));
-for (let a = ANIO_MIN; a <= ANIO_MAX; a++) diSelAnio.add(new Option(a, a));
+for (let a = DI_ANIO_MIN; a <= DI_ANIO_MAX; a++) diSelAnio.add(new Option(a, a));
+
+const diFechaValida = (fecha) => fecha >= DI_FECHA_MIN && fecha <= DI_FECHA_MAX;
+// Un mes se puede ver si al menos uno de sus días está dentro del rango
+function diMesValido(a, m) {
+  const ultimo = new Date(a, m + 1, 0).getDate();
+  return claveFecha(a, m, ultimo) >= DI_FECHA_MIN && claveFecha(a, m, 1) <= DI_FECHA_MAX;
+}
+// Si el mes/año elegido queda fuera del rango, se lleva al más cercano permitido
+function ajustarMesDi() {
+  if (claveFecha(diAnio, diMes, 1) > DI_FECHA_MAX) {
+    diAnio = DI_ANIO_MAX;
+    diMes = Number(DI_FECHA_MAX.slice(5, 7)) - 1;
+  } else if (!diMesValido(diAnio, diMes)) {
+    diAnio = DI_ANIO_MIN;
+    diMes = Number(DI_FECHA_MIN.slice(5, 7)) - 1;
+  }
+}
 
 const diDeDia = (fecha) => diarios.filter((e) => e.fecha === fecha);
 
@@ -3219,10 +3247,17 @@ function registrarTerminadoEnDiario(e) {
 
 // ----- Calendario de anotación (igual al principal, pero con sus propios datos) -----
 function dibujarCalendarioDi() {
+  ajustarMesDi();
   diSelMes.value = diMes;
   diSelAnio.value = diAnio;
-  diAnterior.disabled = diAnio === ANIO_MIN && diMes === 0;
-  diSiguiente.disabled = diAnio === ANIO_MAX && diMes === 11;
+  // Los meses que quedan fuera del rango (en 1999 y 2099) no se pueden elegir
+  Array.from(diSelMes.options).forEach((o) => { o.disabled = !diMesValido(diAnio, Number(o.value)); });
+  const mAnt = diMes === 0 ? 11 : diMes - 1;
+  const aAnt = diMes === 0 ? diAnio - 1 : diAnio;
+  const mSig = diMes === 11 ? 0 : diMes + 1;
+  const aSig = diMes === 11 ? diAnio + 1 : diAnio;
+  diAnterior.disabled = !diMesValido(aAnt, mAnt);
+  diSiguiente.disabled = !diMesValido(aSig, mSig);
   diCuad.innerHTML = "";
   DIAS.forEach((d) => {
     const el = document.createElement("div");
@@ -3249,7 +3284,11 @@ function dibujarCalendarioDi() {
     if (d === ahora.getDate() && diMes === ahora.getMonth() && diAnio === ahora.getFullYear()) el.classList.add("hoy");
     if (fecha === diDia) el.classList.add("seleccionado");
     if (diDeDia(fecha).length || ejDeDia(fecha).length) el.classList.add("con-datos");
-    el.addEventListener("click", () => abrirDiaDi(fecha));
+    if (!diFechaValida(fecha)) {
+      // Fuera del rango permitido (antes del 2/2/1999 o después del 2/2/2099)
+      el.disabled = true;
+      el.classList.add("fuera-rango");
+    } else el.addEventListener("click", () => abrirDiaDi(fecha));
     diCuad.appendChild(el);
   }
 }
@@ -3258,8 +3297,7 @@ function diCambiarMes(delta) {
   diMes += delta;
   if (diMes < 0) { diMes = 11; diAnio--; }
   if (diMes > 11) { diMes = 0; diAnio++; }
-  diAnio = Math.max(ANIO_MIN, Math.min(ANIO_MAX, diAnio));
-  dibujarCalendarioDi();
+  dibujarCalendarioDi(); // aquí mismo se ajusta al rango permitido
 }
 
 // ----- Submenú del día: un botón cuadrado por anotación + un "+" para añadir -----
@@ -3529,6 +3567,173 @@ document.addEventListener("keydown", (e) => {
   else if (!diEjSub.hidden) cerrarEjerciciosDi();
   else if (!diForm.hidden) cerrarFormDi();
   else if (!diDiaPanel.hidden) cerrarDiaDi();
+});
+
+// ---------- Deudas (hoja «Diario», columnas H a J) ----------
+// Notas aparte, sin fecha: cada una guarda Nombre | Descripcion | Id en las columnas H, I y J de la hoja «Diario».
+const deEl = (id) => document.getElementById(id);
+const panelDe = deEl("panel-deudas");
+const deSinSesion = deEl("de-sin-sesion");
+const deContenido = deEl("de-contenido");
+const deEstado = deEl("de-estado");
+const deChips = deEl("de-chips");
+const deForm = deEl("de-form");
+const deFormTitulo = deEl("de-form-titulo");
+const deNombre = deEl("de-nombre");
+const deDescripcion = deEl("de-descripcion");
+const deGuardar = deEl("de-guardar");
+const deBorrar = deEl("de-borrar");
+const deFormEstado = deEl("de-form-estado");
+
+let deudas = []; // [{ id, nombre, descripcion }]
+let deCargadas = false;
+let deEditando = null; // deuda abierta en la ventana (null = deuda nueva)
+
+function dibujarChipsDe() {
+  deChips.innerHTML = "";
+  deudas.forEach((d) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ej-chip ej-chip-resumen";
+    b.title = d.nombre;
+    b.setAttribute("aria-label", "Ver o editar la deuda " + d.nombre);
+    const n = document.createElement("span");
+    n.className = "ej-chip-nombre";
+    n.textContent = "💸 " + d.nombre;
+    const t = document.createElement("span");
+    t.className = "ej-chip-desc";
+    t.textContent = resumenCorto(d.descripcion, 70);
+    b.append(n, t);
+    b.addEventListener("click", () => abrirFormDe(d));
+    deChips.appendChild(b);
+  });
+  const nuevo = document.createElement("button");
+  nuevo.type = "button";
+  nuevo.className = "ej-chip ej-chip-nuevo";
+  nuevo.setAttribute("aria-label", "Añadir una deuda");
+  nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
+  nuevo.addEventListener("click", () => abrirFormDe(null));
+  deChips.appendChild(nuevo);
+}
+
+// ----- Ventana para añadir / editar -----
+function abrirFormDe(d) {
+  deEditando = d;
+  deFormTitulo.textContent = d ? "Editar deuda" : "Nueva deuda";
+  deNombre.value = d ? d.nombre : "";
+  deDescripcion.value = d ? d.descripcion : "";
+  deBorrar.hidden = !d;
+  setEstado(deFormEstado, "");
+  deForm.hidden = false;
+  deNombre.focus();
+}
+function cerrarFormDe() {
+  deForm.hidden = true;
+  deEditando = null;
+}
+
+async function guardarDe() {
+  const nombre = deNombre.value.trim();
+  if (!nombre) {
+    setEstado(deFormEstado, "Escribe el nombre de la deuda", "error");
+    return;
+  }
+  const editando = deEditando;
+  const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
+  const d = { id, nombre, descripcion: deDescripcion.value.trim() };
+  deGuardar.disabled = true;
+  setEstado(deFormEstado, "Guardando…");
+  try {
+    await llamarNotas(editando ? "deuda_editar" : "deuda_agregar", d);
+    if (editando) deudas = deudas.map((x) => (x.id === id ? d : x));
+    else deudas.push(d);
+    cerrarFormDe();
+    dibujarChipsDe();
+  } catch (err) {
+    setEstado(deFormEstado, "Error: " + err.message, "error");
+  } finally {
+    deGuardar.disabled = false;
+  }
+}
+
+async function borrarDe() {
+  const d = deEditando;
+  if (!d || !window.confirm("¿Eliminar la deuda «" + d.nombre + "»?")) return;
+  deBorrar.disabled = true;
+  setEstado(deFormEstado, "Eliminando…");
+  try {
+    await llamarNotas("deuda_borrar", { id: d.id });
+    deudas = deudas.filter((x) => x.id !== d.id);
+    cerrarFormDe();
+    dibujarChipsDe();
+  } catch (err) {
+    setEstado(deFormEstado, "Error: " + err.message, "error");
+  } finally {
+    deBorrar.disabled = false;
+  }
+}
+
+// ----- Carga y sesión -----
+async function cargarDeudas() {
+  setEstado(deEstado, "Cargando…");
+  try {
+    const j = await llamarNotas("deuda_listar");
+    deudas = Array.isArray(j.deudas) ? j.deudas : [];
+    deCargadas = true;
+    setEstado(deEstado, "");
+    dibujarChipsDe();
+  } catch (err) {
+    setEstado(deEstado, "Error: " + err.message, "error");
+  }
+}
+
+function actualizarPanelDeudas() {
+  if (!sesionVigente()) {
+    // Sin sesión no se guardan datos en pantalla
+    deCargadas = false;
+    deudas = [];
+  }
+  if (panelDe.hidden) return;
+  const dentro = sesionVigente();
+  deSinSesion.hidden = dentro;
+  deContenido.hidden = !dentro;
+  if (dentro) {
+    if (!deCargadas) cargarDeudas();
+    else dibujarChipsDe();
+  } else {
+    cerrarFormDe();
+    dibujarChipsDe();
+  }
+}
+
+// Se llama al entrar a la página de Deudas (desde mostrarSeccion)
+function entrarDeudas() {
+  cerrarFormDe();
+  panelDe.hidden = false;
+  dibujarChipsDe();
+  actualizarPanelDeudas();
+}
+// Deudas es una página: aquí solo se cierra la ventana
+function cerrarDeudas() {
+  cerrarFormDe();
+}
+
+deEl("de-cerrar").addEventListener("click", cerrarDeudas);
+deEl("de-actualizar").addEventListener("click", () => {
+  if (sesionVigente()) cargarDeudas();
+  else actualizarPanelDeudas();
+});
+deEl("de-ir-login").addEventListener("click", () => {
+  cerrarDeudas();
+  abrirLateral();
+});
+deGuardar.addEventListener("click", guardarDe);
+deEl("de-cancelar").addEventListener("click", cerrarFormDe);
+deBorrar.addEventListener("click", borrarDe);
+// Esc cierra la ventana de la deuda
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || panelDe.hidden) return;
+  if (!deForm.hidden) cerrarFormDe();
 });
 
 dibujarCuenta();
