@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="31" />
+  <meta name="app-version" content="32" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=31" />
+  <link rel="stylesheet" href="styles.css?v=32" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -212,7 +212,7 @@
 
   <header class="encabezado">
     <h1>Polo AI</h1>
-    <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Ejercicio, Actividades, Trabajo, Diario, Deudas.
+    <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Ejercicio, Actividades, Trabajo, Diario, Deudas, Información Primordial, Comandos.
          Cada botón abre su propia sección (Ejercicio y Diario con su propio calendario). -->
     <nav class="menu" aria-label="Secciones">
       <button class="btn-menu" type="button" data-seccion="calendario">
@@ -235,6 +235,12 @@
       </button>
       <button id="btn-menu-deudas" class="btn-menu" type="button" data-seccion="seccion-deudas">
         <span class="btn-menu-icono" aria-hidden="true">&#128176;</span><span class="btn-menu-texto">Deudas</span>
+      </button>
+      <button id="btn-menu-informacion" class="btn-menu" type="button" data-seccion="seccion-informacion">
+        <span class="btn-menu-icono" aria-hidden="true">&#11088;</span><span class="btn-menu-texto">Información Primordial</span>
+      </button>
+      <button id="btn-menu-comandos" class="btn-menu" type="button" data-seccion="seccion-comandos">
+        <span class="btn-menu-icono" aria-hidden="true">&#127897;</span><span class="btn-menu-texto">Comandos</span>
       </button>
     </nav>
   </header>
@@ -698,6 +704,124 @@
   </div>
     </section>
 
+    <!-- INFORMACIÓN PRIMORDIAL (página, como Deudas; sus datos viven en la hoja «Informacion Primordial»: Nombre | Fecha | Descripcion | Id) -->
+    <section id="seccion-informacion" class="seccion seccion-pagina" hidden>
+  <div id="panel-informacion" class="panel-notas panel-pagina" hidden>
+    <div class="notas-caja ejercicio-caja informacion-caja" role="dialog" aria-modal="true" aria-labelledby="ip-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#11088;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#128221;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+      </div>
+
+      <header class="notas-cabecera">
+        <h2 id="ip-titulo">Información Primordial</h2>
+        <div class="notas-cab-botones">
+          <button id="ip-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer la información de Google Sheets" aria-label="Actualizar información primordial">&#8635;</button>
+          <button id="ip-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar información primordial">&times;</button>
+        </div>
+      </header>
+
+      <div class="notas-cuerpo">
+        <div id="ip-sin-sesion" class="notas-aviso-sesion" hidden>
+          <p>Inicia sesión con tu cuenta de Google para ver y guardar tu información primordial.</p>
+          <button id="ip-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
+        </div>
+
+        <div id="ip-contenido">
+          <p id="ip-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="ip-chips" class="ej-chips"></div>
+        </div>
+      </div>
+
+      <!-- Ventana para agregar o editar una nota de información primordial -->
+      <div id="ip-form" class="notas-nueva modo-editar" hidden>
+        <h3 id="ip-form-titulo" class="notas-form-titulo">Nueva información</h3>
+        <label class="notas-campo">
+          <span>Nombre</span>
+          <input id="ip-nombre" type="text" maxlength="80" placeholder="Ej. Datos del contador" autocomplete="off" />
+        </label>
+        <label class="notas-campo">
+          <span>Fecha</span>
+          <input id="ip-fecha" type="date" min="1999-02-02" max="2099-02-02" />
+        </label>
+        <label class="notas-campo">
+          <span>Descripción</span>
+          <textarea id="ip-descripcion" rows="4" maxlength="5000" placeholder="Detalles, datos importantes…"></textarea>
+        </label>
+        <div class="notas-fila">
+          <button id="ip-guardar" class="notas-btn" type="button">Guardar</button>
+          <button id="ip-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <button id="ip-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+          <span id="ip-form-estado" class="notas-estado"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </section>
+
+    <!-- COMANDOS (página, como Información Primordial; sus datos viven en la hoja «comandos»: Nombre | Fecha | Descripcion | Id) -->
+    <section id="seccion-comandos" class="seccion seccion-pagina" hidden>
+  <div id="panel-comandos" class="panel-notas panel-pagina" hidden>
+    <div class="notas-caja ejercicio-caja comandos-caja" role="dialog" aria-modal="true" aria-labelledby="cm-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#127897;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#128221;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+      </div>
+
+      <header class="notas-cabecera">
+        <h2 id="cm-titulo">Comandos</h2>
+        <div class="notas-cab-botones">
+          <button id="cm-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer los comandos de Google Sheets" aria-label="Actualizar comandos">&#8635;</button>
+          <button id="cm-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar comandos">&times;</button>
+        </div>
+      </header>
+
+      <div class="notas-cuerpo">
+        <div id="cm-sin-sesion" class="notas-aviso-sesion" hidden>
+          <p>Inicia sesión con tu cuenta de Google para ver y guardar tus comandos.</p>
+          <button id="cm-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
+        </div>
+
+        <div id="cm-contenido">
+          <p id="cm-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="cm-chips" class="ej-chips"></div>
+        </div>
+      </div>
+
+      <!-- Ventana para agregar o editar un comando -->
+      <div id="cm-form" class="notas-nueva modo-editar" hidden>
+        <h3 id="cm-form-titulo" class="notas-form-titulo">Nuevo comando</h3>
+        <label class="notas-campo">
+          <span>Nombre</span>
+          <input id="cm-nombre" type="text" maxlength="80" placeholder="Ej. abrir diario" autocomplete="off" />
+        </label>
+        <label class="notas-campo">
+          <span>Fecha</span>
+          <input id="cm-fecha" type="date" min="1999-02-02" max="2099-02-02" />
+        </label>
+        <label class="notas-campo">
+          <span>Descripción</span>
+          <textarea id="cm-descripcion" rows="4" maxlength="5000" placeholder="Qué debe hacer este comando…"></textarea>
+        </label>
+        <div class="notas-fila">
+          <button id="cm-guardar" class="notas-btn" type="button">Guardar</button>
+          <button id="cm-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <button id="cm-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+          <span id="cm-form-estado" class="notas-estado"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </section>
+
     <!-- PEDIDOS DE YESO (sección propia; se abre desde la barra lateral) -->
     <section id="pedidos-yeso" class="seccion" hidden>
       <h2>&#128230; Pedidos de Yeso</h2>
@@ -720,8 +844,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=31"></script>
-  <script src="app.js?v=31"></script>
-  <script type="module" src="firebase.js?v=31"></script>
+  <script src="config.js?v=32"></script>
+  <script src="app.js?v=32"></script>
+  <script type="module" src="firebase.js?v=32"></script>
 </body>
 </html>

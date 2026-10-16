@@ -1,5 +1,5 @@
 :root {
-  --app-version: "31"; /* debe coincidir con VERSION en app.js */
+  --app-version: "32"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -1367,6 +1367,11 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 /* Deudas reutiliza los estilos de Ejercicio/Diario */
 #de-contenido[hidden] { display: none; }
 
+/* Información Primordial reutiliza los estilos de Ejercicio/Diario/Deudas */
+#ip-contenido[hidden],
+#cm-contenido[hidden] { display: none; }
+.ej-chip-fecha { font-size: 0.62rem; font-weight: 700; color: var(--nb-acento); }
+
 /* ---------- Notas como página (dentro de <main>, como Calendario, Actividades y Trabajo) ---------- */
 .seccion.seccion-notas,
 .seccion.seccion-pagina { padding: 0; background: none; border: none; box-shadow: none; border-radius: 0; }
@@ -1376,7 +1381,9 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 .panel-pagina #notas-cerrar,
 .panel-pagina #ej-cerrar,
 .panel-pagina #di-cerrar,
-.panel-pagina #de-cerrar { display: none; } /* ya no hay nada que cerrar: se cambia de página con el menú */
+.panel-pagina #de-cerrar,
+.panel-pagina #ip-cerrar,
+.panel-pagina #cm-cerrar { display: none; } /* ya no hay nada que cerrar: se cambia de página con el menú */
 
 /* ---------- Trabajo: nota sencilla (nombre, fecha y descripción) con tuerca para modificar ---------- */
 .zona-vista {

@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "31";
+const VERSION = "32";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -19,6 +19,8 @@ const VERSION = "31";
     "seccion-ejercicio", "seccion-diario", "di-ejercicios", "di-ej-detalle", "pedidos-yeso", "zona-pedidos-yeso",
     "pop-color", "pop-colores", "pop-mas-colores", "pop-paleta", "pop-color-personal",
     "btn-menu-deudas", "seccion-deudas", "panel-deudas", "de-chips", "de-form",
+    "btn-menu-informacion", "seccion-informacion", "panel-informacion", "ip-chips", "ip-form", "ip-fecha",
+    "btn-menu-comandos", "seccion-comandos", "panel-comandos", "cm-chips", "cm-form", "cm-fecha",
   ];
   const problemas = [];
 
@@ -73,6 +75,12 @@ function mostrarSeccion(id) {
   // Deudas también es una página
   if (id === "seccion-deudas") entrarDeudas();
   else cerrarDeudas();
+  // Información Primordial también es una página
+  if (id === "seccion-informacion") entrarInformacion();
+  else cerrarInformacion();
+  // Comandos también es una página
+  if (id === "seccion-comandos") entrarComandos();
+  else cerrarComandos();
 }
 
 // Todos los botones del menú cambian de sección (Ejercicio y Diario también son páginas)
@@ -1542,6 +1550,8 @@ function actualizarPanelNotas() {
   actualizarPanelEjercicio(); // y al de Ejercicio
   actualizarPanelDiario(); // y al de Diario
   actualizarPanelDeudas(); // y al de Deudas
+  actualizarPanelInformacion(); // y al de Información Primordial
+  actualizarPanelComandos(); // y al de Comandos
   actualizarZonasEtiqueta(); // y a las zonas de Actividades y Trabajo
   actualizarCalendarioSesion(); // y a los datos del calendario
   if (panelNotas.hidden) return;
@@ -3734,6 +3744,374 @@ deBorrar.addEventListener("click", borrarDe);
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelDe.hidden) return;
   if (!deForm.hidden) cerrarFormDe();
+});
+
+// ---------- Información Primordial (hoja «Informacion Primordial») ----------
+// Notas con Nombre | Fecha | Descripcion | Id (la Id de la columna D se llena sola).
+const ipEl = (id) => document.getElementById(id);
+const panelIp = ipEl("panel-informacion");
+const ipSinSesion = ipEl("ip-sin-sesion");
+const ipContenido = ipEl("ip-contenido");
+const ipEstado = ipEl("ip-estado");
+const ipChips = ipEl("ip-chips");
+const ipForm = ipEl("ip-form");
+const ipFormTitulo = ipEl("ip-form-titulo");
+const ipNombre = ipEl("ip-nombre");
+const ipFecha = ipEl("ip-fecha");
+const ipDescripcion = ipEl("ip-descripcion");
+const ipGuardar = ipEl("ip-guardar");
+const ipBorrar = ipEl("ip-borrar");
+const ipFormEstado = ipEl("ip-form-estado");
+
+let informaciones = []; // [{ id, nombre, fecha, descripcion }]
+let ipCargadas = false;
+let ipEditando = null; // nota abierta en la ventana (null = nota nueva)
+
+// Fecha de hoy como "aaaa-mm-dd" (formato del campo de fecha y de la hoja)
+function ipHoy() {
+  const n = new Date();
+  return `${n.getFullYear()}-${dos(n.getMonth() + 1)}-${dos(n.getDate())}`;
+}
+// "aaaa-mm-dd" -> "dd/mm/aaaa" para mostrarla
+function ipFechaCorta(f) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || "");
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+}
+
+function dibujarChipsIp() {
+  ipChips.innerHTML = "";
+  informaciones.forEach((d) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ej-chip ej-chip-resumen";
+    b.title = d.nombre + (d.fecha ? " (" + ipFechaCorta(d.fecha) + ")" : "");
+    b.setAttribute("aria-label", "Ver o editar la información " + d.nombre);
+    const n = document.createElement("span");
+    n.className = "ej-chip-nombre";
+    n.textContent = "⭐ " + d.nombre;
+    const f = document.createElement("span");
+    f.className = "ej-chip-fecha";
+    f.textContent = ipFechaCorta(d.fecha);
+    const t = document.createElement("span");
+    t.className = "ej-chip-desc";
+    t.textContent = resumenCorto(d.descripcion, 70);
+    b.append(n, f, t);
+    b.addEventListener("click", () => abrirFormIp(d));
+    ipChips.appendChild(b);
+  });
+  const nuevo = document.createElement("button");
+  nuevo.type = "button";
+  nuevo.className = "ej-chip ej-chip-nuevo";
+  nuevo.setAttribute("aria-label", "Añadir información primordial");
+  nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
+  nuevo.addEventListener("click", () => abrirFormIp(null));
+  ipChips.appendChild(nuevo);
+}
+
+// ----- Ventana para añadir / editar -----
+function abrirFormIp(d) {
+  ipEditando = d;
+  ipFormTitulo.textContent = d ? "Editar información" : "Nueva información";
+  ipNombre.value = d ? d.nombre : "";
+  ipFecha.value = d && d.fecha ? d.fecha : ipHoy(); // si es nueva, empieza con la fecha de hoy
+  ipDescripcion.value = d ? d.descripcion : "";
+  ipBorrar.hidden = !d;
+  setEstado(ipFormEstado, "");
+  ipForm.hidden = false;
+  ipNombre.focus();
+}
+function cerrarFormIp() {
+  ipForm.hidden = true;
+  ipEditando = null;
+}
+
+async function guardarIp() {
+  const nombre = ipNombre.value.trim();
+  if (!nombre) {
+    setEstado(ipFormEstado, "Escribe el nombre", "error");
+    return;
+  }
+  const fecha = ipFecha.value || ipHoy();
+  const editando = ipEditando;
+  const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
+  const d = { id, nombre, fecha, descripcion: ipDescripcion.value.trim() };
+  ipGuardar.disabled = true;
+  setEstado(ipFormEstado, "Guardando…");
+  try {
+    await llamarNotas(editando ? "informacion_editar" : "informacion_agregar", d);
+    if (editando) informaciones = informaciones.map((x) => (x.id === id ? d : x));
+    else informaciones.push(d);
+    cerrarFormIp();
+    dibujarChipsIp();
+  } catch (err) {
+    setEstado(ipFormEstado, "Error: " + err.message, "error");
+  } finally {
+    ipGuardar.disabled = false;
+  }
+}
+
+async function borrarIp() {
+  const d = ipEditando;
+  if (!d || !window.confirm("¿Eliminar «" + d.nombre + "»?")) return;
+  ipBorrar.disabled = true;
+  setEstado(ipFormEstado, "Eliminando…");
+  try {
+    await llamarNotas("informacion_borrar", { id: d.id });
+    informaciones = informaciones.filter((x) => x.id !== d.id);
+    cerrarFormIp();
+    dibujarChipsIp();
+  } catch (err) {
+    setEstado(ipFormEstado, "Error: " + err.message, "error");
+  } finally {
+    ipBorrar.disabled = false;
+  }
+}
+
+// ----- Carga y sesión -----
+async function cargarInformaciones() {
+  setEstado(ipEstado, "Cargando…");
+  try {
+    const j = await llamarNotas("informacion_listar");
+    informaciones = Array.isArray(j.informaciones) ? j.informaciones : [];
+    ipCargadas = true;
+    setEstado(ipEstado, "");
+    dibujarChipsIp();
+  } catch (err) {
+    setEstado(ipEstado, "Error: " + err.message, "error");
+  }
+}
+
+function actualizarPanelInformacion() {
+  if (!sesionVigente()) {
+    // Sin sesión no se guardan datos en pantalla
+    ipCargadas = false;
+    informaciones = [];
+  }
+  if (panelIp.hidden) return;
+  const dentro = sesionVigente();
+  ipSinSesion.hidden = dentro;
+  ipContenido.hidden = !dentro;
+  if (dentro) {
+    if (!ipCargadas) cargarInformaciones();
+    else dibujarChipsIp();
+  } else {
+    cerrarFormIp();
+    dibujarChipsIp();
+  }
+}
+
+// Se llama al entrar a la página de Información Primordial (desde mostrarSeccion)
+function entrarInformacion() {
+  cerrarFormIp();
+  panelIp.hidden = false;
+  dibujarChipsIp();
+  actualizarPanelInformacion();
+}
+// Información Primordial es una página: aquí solo se cierra la ventana
+function cerrarInformacion() {
+  cerrarFormIp();
+}
+
+ipEl("ip-cerrar").addEventListener("click", cerrarInformacion);
+ipEl("ip-actualizar").addEventListener("click", () => {
+  if (sesionVigente()) cargarInformaciones();
+  else actualizarPanelInformacion();
+});
+ipEl("ip-ir-login").addEventListener("click", () => {
+  cerrarInformacion();
+  abrirLateral();
+});
+ipGuardar.addEventListener("click", guardarIp);
+ipEl("ip-cancelar").addEventListener("click", cerrarFormIp);
+ipBorrar.addEventListener("click", borrarIp);
+// Esc cierra la ventana
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || panelIp.hidden) return;
+  if (!ipForm.hidden) cerrarFormIp();
+});
+
+// ---------- Comandos (hoja «comandos») ----------
+// Notas con Nombre | Fecha | Descripcion | Id (la Id de la columna D se llena sola).
+const cmEl = (id) => document.getElementById(id);
+const panelCm = cmEl("panel-comandos");
+const cmSinSesion = cmEl("cm-sin-sesion");
+const cmContenido = cmEl("cm-contenido");
+const cmEstado = cmEl("cm-estado");
+const cmChips = cmEl("cm-chips");
+const cmForm = cmEl("cm-form");
+const cmFormTitulo = cmEl("cm-form-titulo");
+const cmNombre = cmEl("cm-nombre");
+const cmFecha = cmEl("cm-fecha");
+const cmDescripcion = cmEl("cm-descripcion");
+const cmGuardar = cmEl("cm-guardar");
+const cmBorrar = cmEl("cm-borrar");
+const cmFormEstado = cmEl("cm-form-estado");
+
+let comandosLista = []; // [{ id, nombre, fecha, descripcion }]
+let cmCargadas = false;
+let cmEditando = null; // nota abierta en la ventana (null = nota nueva)
+
+// Fecha de hoy como "aaaa-mm-dd" (formato del campo de fecha y de la hoja)
+function cmHoy() {
+  const n = new Date();
+  return `${n.getFullYear()}-${dos(n.getMonth() + 1)}-${dos(n.getDate())}`;
+}
+// "aaaa-mm-dd" -> "dd/mm/aaaa" para mostrarla
+function cmFechaCorta(f) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || "");
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+}
+
+function dibujarChipsCm() {
+  cmChips.innerHTML = "";
+  comandosLista.forEach((d) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ej-chip ej-chcm-resumen";
+    b.title = d.nombre + (d.fecha ? " (" + cmFechaCorta(d.fecha) + ")" : "");
+    b.setAttribute("aria-label", "Ver o editar el comando " + d.nombre);
+    const n = document.createElement("span");
+    n.className = "ej-chcm-nombre";
+    n.textContent = "🎙️ " + d.nombre;
+    const f = document.createElement("span");
+    f.className = "ej-chcm-fecha";
+    f.textContent = cmFechaCorta(d.fecha);
+    const t = document.createElement("span");
+    t.className = "ej-chcm-desc";
+    t.textContent = resumenCorto(d.descripcion, 70);
+    b.append(n, f, t);
+    b.addEventListener("click", () => abrirFormCm(d));
+    cmChips.appendChild(b);
+  });
+  const nuevo = document.createElement("button");
+  nuevo.type = "button";
+  nuevo.className = "ej-chip ej-chcm-nuevo";
+  nuevo.setAttribute("aria-label", "Añadir un comando");
+  nuevo.innerHTML = '<span class="ej-chcm-icono" aria-hidden="true">+</span><span class="ej-chcm-nombre">Añadir</span>';
+  nuevo.addEventListener("click", () => abrirFormCm(null));
+  cmChips.appendChild(nuevo);
+}
+
+// ----- Ventana para añadir / editar -----
+function abrirFormCm(d) {
+  cmEditando = d;
+  cmFormTitulo.textContent = d ? "Editar comando" : "Nuevo comando";
+  cmNombre.value = d ? d.nombre : "";
+  cmFecha.value = d && d.fecha ? d.fecha : cmHoy(); // si es nueva, empieza con la fecha de hoy
+  cmDescripcion.value = d ? d.descripcion : "";
+  cmBorrar.hidden = !d;
+  setEstado(cmFormEstado, "");
+  cmForm.hidden = false;
+  cmNombre.focus();
+}
+function cerrarFormCm() {
+  cmForm.hidden = true;
+  cmEditando = null;
+}
+
+async function guardarCm() {
+  const nombre = cmNombre.value.trim();
+  if (!nombre) {
+    setEstado(cmFormEstado, "Escribe el nombre", "error");
+    return;
+  }
+  const fecha = cmFecha.value || cmHoy();
+  const editando = cmEditando;
+  const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
+  const d = { id, nombre, fecha, descripcion: cmDescripcion.value.trim() };
+  cmGuardar.disabled = true;
+  setEstado(cmFormEstado, "Guardando…");
+  try {
+    await llamarNotas(editando ? "comando_editar" : "comando_agregar", d);
+    if (editando) comandosLista = comandosLista.map((x) => (x.id === id ? d : x));
+    else comandosLista.push(d);
+    cerrarFormCm();
+    dibujarChipsCm();
+  } catch (err) {
+    setEstado(cmFormEstado, "Error: " + err.message, "error");
+  } finally {
+    cmGuardar.disabled = false;
+  }
+}
+
+async function borrarCm() {
+  const d = cmEditando;
+  if (!d || !window.confirm("¿Eliminar «" + d.nombre + "»?")) return;
+  cmBorrar.disabled = true;
+  setEstado(cmFormEstado, "Eliminando…");
+  try {
+    await llamarNotas("comando_borrar", { id: d.id });
+    comandosLista = comandosLista.filter((x) => x.id !== d.id);
+    cerrarFormCm();
+    dibujarChipsCm();
+  } catch (err) {
+    setEstado(cmFormEstado, "Error: " + err.message, "error");
+  } finally {
+    cmBorrar.disabled = false;
+  }
+}
+
+// ----- Carga y sesión -----
+async function cargarComandos() {
+  setEstado(cmEstado, "Cargando…");
+  try {
+    const j = await llamarNotas("comando_listar");
+    comandosLista = Array.isArray(j.comandosLista) ? j.comandosLista : [];
+    cmCargadas = true;
+    setEstado(cmEstado, "");
+    dibujarChipsCm();
+  } catch (err) {
+    setEstado(cmEstado, "Error: " + err.message, "error");
+  }
+}
+
+function actualizarPanelComandos() {
+  if (!sesionVigente()) {
+    // Sin sesión no se guardan datos en pantalla
+    cmCargadas = false;
+    comandosLista = [];
+  }
+  if (panelCm.hidden) return;
+  const dentro = sesionVigente();
+  cmSinSesion.hidden = dentro;
+  cmContenido.hidden = !dentro;
+  if (dentro) {
+    if (!cmCargadas) cargarComandos();
+    else dibujarChipsCm();
+  } else {
+    cerrarFormCm();
+    dibujarChipsCm();
+  }
+}
+
+// Se llama al entrar a la página de Comandos (desde mostrarSeccion)
+function entrarComandos() {
+  cerrarFormCm();
+  panelCm.hidden = false;
+  dibujarChipsCm();
+  actualizarPanelComandos();
+}
+// Comandos es una página: aquí solo se cierra la ventana
+function cerrarComandos() {
+  cerrarFormCm();
+}
+
+cmEl("cm-cerrar").addEventListener("click", cerrarComandos);
+cmEl("cm-actualizar").addEventListener("click", () => {
+  if (sesionVigente()) cargarComandos();
+  else actualizarPanelComandos();
+});
+cmEl("cm-ir-login").addEventListener("click", () => {
+  cerrarComandos();
+  abrirLateral();
+});
+cmGuardar.addEventListener("click", guardarCm);
+cmEl("cm-cancelar").addEventListener("click", cerrarFormCm);
+cmBorrar.addEventListener("click", borrarCm);
+// Esc cierra la ventana
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || panelCm.hidden) return;
+  if (!cmForm.hidden) cerrarFormCm();
 });
 
 dibujarCuenta();
