@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "37";
+const VERSION = "38";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -3782,6 +3782,17 @@ const ipFormTitulo = ipEl("ip-form-titulo");
 const ipNombre = ipEl("ip-nombre");
 const ipFecha = ipEl("ip-fecha");
 const ipDescripcion = ipEl("ip-descripcion");
+const ipContador = ipEl("ip-contador");
+const IP_LIMITE = 50000; // máximo de caracteres por celda de Google Sheets
+// Contador de caracteres de la descripción; avisa cuando queda poco espacio
+function ipActualizarContador() {
+  const largo = ipDescripcion.value.length;
+  const resta = Math.max(0, IP_LIMITE - largo);
+  ipContador.textContent = largo.toLocaleString("es-MX") + " / " + IP_LIMITE.toLocaleString("es-MX") + " caracteres" +
+    (largo >= 45000 ? (resta === 0 ? " — límite alcanzado" : " — queda poco espacio (" + resta.toLocaleString("es-MX") + ")") : "");
+  ipContador.className = "nt-contador" + (largo >= 49000 ? " nt-contador-error" : largo >= 45000 ? " nt-contador-aviso" : "");
+}
+ipDescripcion.addEventListener("input", ipActualizarContador);
 const ipGuardar = ipEl("ip-guardar");
 const ipBorrar = ipEl("ip-borrar");
 const ipFormEstado = ipEl("ip-form-estado");
@@ -3838,6 +3849,7 @@ function abrirFormIp(d) {
   ipNombre.value = d ? d.nombre : "";
   ipFecha.value = d && d.fecha ? d.fecha : ipHoy(); // si es nueva, empieza con la fecha de hoy
   ipDescripcion.value = d ? d.descripcion : "";
+  ipActualizarContador();
   ipBorrar.hidden = !d;
   setEstado(ipFormEstado, "");
   ipForm.hidden = false;
@@ -4553,7 +4565,7 @@ async function finalizarHy() {
   setEstado(estado, "Finalizando…");
   const hoyClave = hyClaveHoy();
   const id = o.id || it.finId || (it.finId = String(Date.now() * 1000 + Math.floor(Math.random() * 1000)));
-  const descripcion = String(it.texto || "").slice(0, 5000);
+  const descripcion = String(it.texto || "").slice(0, 50000);
   try {
     // 1) Agregarla al Diario como tarea finalizada
     await llamarNotas("diario_agregar", { id, nombre, fecha: hoyClave, descripcion, terminado: "Tarea finalizada" });
