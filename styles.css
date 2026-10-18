@@ -1,5 +1,5 @@
 :root {
-  --app-version: "36"; /* debe coincidir con VERSION en app.js */
+  --app-version: "37"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -1656,3 +1656,22 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 .nt-nota-btn:hover { background: #eef6ff; }
 .nt-nota:has(.nt-nota-edit) { padding-right: 12px; }
 @media (max-width: 480px) { .nt-grid { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- Día de Hoy: Diario separado y «Dar por finalizado» (v37) ---------- */
+.hoy-separador {
+  height: 4px;
+  margin: 26px 0 4px;
+  background: var(--nb-acento, #4f94d4);
+  border: 0;
+  border-radius: 99px;
+  opacity: 0.55;
+}
+.hoy-btn-fin { background: #2f9e5f; }
+.hoy-btn-fin:hover:not(:disabled) { background: #247c4a; }
+/* Anotación de tarea finalizada (Diario y Día de Hoy): detalle verde alrededor */
+.ej-chip.ej-chip-finalizada {
+  background: #e8f8ee;
+  border: 2px solid #2f9e5f;
+  box-shadow: 0 0 0 3px rgba(47, 158, 95, 0.3), 0 4px 10px rgba(47, 158, 95, 0.25);
+}
+.ej-chip.ej-chip-finalizada .ej-chip-fecha { color: #1e7a48; }

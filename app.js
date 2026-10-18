@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "36";
+const VERSION = "37";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -22,7 +22,7 @@ const VERSION = "36";
     "btn-menu-informacion", "seccion-informacion", "panel-informacion", "ip-chips", "ip-form", "ip-fecha",
     "btn-menu-comandos", "seccion-comandos", "panel-comandos", "cm-chips", "cm-form", "cm-fecha",
     "btn-menu-bazar", "seccion-bazar", "panel-bazar", "bz-chips", "bz-form", "bz-informacion",
-    "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle",
+    "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
   ];
   const problemas = [];
 
@@ -3348,6 +3348,10 @@ function dibujarChipsDi() {
     b.innerHTML = '<span class="ej-chip-icono" aria-hidden="true"></span><span class="ej-chip-nombre"></span>';
     b.querySelector(".ej-chip-icono").textContent = e.terminado ? "✅" : "📓";
     if (e.terminado) b.title = e.nombre + " (trabajo terminado)";
+    if (e.marca === "Tarea finalizada") {
+      b.classList.add("ej-chip-finalizada");
+      b.title = e.nombre + " (Anotación de Tarea Finalizada)";
+    }
     b.querySelector(".ej-chip-nombre").textContent = e.nombre;
     b.addEventListener("click", () => abrirFormDi(e));
     diChips.appendChild(b);
@@ -3428,7 +3432,13 @@ function cerrarDiaDi() {
 // ----- Ventana para añadir / editar -----
 function abrirFormDi(e) {
   diEditando = e;
-  diFormTitulo.textContent = e ? (e.terminado ? "Editar trabajo terminado ✅" : "Editar anotación") : "Nueva anotación";
+  diFormTitulo.textContent = e
+    ? e.marca === "Tarea finalizada"
+      ? "Anotación de Tarea Finalizada ✅"
+      : e.terminado
+      ? "Editar trabajo terminado ✅"
+      : "Editar anotación"
+    : "Nueva anotación";
   diNombre.value = e ? e.nombre : "";
   diDescripcion.value = e ? e.descripcion : "";
   diBorrar.hidden = !e;
@@ -4327,6 +4337,7 @@ let hyCargadas = false;
 let hyCargando = false;
 let hyPeticion = 0; // sirve para ignorar respuestas viejas si se vuelve a pedir
 let hyAbierta = null; // zona del recuadro que está abierto en el detalle
+let hyItemAbierto = null; // recuadro que está abierto en el detalle
 
 // Día de hoy como "aaaa-mm-dd" (misma forma en que lo guardan Ejercicio, Diario, Información y Comandos)
 function hyClaveHoy() {
@@ -4360,16 +4371,27 @@ function hyArmar(clave, f) {
   const dia = f.calendario ? f.calendario[clave] : null;
   if (dia) {
     CAMPOS.forEach((campo) => {
-      const elementos = parsearElementos(dia[campo.clave]).map(hySinSello).filter((e) => e.texto);
+      const crudo = dia[campo.clave];
+      const elementos = parsearElementos(crudo)
+        .map((t, i) => Object.assign(hySinSello(t), { i }))
+        .filter((e) => e.texto);
       if (!elementos.length) return;
       if (campo.clave === "descripcion") {
         por.calendario.push({
           nombre: campo.etiqueta,
           hora: elementos[0].hora,
           texto: elementos.map((e) => e.texto).join("\n\n"),
+          origen: { tipo: "calendario", fecha: clave, campo: campo.clave, todo: true },
         });
       } else {
-        elementos.forEach((e) => por.calendario.push({ nombre: campo.etiqueta, hora: e.hora, texto: e.texto }));
+        elementos.forEach((e) =>
+          por.calendario.push({
+            nombre: campo.etiqueta,
+            hora: e.hora,
+            texto: e.texto,
+            origen: { tipo: "calendario", fecha: clave, campo: campo.clave, indice: e.i, crudo },
+          })
+        );
       }
     });
   }
@@ -4387,28 +4409,36 @@ function hyArmar(clave, f) {
       hora: fn.hora,
       texto: n.texto,
       extra: zona === "notas" ? n.etiqueta : "",
+      origen: { tipo: "nota", id: n.id },
     });
   });
 
   (f.ejercicios || []).forEach((e) => {
-    if (e.fecha === clave) por.ejercicio.push({ nombre: e.nombre, hora: "", texto: e.descripcion });
+    if (e.fecha === clave) {
+      por.ejercicio.push({ nombre: e.nombre, hora: "", texto: e.descripcion, origen: { tipo: "ejercicio", id: e.id } });
+    }
   });
   (f.diarios || []).forEach((d) => {
     if (d.fecha === clave) {
       por.diario.push({
         nombre: d.nombre,
         hora: "",
-        marca: d.terminado ? "✅ Terminado" : "",
+        marca: d.marca === "Tarea finalizada" ? "✅ Tarea finalizada" : d.terminado ? "✅ Terminado" : "",
         texto: d.descripcion,
-        extra: d.terminado ? "Trabajo terminado" : "",
+        extra: d.marca === "Tarea finalizada" ? "Anotación de Tarea Finalizada" : d.terminado ? "Trabajo terminado" : "",
+        finalizada: d.marca === "Tarea finalizada",
       });
     }
   });
   (f.informaciones || []).forEach((i) => {
-    if (i.fecha === clave) por.informacion.push({ nombre: i.nombre, hora: "", texto: i.descripcion });
+    if (i.fecha === clave) {
+      por.informacion.push({ nombre: i.nombre, hora: "", texto: i.descripcion, origen: { tipo: "informacion", id: i.id } });
+    }
   });
   (f.comandos || []).forEach((c) => {
-    if (c.fecha === clave) por.comandos.push({ nombre: c.nombre, hora: "", texto: c.descripcion });
+    if (c.fecha === clave) {
+      por.comandos.push({ nombre: c.nombre, hora: "", texto: c.descripcion, origen: { tipo: "comando", id: c.id } });
+    }
   });
 
   return HY_ZONAS.map((zona) => {
@@ -4416,6 +4446,46 @@ function hyArmar(clave, f) {
     const items = por[zona.id].sort((x, y) => (x.hora || "99:99").localeCompare(y.hora || "99:99"));
     return { zona, items };
   });
+}
+
+// Un grupo de recuadros (título de la zona + sus recuadros)
+function hyCrearGrupo(g) {
+  const sec = document.createElement("section");
+  sec.className = "hoy-grupo";
+  const titulo = document.createElement("h3");
+  titulo.className = "notas-grupo-titulo";
+  titulo.textContent = g.zona.icono + " " + g.zona.titulo;
+  const cuenta = document.createElement("span");
+  cuenta.className = "notas-grupo-cuenta";
+  cuenta.textContent = String(g.items.length);
+  titulo.appendChild(cuenta);
+  const chips = document.createElement("div");
+  chips.className = "ej-chips";
+  g.items.forEach((it) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ej-chip ej-chip-resumen" + (it.finalizada ? " ej-chip-finalizada" : "");
+    b.title = it.nombre + (it.hora ? " (" + it.hora + ")" : "");
+    b.setAttribute("aria-label", "Ver " + it.nombre + " de " + g.zona.titulo);
+    const n = document.createElement("span");
+    n.className = "ej-chip-nombre";
+    n.textContent = it.nombre;
+    const t = document.createElement("span");
+    t.className = "ej-chip-desc";
+    t.textContent = resumenCorto(it.texto, 70);
+    if (it.hora || it.marca) {
+      const f = document.createElement("span");
+      f.className = "ej-chip-fecha";
+      f.textContent = it.hora || it.marca;
+      b.append(n, f, t);
+    } else {
+      b.append(n, t);
+    }
+    b.addEventListener("click", () => abrirDetalleHy(g.zona, it));
+    chips.appendChild(b);
+  });
+  sec.append(titulo, chips);
+  return sec;
 }
 
 function dibujarHoy() {
@@ -4430,49 +4500,23 @@ function dibujarHoy() {
     hyGruposEl.appendChild(p);
     return;
   }
-  conAlgo.forEach((g) => {
-    const sec = document.createElement("section");
-    sec.className = "hoy-grupo";
-    const titulo = document.createElement("h3");
-    titulo.className = "notas-grupo-titulo";
-    titulo.textContent = g.zona.icono + " " + g.zona.titulo;
-    const cuenta = document.createElement("span");
-    cuenta.className = "notas-grupo-cuenta";
-    cuenta.textContent = String(g.items.length);
-    titulo.appendChild(cuenta);
-    const chips = document.createElement("div");
-    chips.className = "ej-chips";
-    g.items.forEach((it) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "ej-chip ej-chip-resumen";
-      b.title = it.nombre + (it.hora ? " (" + it.hora + ")" : "");
-      b.setAttribute("aria-label", "Ver " + it.nombre + " de " + g.zona.titulo);
-      const n = document.createElement("span");
-      n.className = "ej-chip-nombre";
-      n.textContent = it.nombre;
-      const t = document.createElement("span");
-      t.className = "ej-chip-desc";
-      t.textContent = resumenCorto(it.texto, 70);
-      if (it.hora || it.marca) {
-        const f = document.createElement("span");
-        f.className = "ej-chip-fecha";
-        f.textContent = it.hora || it.marca;
-        b.append(n, f, t);
-      } else {
-        b.append(n, t);
-      }
-      b.addEventListener("click", () => abrirDetalleHy(g.zona, it));
-      chips.appendChild(b);
-    });
-    sec.append(titulo, chips);
-    hyGruposEl.appendChild(sec);
-  });
+  // El Diario va aparte: primero las demás zonas, y debajo de una línea los recuadros del Diario
+  conAlgo.filter((g) => g.zona.id !== "diario").forEach((g) => hyGruposEl.appendChild(hyCrearGrupo(g)));
+  const diario = conAlgo.find((g) => g.zona.id === "diario");
+  if (diario) {
+    const linea = document.createElement("hr");
+    linea.className = "hoy-separador";
+    hyGruposEl.append(linea, hyCrearGrupo(diario));
+  }
 }
 
 // ----- Detalle de un recuadro (solo lectura) -----
 function abrirDetalleHy(zona, it) {
   hyAbierta = zona;
+  hyItemAbierto = it;
+  hyEl("hy-detalle-fin").hidden = !it.origen; // lo del Diario ya está en el Diario
+  hyEl("hy-detalle-fin").disabled = false;
+  setEstado(hyEl("hy-detalle-estado"), "");
   hyEl("hy-detalle-nombre").textContent = it.nombre;
   hyEl("hy-detalle-origen").textContent =
     zona.icono + " " + zona.titulo + (it.extra ? " · " + it.extra : "") + (it.hora ? " · " + it.hora : "");
@@ -4483,6 +4527,84 @@ function abrirDetalleHy(zona, it) {
 function cerrarDetalleHy() {
   hyDetalle.hidden = true;
   hyAbierta = null;
+  hyItemAbierto = null;
+}
+
+// Nombre para el Diario cuando lo que se finaliza viene del Calendario (su recuadro solo se llama «Actividades», etc.)
+function hyNombreDeTexto(texto, respaldo) {
+  const linea = String(texto || "").split(/\r?\n/).map((x) => x.trim()).find((x) => x) || respaldo || "Tarea finalizada";
+  return linea.length > 70 ? linea.slice(0, 69) + "…" : linea;
+}
+
+// «Dar por finalizado»: la nota se quita de donde estaba y pasa al Diario (con la fecha de hoy) como
+// «Anotación de Tarea Finalizada». Primero se agrega al Diario y después se quita del origen; si algo falla
+// a medias se puede volver a intentar sin que quede repetida (el Diario no repite un mismo Id).
+async function finalizarHy() {
+  const zona = hyAbierta;
+  const it = hyItemAbierto;
+  if (!zona || !it || !it.origen) return;
+  const o = it.origen;
+  const esCal = o.tipo === "calendario";
+  const nombre = (esCal ? hyNombreDeTexto(it.texto, it.nombre) : it.nombre || "Sin nombre").slice(0, 80);
+  if (!window.confirm("¿Dar por finalizado «" + nombre + "»? Se quitará de " + zona.titulo + " y pasará al Diario con la fecha de hoy.")) return;
+  const boton = hyEl("hy-detalle-fin");
+  const estado = hyEl("hy-detalle-estado");
+  boton.disabled = true;
+  setEstado(estado, "Finalizando…");
+  const hoyClave = hyClaveHoy();
+  const id = o.id || it.finId || (it.finId = String(Date.now() * 1000 + Math.floor(Math.random() * 1000)));
+  const descripcion = String(it.texto || "").slice(0, 5000);
+  try {
+    // 1) Agregarla al Diario como tarea finalizada
+    await llamarNotas("diario_agregar", { id, nombre, fecha: hoyClave, descripcion, terminado: "Tarea finalizada" });
+    // 2) Quitarla de donde estaba
+    if (o.tipo === "nota") {
+      await llamarNotas("nota_borrar", { id: o.id });
+      notas = notas.filter((n) => n.id !== o.id);
+      if (notasCargadas) dibujarNotas();
+    } else if (o.tipo === "ejercicio") {
+      await llamarNotas("ejercicio_borrar", { id: o.id });
+      ejCargados = false; // se vuelve a leer al entrar
+    } else if (o.tipo === "informacion") {
+      await llamarNotas("informacion_borrar", { id: o.id });
+      ipCargadas = false;
+    } else if (o.tipo === "comando") {
+      await llamarNotas("comando_borrar", { id: o.id });
+      cmCargadas = false;
+    } else if (esCal) {
+      let nuevo = "";
+      if (!o.todo) {
+        const elementos = parsearElementos(o.crudo);
+        elementos.splice(o.indice, 1);
+        nuevo = serializarElementos(elementos);
+      }
+      await guardarCampo(o.fecha, o.campo, nuevo);
+      if (calendarioCargado) dibujarCalendario();
+    }
+    diCargados = false; // el Diario se vuelve a leer al entrar y ya trae la nueva anotación
+    // 3) Actualizar esta página: sale de su grupo y aparece en el Diario, en verde
+    const grupo = hyGrupos.find((g) => g.zona.id === zona.id);
+    if (grupo) grupo.items = grupo.items.filter((x) => x !== it);
+    let gd = hyGrupos.find((g) => g.zona.id === "diario");
+    if (!gd) {
+      gd = { zona: HY_ZONAS.find((z) => z.id === "diario"), items: [] };
+      hyGrupos.push(gd);
+    }
+    gd.items.push({
+      nombre,
+      hora: "",
+      marca: "✅ Tarea finalizada",
+      texto: descripcion,
+      extra: "Anotación de Tarea Finalizada",
+      finalizada: true,
+    });
+    cerrarDetalleHy();
+    dibujarHoy();
+    setEstado(hyEstado, "Tarea finalizada ✓ (ya está en el Diario)", "ok");
+  } catch (e) {
+    boton.disabled = false;
+    setEstado(estado, "Error: " + e.message + " — puedes volver a intentarlo", "error");
+  }
 }
 // Lleva a la zona de donde viene el recuadro (para verlo completo o modificarlo)
 function irAZonaHy() {
@@ -4582,6 +4704,7 @@ hyEl("hy-ir-login").addEventListener("click", () => {
 });
 hyEl("hy-detalle-cerrar").addEventListener("click", cerrarDetalleHy);
 hyDetalleIr.addEventListener("click", irAZonaHy);
+hyEl("hy-detalle-fin").addEventListener("click", finalizarHy);
 hyDetalle.addEventListener("click", (e) => {
   if (e.target === hyDetalle) cerrarDetalleHy(); // tocar fuera de la ventana la cierra
 });
