@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="32" />
+  <meta name="app-version" content="35" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=32" />
+  <link rel="stylesheet" href="styles.css?v=35" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -212,9 +212,12 @@
 
   <header class="encabezado">
     <h1>Polo AI</h1>
-    <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Ejercicio, Actividades, Trabajo, Diario, Deudas, Información Primordial, Comandos.
+    <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Ejercicio, Actividades, Trabajo, Diario, Deudas, Información Primordial, Comandos, Bazar. Arriba de todos va el botón grande «Día de Hoy».
          Cada botón abre su propia sección (Ejercicio y Diario con su propio calendario). -->
     <nav class="menu" aria-label="Secciones">
+      <button id="btn-menu-hoy" class="btn-menu btn-menu-hoy" type="button" data-seccion="seccion-hoy">
+        <span class="btn-menu-icono" aria-hidden="true">&#9728;&#65039;</span><span class="btn-menu-texto">Día de Hoy</span>
+      </button>
       <button class="btn-menu" type="button" data-seccion="calendario">
         <span class="btn-menu-icono" aria-hidden="true">&#128197;</span><span class="btn-menu-texto">Calendario</span>
       </button>
@@ -241,6 +244,9 @@
       </button>
       <button id="btn-menu-comandos" class="btn-menu" type="button" data-seccion="seccion-comandos">
         <span class="btn-menu-icono" aria-hidden="true">&#127897;</span><span class="btn-menu-texto">Comandos</span>
+      </button>
+      <button id="btn-menu-bazar" class="btn-menu" type="button" data-seccion="seccion-bazar">
+        <span class="btn-menu-icono" aria-hidden="true">&#128717;&#65039;</span><span class="btn-menu-texto">Bazar</span>
       </button>
     </nav>
   </header>
@@ -822,6 +828,116 @@
   </div>
     </section>
 
+    <!-- BAZAR (página, como Información Primordial; sus datos viven en la hoja «Bazar»: Nombre | Informacion | Id) -->
+    <section id="seccion-bazar" class="seccion seccion-pagina" hidden>
+  <div id="panel-bazar" class="panel-notas panel-pagina" hidden>
+    <div class="notas-caja ejercicio-caja bazar-caja" role="dialog" aria-modal="true" aria-labelledby="bz-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#128717;&#65039;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#128230;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+      </div>
+
+      <header class="notas-cabecera">
+        <h2 id="bz-titulo">Bazar</h2>
+        <div class="notas-cab-botones">
+          <button id="bz-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer el bazar de Google Sheets" aria-label="Actualizar bazar">&#8635;</button>
+          <button id="bz-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar bazar">&times;</button>
+        </div>
+      </header>
+
+      <div class="notas-cuerpo">
+        <div id="bz-sin-sesion" class="notas-aviso-sesion" hidden>
+          <p>Inicia sesión con tu cuenta de Google para ver y guardar tu bazar.</p>
+          <button id="bz-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
+        </div>
+
+        <div id="bz-contenido">
+          <p id="bz-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="bz-chips" class="ej-chips"></div>
+        </div>
+      </div>
+
+      <!-- Ventana para agregar o editar un registro del bazar -->
+      <div id="bz-form" class="notas-nueva modo-editar" hidden>
+        <h3 id="bz-form-titulo" class="notas-form-titulo">Nuevo registro</h3>
+        <label class="notas-campo">
+          <span>Nombre</span>
+          <input id="bz-nombre" type="text" maxlength="80" placeholder="Ej. Lámpara vintage" autocomplete="off" />
+        </label>
+        <label class="notas-campo">
+          <span>Información</span>
+          <textarea id="bz-informacion" rows="4" maxlength="5000" placeholder="Precio, estado, detalles…"></textarea>
+        </label>
+        <div class="notas-fila">
+          <button id="bz-guardar" class="notas-btn" type="button">Guardar</button>
+          <button id="bz-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <button id="bz-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+          <span id="bz-form-estado" class="notas-estado"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </section>
+
+    <!-- DÍA DE HOY (página; junta lo que tenga la fecha de hoy en las demás zonas: no tiene hoja propia) -->
+    <section id="seccion-hoy" class="seccion seccion-pagina" hidden>
+  <div id="panel-hoy" class="panel-notas panel-pagina" hidden>
+    <div class="notas-caja ejercicio-caja hoy-caja" role="dialog" aria-modal="true" aria-labelledby="hy-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#9728;&#65039;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#127769;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+      </div>
+
+      <header class="notas-cabecera">
+        <div class="hoy-titulos">
+          <h2 id="hy-titulo">Día de Hoy</h2>
+          <p id="hy-fecha" class="hoy-fecha"></p>
+        </div>
+        <div class="notas-cab-botones">
+          <button id="hy-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer lo de hoy en todas las zonas" aria-label="Actualizar día de hoy">&#8635;</button>
+          <button id="hy-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar día de hoy">&times;</button>
+        </div>
+      </header>
+
+      <div class="notas-cuerpo">
+        <div id="hy-sin-sesion" class="notas-aviso-sesion" hidden>
+          <p>Inicia sesión con tu cuenta de Google para ver lo que tienes registrado hoy.</p>
+          <button id="hy-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
+        </div>
+
+        <div id="hy-contenido">
+          <p id="hy-estado" class="notas-estado proy-estado-lista"></p>
+          <!-- Un grupo de recuadros por cada zona que tenga algo con la fecha de hoy (lo arma app.js) -->
+          <div id="hy-grupos"></div>
+        </div>
+      </div>
+
+      <!-- Información completa de un recuadro (solo lectura; para modificarlo se abre su zona) -->
+      <div id="hy-detalle" class="zona-vista" hidden>
+        <div class="zona-vista-caja" role="dialog" aria-modal="true" aria-labelledby="hy-detalle-nombre">
+          <div class="zona-vista-botones">
+            <button id="hy-detalle-cerrar" type="button" class="zona-vista-btn" aria-label="Cerrar" title="Cerrar">&times;</button>
+          </div>
+          <h3 id="hy-detalle-nombre" class="zona-vista-nombre"></h3>
+          <div id="hy-detalle-origen" class="zona-vista-fecha"></div>
+          <p id="hy-detalle-texto" class="zona-vista-texto"></p>
+          <div class="notas-fila">
+            <button id="hy-detalle-ir" class="notas-btn" type="button">Abrir zona</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+    </section>
+
     <!-- PEDIDOS DE YESO (sección propia; se abre desde la barra lateral) -->
     <section id="pedidos-yeso" class="seccion" hidden>
       <h2>&#128230; Pedidos de Yeso</h2>
@@ -844,8 +960,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=32"></script>
-  <script src="app.js?v=32"></script>
-  <script type="module" src="firebase.js?v=32"></script>
+  <script src="config.js?v=35"></script>
+  <script src="app.js?v=35"></script>
+  <script type="module" src="firebase.js?v=35"></script>
 </body>
 </html>

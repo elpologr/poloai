@@ -1,5 +1,5 @@
 :root {
-  --app-version: "32"; /* debe coincidir con VERSION en app.js */
+  --app-version: "35"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -61,10 +61,14 @@ main { position: relative; z-index: 1; }
   text-shadow: 0 2px 10px rgba(40, 10, 80, 0.45);
 }
 
+/* Menú: 2 filas de 5 botones cuadrados y, arriba, el botón grande «Día de Hoy».
+   --lado es el tamaño de cada botón cuadrado (se encoge solo en pantallas angostas para que quepan 5). */
 .menu {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  --gap: 10px;
+  --lado: min(104px, calc((100vw - 32px - 4 * var(--gap)) / 5));
+  display: grid;
+  grid-template-columns: repeat(5, var(--lado));
+  gap: var(--gap);
   justify-content: center;
 }
 
@@ -74,7 +78,7 @@ main { position: relative; z-index: 1; }
   align-items: center;
   justify-content: center;
   gap: 6px;
-  width: 104px;
+  width: var(--lado);
   aspect-ratio: 1 / 1;
   padding: 6px;
   font: inherit;
@@ -90,9 +94,39 @@ main { position: relative; z-index: 1; }
 .btn-menu-icono { font-size: 2rem; line-height: 1; }
 .btn-menu-texto { line-height: 1.1; }
 
-@media (max-width: 480px) {
-  .btn-menu { width: 96px; font-size: 0.8rem; }
-  .btn-menu-icono { font-size: 1.8rem; }
+@media (max-width: 600px) {
+  .menu { --gap: 8px; }
+  .btn-menu { font-size: 0.72rem; padding: 4px; border-radius: 14px; }
+  .btn-menu-icono { font-size: 1.7rem; }
+}
+@media (max-width: 420px) {
+  .menu { --gap: 6px; }
+  .btn-menu { gap: 3px; padding: 3px; font-size: 0.58rem; border-radius: 12px; }
+  .btn-menu-icono { font-size: 1.4rem; }
+}
+
+/* «Día de Hoy»: tan largo como una fila de 5 botones y de la misma altura que cada botón */
+.btn-menu.btn-menu-hoy {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  gap: 16px;
+  width: 100%;
+  height: var(--lado);
+  aspect-ratio: auto;
+  font-size: 1.6rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ffffff, var(--acento-claro));
+}
+.btn-menu.btn-menu-hoy:hover { background: var(--acento-claro); }
+.btn-menu.btn-menu-hoy.activo { background: var(--acento); }
+.btn-menu-hoy .btn-menu-icono { font-size: 2.6rem; }
+@media (max-width: 600px) {
+  .btn-menu.btn-menu-hoy { gap: 12px; font-size: 1.25rem; }
+  .btn-menu-hoy .btn-menu-icono { font-size: 2.1rem; }
+}
+@media (max-width: 420px) {
+  .btn-menu.btn-menu-hoy { gap: 8px; font-size: 1rem; }
+  .btn-menu-hoy .btn-menu-icono { font-size: 1.7rem; }
 }
 
 .btn-menu:hover { background: var(--acento-claro); }
@@ -510,7 +544,7 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 .btn-lateral-notas:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .btn-lateral-icono { font-size: 1.2rem; }
 
-/* ---------- Panel de Notas (azul pastel) ---------- */
+/* ---------- Panel de Notas (fondo negro con detalles blancos) ---------- */
 .panel-notas {
   position: fixed;
   inset: 0;
@@ -519,7 +553,7 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(10, 25, 50, 0.6);
+  background: rgba(0, 0, 0, 0.65);
 }
 .panel-notas[hidden] { display: none; }
 
@@ -536,34 +570,36 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   max-height: min(90vh, 860px);
   overflow: hidden;
   color: var(--nb-texto);
-  border: 2px solid #fff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 22px;
-  box-shadow: 0 24px 70px rgba(10, 30, 70, 0.55);
-  /* Manchones pastel, como la pantalla inicial pero en azul */
-  background-color: #bfe0fa;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+  /* Fondo negro con brillos muy tenues */
+  background-color: #07080c;
   background-image:
-    radial-gradient(circle at 10% 14%, rgba(255, 255, 255, 0.85) 0, transparent 30%),
-    radial-gradient(circle at 90% 10%, rgba(214, 236, 255, 0.9) 0, transparent 28%),
-    radial-gradient(circle at 78% 74%, rgba(255, 255, 255, 0.7) 0, transparent 34%),
-    radial-gradient(circle at 14% 88%, rgba(150, 200, 245, 0.7) 0, transparent 32%),
-    radial-gradient(circle at 50% 48%, rgba(126, 184, 238, 0.45) 0, transparent 40%),
-    radial-gradient(circle at 98% 54%, rgba(232, 244, 255, 0.8) 0, transparent 22%);
+    radial-gradient(circle at 10% 14%, rgba(255, 255, 255, 0.10) 0, transparent 30%),
+    radial-gradient(circle at 90% 10%, rgba(150, 190, 255, 0.10) 0, transparent 28%),
+    radial-gradient(circle at 78% 74%, rgba(255, 255, 255, 0.06) 0, transparent 34%),
+    radial-gradient(circle at 14% 88%, rgba(150, 190, 255, 0.09) 0, transparent 32%),
+    radial-gradient(circle at 98% 54%, rgba(255, 255, 255, 0.06) 0, transparent 22%);
 }
 
-/* Puntitos acolchados + destellos (en lugar del capitoné morado) */
+/* Detalles decorativos en blanco: constelaciones, destellos, puntitos y rombos muy tenues */
 .notas-caja::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.8;
+  opacity: 0.85;
   background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cpath d='M30 14l3 9 9 3-9 3-3 9-3-9-9-3 9-3z' fill='white' fill-opacity='.75'/%3E%3Cpath d='M92 72l2 6 6 2-6 2-2 6-2-6-6-2 6-2z' fill='white' fill-opacity='.6'/%3E%3C/svg%3E"),
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.85) 0 2px, rgba(120, 175, 225, 0.35) 2.5px 4px, transparent 5px),
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.85) 0 2px, rgba(120, 175, 225, 0.35) 2.5px 4px, transparent 5px);
-  background-size: 120px 120px, 40px 40px, 40px 40px;
-  background-position: 0 0, 0 0, 20px 20px;
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360'%3E%3Cg fill='none' stroke='white' stroke-opacity='.2' stroke-width='1' stroke-linecap='round'%3E%3Cpath d='M38 74L96 42L152 84L132 146'/%3E%3Cpath d='M96 42L118 12'/%3E%3Cpath d='M232 252L282 216L334 262L302 322L246 306Z'/%3E%3Cpath d='M214 52L262 76L300 44'/%3E%3Cpath d='M40 262L84 290L70 336'/%3E%3C/g%3E%3Cg fill='white'%3E%3Ccircle cx='38' cy='74' r='2.1' fill-opacity='.65'/%3E%3Ccircle cx='96' cy='42' r='2.6' fill-opacity='.8'/%3E%3Ccircle cx='152' cy='84' r='1.8' fill-opacity='.6'/%3E%3Ccircle cx='132' cy='146' r='2' fill-opacity='.6'/%3E%3Ccircle cx='118' cy='12' r='1.5' fill-opacity='.5'/%3E%3Ccircle cx='232' cy='252' r='2' fill-opacity='.6'/%3E%3Ccircle cx='282' cy='216' r='2.6' fill-opacity='.8'/%3E%3Ccircle cx='334' cy='262' r='1.9' fill-opacity='.6'/%3E%3Ccircle cx='302' cy='322' r='2.1' fill-opacity='.65'/%3E%3Ccircle cx='246' cy='306' r='1.6' fill-opacity='.5'/%3E%3Ccircle cx='214' cy='52' r='1.8' fill-opacity='.55'/%3E%3Ccircle cx='262' cy='76' r='2.2' fill-opacity='.7'/%3E%3Ccircle cx='300' cy='44' r='1.6' fill-opacity='.5'/%3E%3Ccircle cx='40' cy='262' r='1.8' fill-opacity='.55'/%3E%3Ccircle cx='84' cy='290' r='2.2' fill-opacity='.7'/%3E%3Ccircle cx='70' cy='336' r='1.5' fill-opacity='.5'/%3E%3C/g%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 120 120'%3E%3Cpath d='M30 14l3 9 9 3-9 3-3 9-3-9-9-3 9-3z' fill='white' fill-opacity='.28'/%3E%3Cpath d='M92 72l2 6 6 2-6 2-2 6-2-6-6-2 6-2z' fill='white' fill-opacity='.2'/%3E%3C/svg%3E"),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.5) 0 1.2px, rgba(255, 255, 255, 0.1) 1.6px 3px, transparent 3.6px),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.5) 0 1.2px, rgba(255, 255, 255, 0.1) 1.6px 3px, transparent 3.6px),
+    linear-gradient(45deg, transparent 49.2%, rgba(255, 255, 255, 0.06) 49.6% 50.4%, transparent 50.8%),
+    linear-gradient(-45deg, transparent 49.2%, rgba(255, 255, 255, 0.06) 49.6% 50.4%, transparent 50.8%);
+  background-size: 360px 360px, 200px 200px, 40px 40px, 40px 40px, 40px 40px, 40px 40px;
+  background-position: 0 0, 0 0, 0 0, 20px 20px, 0 0, 0 0;
 }
 
 /* Decoración flotante */
@@ -597,7 +633,7 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   margin: 0;
   font-size: 1.7rem;
   color: #fff;
-  text-shadow: 0 2px 8px rgba(40, 100, 170, 0.55);
+  text-shadow: 0 2px 10px rgba(130, 175, 235, 0.5);
 }
 .notas-cab-botones { display: flex; gap: 8px; }
 .notas-btn-icono {
@@ -725,7 +761,7 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 
 /* ---------- Notas: nombre, etiqueta y color ---------- */
 .notas-nueva {
-  background: var(--fondo-nota, rgba(255, 255, 255, 0.88));
+  background: var(--fondo-nota, rgba(255, 255, 255, 0.95));
   transition: background 0.2s;
 }
 .notas-campos {
@@ -918,10 +954,20 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   z-index: 4;
   display: flex;
   flex-direction: column;
-  background-color: #bfe0fa;
+  background-color: #07080c;
   background-image:
-    radial-gradient(circle at 10% 14%, rgba(255, 255, 255, 0.85) 0, transparent 30%),
-    radial-gradient(circle at 90% 10%, rgba(214, 236, 255, 0.9) 0, transparent 28%);
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 120 120'%3E%3Cpath d='M30 14l3 9 9 3-9 3-3 9-3-9-9-3 9-3z' fill='white' fill-opacity='.28'/%3E%3Cpath d='M92 72l2 6 6 2-6 2-2 6-2-6-6-2 6-2z' fill='white' fill-opacity='.2'/%3E%3C/svg%3E"),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.5) 0 1.2px, rgba(255, 255, 255, 0.1) 1.6px 3px, transparent 3.6px),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.5) 0 1.2px, rgba(255, 255, 255, 0.1) 1.6px 3px, transparent 3.6px),
+    linear-gradient(45deg, transparent 49.2%, rgba(255, 255, 255, 0.06) 49.6% 50.4%, transparent 50.8%),
+    linear-gradient(-45deg, transparent 49.2%, rgba(255, 255, 255, 0.06) 49.6% 50.4%, transparent 50.8%),
+    radial-gradient(circle at 10% 14%, rgba(255, 255, 255, 0.10) 0, transparent 30%),
+    radial-gradient(circle at 90% 10%, rgba(150, 190, 255, 0.10) 0, transparent 28%),
+    radial-gradient(circle at 78% 74%, rgba(255, 255, 255, 0.06) 0, transparent 34%),
+    radial-gradient(circle at 14% 88%, rgba(150, 190, 255, 0.09) 0, transparent 32%),
+    radial-gradient(circle at 98% 54%, rgba(255, 255, 255, 0.06) 0, transparent 22%);
+  background-size: 200px 200px, 40px 40px, 40px 40px, 40px 40px, 40px 40px, auto, auto, auto, auto, auto;
+  background-position: 0 0, 0 0, 20px 20px, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
 }
 .notas-submenu[hidden] { display: none; }
 .notas-sub-cabecera {
@@ -1042,7 +1088,7 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   z-index: 6;
   margin: 0;
   overflow-y: auto;
-  box-shadow: 0 0 0 9999px rgba(10, 25, 50, 0.5), 0 12px 40px rgba(10, 30, 70, 0.4);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6), 0 12px 40px rgba(0, 0, 0, 0.5);
 }
 
 @media (max-width: 480px) {
@@ -1200,8 +1246,21 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   --nb-borde: #bcd9f3;
   padding: 16px;
   color: var(--nb-texto);
-  background: #d9ecfb;
-  border: 1px solid var(--nb-borde);
+  background-color: #07080c;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360'%3E%3Cg fill='none' stroke='white' stroke-opacity='.2' stroke-width='1' stroke-linecap='round'%3E%3Cpath d='M38 74L96 42L152 84L132 146'/%3E%3Cpath d='M96 42L118 12'/%3E%3Cpath d='M232 252L282 216L334 262L302 322L246 306Z'/%3E%3Cpath d='M214 52L262 76L300 44'/%3E%3Cpath d='M40 262L84 290L70 336'/%3E%3C/g%3E%3Cg fill='white'%3E%3Ccircle cx='38' cy='74' r='2.1' fill-opacity='.65'/%3E%3Ccircle cx='96' cy='42' r='2.6' fill-opacity='.8'/%3E%3Ccircle cx='152' cy='84' r='1.8' fill-opacity='.6'/%3E%3Ccircle cx='132' cy='146' r='2' fill-opacity='.6'/%3E%3Ccircle cx='118' cy='12' r='1.5' fill-opacity='.5'/%3E%3Ccircle cx='232' cy='252' r='2' fill-opacity='.6'/%3E%3Ccircle cx='282' cy='216' r='2.6' fill-opacity='.8'/%3E%3Ccircle cx='334' cy='262' r='1.9' fill-opacity='.6'/%3E%3Ccircle cx='302' cy='322' r='2.1' fill-opacity='.65'/%3E%3Ccircle cx='246' cy='306' r='1.6' fill-opacity='.5'/%3E%3Ccircle cx='214' cy='52' r='1.8' fill-opacity='.55'/%3E%3Ccircle cx='262' cy='76' r='2.2' fill-opacity='.7'/%3E%3Ccircle cx='300' cy='44' r='1.6' fill-opacity='.5'/%3E%3Ccircle cx='40' cy='262' r='1.8' fill-opacity='.55'/%3E%3Ccircle cx='84' cy='290' r='2.2' fill-opacity='.7'/%3E%3Ccircle cx='70' cy='336' r='1.5' fill-opacity='.5'/%3E%3C/g%3E%3C/svg%3E"),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.5) 0 1.2px, rgba(255, 255, 255, 0.1) 1.6px 3px, transparent 3.6px),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.5) 0 1.2px, rgba(255, 255, 255, 0.1) 1.6px 3px, transparent 3.6px),
+    linear-gradient(45deg, transparent 49.2%, rgba(255, 255, 255, 0.06) 49.6% 50.4%, transparent 50.8%),
+    linear-gradient(-45deg, transparent 49.2%, rgba(255, 255, 255, 0.06) 49.6% 50.4%, transparent 50.8%),
+    radial-gradient(circle at 10% 14%, rgba(255, 255, 255, 0.10) 0, transparent 30%),
+    radial-gradient(circle at 90% 10%, rgba(150, 190, 255, 0.10) 0, transparent 28%),
+    radial-gradient(circle at 78% 74%, rgba(255, 255, 255, 0.06) 0, transparent 34%),
+    radial-gradient(circle at 14% 88%, rgba(150, 190, 255, 0.09) 0, transparent 32%),
+    radial-gradient(circle at 98% 54%, rgba(255, 255, 255, 0.06) 0, transparent 22%);
+  background-size: 360px 360px, 40px 40px, 40px 40px, 40px 40px, 40px 40px, auto, auto, auto, auto, auto;
+  background-position: 0 0, 0 0, 20px 20px, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 16px;
 }
 .zona-contenido[hidden] { display: none; }
@@ -1369,7 +1428,9 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 
 /* Información Primordial reutiliza los estilos de Ejercicio/Diario/Deudas */
 #ip-contenido[hidden],
-#cm-contenido[hidden] { display: none; }
+#cm-contenido[hidden],
+#bz-contenido[hidden],
+#hy-contenido[hidden] { display: none; }
 .ej-chip-fecha { font-size: 0.62rem; font-weight: 700; color: var(--nb-acento); }
 
 /* ---------- Notas como página (dentro de <main>, como Calendario, Actividades y Trabajo) ---------- */
@@ -1383,7 +1444,9 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 .panel-pagina #di-cerrar,
 .panel-pagina #de-cerrar,
 .panel-pagina #ip-cerrar,
-.panel-pagina #cm-cerrar { display: none; } /* ya no hay nada que cerrar: se cambia de página con el menú */
+.panel-pagina #cm-cerrar,
+.panel-pagina #bz-cerrar,
+.panel-pagina #hy-cerrar { display: none; } /* ya no hay nada que cerrar: se cambia de página con el menú */
 
 /* ---------- Trabajo: nota sencilla (nombre, fecha y descripción) con tuerca para modificar ---------- */
 .zona-vista {
@@ -1484,4 +1547,38 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   font-weight: 500;
   line-height: 1.2;
   color: var(--nb-suave);
+}
+
+/* ---------- Zonas con fondo negro: textos que quedan directamente sobre el negro ---------- */
+/* Mensajes de estado (Cargando…, Error…) y títulos que no van dentro de una tarjeta blanca */
+.proy-estado-lista,
+.notas-barra .notas-estado,
+.zona-estado-lista { color: #b9c9de; }
+.proy-estado-lista.error,
+.notas-barra .notas-estado.error,
+.zona-estado-lista.error { color: #ff8d7d; }
+.proy-estado-lista.ok,
+.notas-barra .notas-estado.ok,
+.zona-estado-lista.ok { color: #6fdca0; }
+.notas-grupo-titulo,
+.notas-sub-cabecera h3 { color: #eaf2fc; }
+.notas-caja .cal-dia-semana { color: #b9c9de; }
+
+/* Recuadros translúcidos: sobre negro se verían grises, así que se vuelven casi opacos */
+.notas-vacio,
+.proy-vista { background: rgba(255, 255, 255, 0.92); }
+.proy-tile { background: rgba(255, 255, 255, 0.92); }
+.gal-chip { background: rgba(255, 255, 255, 0.92); }
+.notas-aviso-sesion { background: rgba(255, 255, 255, 0.95); }
+
+/* ---------- Día de Hoy: título con la fecha y un grupo de recuadros por zona ---------- */
+.hoy-titulos { min-width: 0; }
+.hoy-titulos h2 { margin: 0; }
+.hoy-fecha { margin: 3px 0 0; font-size: 0.95rem; color: #cfdcef; }
+.hoy-grupo { margin-top: 18px; }
+.hoy-grupo .ej-chips { margin-top: 0; }
+.hoy-grupo .notas-grupo-titulo { margin-bottom: 10px; }
+.hoy-grupo .ej-chip-resumen .ej-chip-nombre { font-size: 0.7rem; }
+@media (max-width: 480px) {
+  .hoy-grupo .ej-chip-desc { -webkit-line-clamp: 2; }
 }

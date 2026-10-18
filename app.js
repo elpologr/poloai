@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "32";
+const VERSION = "35";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -21,6 +21,8 @@ const VERSION = "32";
     "btn-menu-deudas", "seccion-deudas", "panel-deudas", "de-chips", "de-form",
     "btn-menu-informacion", "seccion-informacion", "panel-informacion", "ip-chips", "ip-form", "ip-fecha",
     "btn-menu-comandos", "seccion-comandos", "panel-comandos", "cm-chips", "cm-form", "cm-fecha",
+    "btn-menu-bazar", "seccion-bazar", "panel-bazar", "bz-chips", "bz-form", "bz-informacion",
+    "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle",
   ];
   const problemas = [];
 
@@ -81,6 +83,12 @@ function mostrarSeccion(id) {
   // Comandos también es una página
   if (id === "seccion-comandos") entrarComandos();
   else cerrarComandos();
+  // Bazar también es una página
+  if (id === "seccion-bazar") entrarBazar();
+  else cerrarBazar();
+  // Día de Hoy también es una página
+  if (id === "seccion-hoy") entrarHoy();
+  else cerrarHoy();
 }
 
 // Todos los botones del menú cambian de sección (Ejercicio y Diario también son páginas)
@@ -1552,6 +1560,8 @@ function actualizarPanelNotas() {
   actualizarPanelDeudas(); // y al de Deudas
   actualizarPanelInformacion(); // y al de Información Primordial
   actualizarPanelComandos(); // y al de Comandos
+  actualizarPanelBazar(); // y al de Bazar
+  actualizarPanelHoy(); // y al de Día de Hoy
   actualizarZonasEtiqueta(); // y a las zonas de Actividades y Trabajo
   actualizarCalendarioSesion(); // y a los datos del calendario
   if (panelNotas.hidden) return;
@@ -4112,6 +4122,470 @@ cmBorrar.addEventListener("click", borrarCm);
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelCm.hidden) return;
   if (!cmForm.hidden) cerrarFormCm();
+});
+
+// ---------- Bazar (hoja «Bazar») ----------
+// Registros con Nombre | Informacion | Id (la Id de la columna C se llena sola).
+const bzEl = (id) => document.getElementById(id);
+const panelBz = bzEl("panel-bazar");
+const bzSinSesion = bzEl("bz-sin-sesion");
+const bzContenido = bzEl("bz-contenido");
+const bzEstado = bzEl("bz-estado");
+const bzChips = bzEl("bz-chips");
+const bzForm = bzEl("bz-form");
+const bzFormTitulo = bzEl("bz-form-titulo");
+const bzNombre = bzEl("bz-nombre");
+const bzInformacion = bzEl("bz-informacion");
+const bzGuardar = bzEl("bz-guardar");
+const bzBorrar = bzEl("bz-borrar");
+const bzFormEstado = bzEl("bz-form-estado");
+
+let bazarLista = []; // [{ id, nombre, informacion }]
+let bzCargadas = false;
+let bzEditando = null; // registro abierto en la ventana (null = registro nuevo)
+
+function dibujarChipsBz() {
+  bzChips.innerHTML = "";
+  bazarLista.forEach((d) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ej-chip ej-chip-resumen";
+    b.title = d.nombre;
+    b.setAttribute("aria-label", "Ver o editar el registro " + d.nombre);
+    const n = document.createElement("span");
+    n.className = "ej-chip-nombre";
+    n.textContent = d.nombre;
+    const t = document.createElement("span");
+    t.className = "ej-chip-desc";
+    t.textContent = resumenCorto(d.informacion, 70);
+    b.append(n, t);
+    b.addEventListener("click", () => abrirFormBz(d));
+    bzChips.appendChild(b);
+  });
+  const nuevo = document.createElement("button");
+  nuevo.type = "button";
+  nuevo.className = "ej-chip ej-chip-nuevo";
+  nuevo.setAttribute("aria-label", "Añadir un registro al bazar");
+  nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
+  nuevo.addEventListener("click", () => abrirFormBz(null));
+  bzChips.appendChild(nuevo);
+}
+
+// ----- Ventana para añadir / editar -----
+function abrirFormBz(d) {
+  bzEditando = d;
+  bzFormTitulo.textContent = d ? "Editar registro" : "Nuevo registro";
+  bzNombre.value = d ? d.nombre : "";
+  bzInformacion.value = d ? d.informacion : "";
+  bzBorrar.hidden = !d;
+  setEstado(bzFormEstado, "");
+  bzForm.hidden = false;
+  bzNombre.focus();
+}
+function cerrarFormBz() {
+  bzForm.hidden = true;
+  bzEditando = null;
+}
+
+async function guardarBz() {
+  const nombre = bzNombre.value.trim();
+  if (!nombre) {
+    setEstado(bzFormEstado, "Escribe el nombre", "error");
+    return;
+  }
+  const editando = bzEditando;
+  const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
+  const d = { id, nombre, informacion: bzInformacion.value.trim() };
+  bzGuardar.disabled = true;
+  setEstado(bzFormEstado, "Guardando…");
+  try {
+    await llamarNotas(editando ? "bazar_editar" : "bazar_agregar", d);
+    if (editando) bazarLista = bazarLista.map((x) => (x.id === id ? d : x));
+    else bazarLista.push(d);
+    cerrarFormBz();
+    dibujarChipsBz();
+  } catch (err) {
+    setEstado(bzFormEstado, "Error: " + err.message, "error");
+  } finally {
+    bzGuardar.disabled = false;
+  }
+}
+
+async function borrarBz() {
+  const d = bzEditando;
+  if (!d || !window.confirm("¿Eliminar «" + d.nombre + "»?")) return;
+  bzBorrar.disabled = true;
+  setEstado(bzFormEstado, "Eliminando…");
+  try {
+    await llamarNotas("bazar_borrar", { id: d.id });
+    bazarLista = bazarLista.filter((x) => x.id !== d.id);
+    cerrarFormBz();
+    dibujarChipsBz();
+  } catch (err) {
+    setEstado(bzFormEstado, "Error: " + err.message, "error");
+  } finally {
+    bzBorrar.disabled = false;
+  }
+}
+
+// ----- Carga y sesión -----
+async function cargarBazar() {
+  setEstado(bzEstado, "Cargando…");
+  try {
+    const j = await llamarNotas("bazar_listar");
+    bazarLista = Array.isArray(j.bazarLista) ? j.bazarLista : [];
+    bzCargadas = true;
+    setEstado(bzEstado, "");
+    dibujarChipsBz();
+  } catch (err) {
+    setEstado(bzEstado, "Error: " + err.message, "error");
+  }
+}
+
+function actualizarPanelBazar() {
+  if (!sesionVigente()) {
+    // Sin sesión no se guardan datos en pantalla
+    bzCargadas = false;
+    bazarLista = [];
+  }
+  if (panelBz.hidden) return;
+  const dentro = sesionVigente();
+  bzSinSesion.hidden = dentro;
+  bzContenido.hidden = !dentro;
+  if (dentro) {
+    if (!bzCargadas) cargarBazar();
+    else dibujarChipsBz();
+  } else {
+    cerrarFormBz();
+    dibujarChipsBz();
+  }
+}
+
+// Se llama al entrar a la página de Bazar (desde mostrarSeccion)
+function entrarBazar() {
+  cerrarFormBz();
+  panelBz.hidden = false;
+  dibujarChipsBz();
+  actualizarPanelBazar();
+}
+// Bazar es una página: aquí solo se cierra la ventana
+function cerrarBazar() {
+  cerrarFormBz();
+}
+
+bzEl("bz-cerrar").addEventListener("click", cerrarBazar);
+bzEl("bz-actualizar").addEventListener("click", () => {
+  if (sesionVigente()) cargarBazar();
+  else actualizarPanelBazar();
+});
+bzEl("bz-ir-login").addEventListener("click", () => {
+  cerrarBazar();
+  abrirLateral();
+});
+bzGuardar.addEventListener("click", guardarBz);
+bzEl("bz-cancelar").addEventListener("click", cerrarFormBz);
+bzBorrar.addEventListener("click", borrarBz);
+// Esc cierra la ventana
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || panelBz.hidden) return;
+  if (!bzForm.hidden) cerrarFormBz();
+});
+
+// ---------- Día de Hoy ----------
+// No tiene hoja propia: junta lo que tenga la fecha de hoy en las demás zonas (Calendario, Notas, Ejercicio,
+// Actividades, Trabajo, Diario, Información Primordial, Comandos y Pedidos de Yeso). Deudas y Bazar no
+// guardan fecha, así que no aparecen aquí.
+const hyEl = (id) => document.getElementById(id);
+const seccionHy = hyEl("seccion-hoy");
+const panelHy = hyEl("panel-hoy");
+const hySinSesion = hyEl("hy-sin-sesion");
+const hyContenido = hyEl("hy-contenido");
+const hyEstado = hyEl("hy-estado");
+const hyFecha = hyEl("hy-fecha");
+const hyGruposEl = hyEl("hy-grupos");
+const hyDetalle = hyEl("hy-detalle");
+const hyDetalleIr = hyEl("hy-detalle-ir");
+
+// Zonas que se revisan, en el orden del menú; «seccion» es la página que se abre desde el detalle
+const HY_ZONAS = [
+  { id: "calendario", icono: "📅", titulo: "Calendario", seccion: "calendario" },
+  { id: "notas", icono: "📝", titulo: "Notas", seccion: "seccion-notas" },
+  { id: "ejercicio", icono: "💪", titulo: "Ejercicio", seccion: "seccion-ejercicio" },
+  { id: "actividades", icono: "🎯", titulo: "Actividades", seccion: "actividades" },
+  { id: "trabajo", icono: "💼", titulo: "Trabajo", seccion: "trabajo" },
+  { id: "diario", icono: "📓", titulo: "Diario", seccion: "seccion-diario" },
+  { id: "informacion", icono: "⭐", titulo: "Información Primordial", seccion: "seccion-informacion" },
+  { id: "comandos", icono: "🎙️", titulo: "Comandos", seccion: "seccion-comandos" },
+  { id: "yeso", icono: "📦", titulo: "Pedidos de Yeso", seccion: "pedidos-yeso" },
+];
+
+let hyGrupos = []; // [{ zona, items: [{ nombre, hora, texto, extra }] }]
+let hyCargadas = false;
+let hyCargando = false;
+let hyPeticion = 0; // sirve para ignorar respuestas viejas si se vuelve a pedir
+let hyAbierta = null; // zona del recuadro que está abierto en el detalle
+
+// Día de hoy como "aaaa-mm-dd" (misma forma en que lo guardan Ejercicio, Diario, Información y Comandos)
+function hyClaveHoy() {
+  const n = new Date();
+  return `${n.getFullYear()}-${dos(n.getMonth() + 1)}-${dos(n.getDate())}`;
+}
+function hyFechaLarga() {
+  const t = new Date().toLocaleDateString("es-MX", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+// Fecha de una nota «dd/mm/aaaa hh:mm» -> { dia: "aaaa-mm-dd", hora: "hh:mm" } (o null si no se entiende)
+function hyDeNota(s) {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2}))?/.exec(String(s || "").trim());
+  if (!m) return null;
+  return { dia: `${m[3]}-${dos(m[2])}-${dos(m[1])}`, hora: m[4] ? `${dos(m[4])}:${m[5]}` : "" };
+}
+// Los textos del calendario empiezan con una línea «dd/mm/aaaa hh:mm»: se separa la hora del texto
+function hySinSello(t) {
+  const m = /^\d{1,2}\/\d{1,2}\/\d{4} (\d{1,2}:\d{2})[ \t]*\r?\n([\s\S]*)$/.exec(String(t || "").trim());
+  return m ? { hora: m[1].padStart(5, "0"), texto: m[2].trim() } : { hora: "", texto: String(t || "").trim() };
+}
+
+// Arma los grupos con lo que tenga la fecha de hoy. Si una zona no se pudo leer llega null y se salta.
+function hyArmar(clave, f) {
+  const por = {};
+  HY_ZONAS.forEach((z) => (por[z.id] = []));
+
+  // Calendario: Descripción (una sola), Actividades y Anotaciones (cada recuadro por separado)
+  const dia = f.calendario ? f.calendario[clave] : null;
+  if (dia) {
+    CAMPOS.forEach((campo) => {
+      const elementos = parsearElementos(dia[campo.clave]).map(hySinSello).filter((e) => e.texto);
+      if (!elementos.length) return;
+      if (campo.clave === "descripcion") {
+        por.calendario.push({
+          nombre: campo.etiqueta,
+          hora: elementos[0].hora,
+          texto: elementos.map((e) => e.texto).join("\n\n"),
+        });
+      } else {
+        elementos.forEach((e) => por.calendario.push({ nombre: campo.etiqueta, hora: e.hora, texto: e.texto }));
+      }
+    });
+  }
+
+  // Notas: según su etiqueta pertenecen a Actividades, Trabajo, Pedidos de Yeso o a Notas
+  (f.notas || []).forEach((n) => {
+    const fn = hyDeNota(n.fecha);
+    if (!fn || fn.dia !== clave) return;
+    const zona = n.etiqueta === "Actividades" ? "actividades"
+      : n.etiqueta === "Trabajo" ? "trabajo"
+      : n.etiqueta === "Pedidos de Yeso" ? "yeso"
+      : "notas";
+    por[zona].push({
+      nombre: n.nombre || "Sin nombre",
+      hora: fn.hora,
+      texto: n.texto,
+      extra: zona === "notas" ? n.etiqueta : "",
+    });
+  });
+
+  (f.ejercicios || []).forEach((e) => {
+    if (e.fecha === clave) por.ejercicio.push({ nombre: e.nombre, hora: "", texto: e.descripcion });
+  });
+  (f.diarios || []).forEach((d) => {
+    if (d.fecha === clave) {
+      por.diario.push({
+        nombre: d.nombre,
+        hora: "",
+        marca: d.terminado ? "✅ Terminado" : "",
+        texto: d.descripcion,
+        extra: d.terminado ? "Trabajo terminado" : "",
+      });
+    }
+  });
+  (f.informaciones || []).forEach((i) => {
+    if (i.fecha === clave) por.informacion.push({ nombre: i.nombre, hora: "", texto: i.descripcion });
+  });
+  (f.comandos || []).forEach((c) => {
+    if (c.fecha === clave) por.comandos.push({ nombre: c.nombre, hora: "", texto: c.descripcion });
+  });
+
+  return HY_ZONAS.map((zona) => {
+    // Los que tienen hora van por hora; los demás se quedan en el orden de la hoja
+    const items = por[zona.id].sort((x, y) => (x.hora || "99:99").localeCompare(y.hora || "99:99"));
+    return { zona, items };
+  });
+}
+
+function dibujarHoy() {
+  hyFecha.textContent = hyFechaLarga();
+  hyGruposEl.innerHTML = "";
+  if (!hyCargadas) return;
+  const conAlgo = hyGrupos.filter((g) => g.items.length);
+  if (!conAlgo.length) {
+    const p = document.createElement("p");
+    p.className = "notas-vacio";
+    p.textContent = "No hay nada registrado con la fecha de hoy.";
+    hyGruposEl.appendChild(p);
+    return;
+  }
+  conAlgo.forEach((g) => {
+    const sec = document.createElement("section");
+    sec.className = "hoy-grupo";
+    const titulo = document.createElement("h3");
+    titulo.className = "notas-grupo-titulo";
+    titulo.textContent = g.zona.icono + " " + g.zona.titulo;
+    const cuenta = document.createElement("span");
+    cuenta.className = "notas-grupo-cuenta";
+    cuenta.textContent = String(g.items.length);
+    titulo.appendChild(cuenta);
+    const chips = document.createElement("div");
+    chips.className = "ej-chips";
+    g.items.forEach((it) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "ej-chip ej-chip-resumen";
+      b.title = it.nombre + (it.hora ? " (" + it.hora + ")" : "");
+      b.setAttribute("aria-label", "Ver " + it.nombre + " de " + g.zona.titulo);
+      const n = document.createElement("span");
+      n.className = "ej-chip-nombre";
+      n.textContent = it.nombre;
+      const t = document.createElement("span");
+      t.className = "ej-chip-desc";
+      t.textContent = resumenCorto(it.texto, 70);
+      if (it.hora || it.marca) {
+        const f = document.createElement("span");
+        f.className = "ej-chip-fecha";
+        f.textContent = it.hora || it.marca;
+        b.append(n, f, t);
+      } else {
+        b.append(n, t);
+      }
+      b.addEventListener("click", () => abrirDetalleHy(g.zona, it));
+      chips.appendChild(b);
+    });
+    sec.append(titulo, chips);
+    hyGruposEl.appendChild(sec);
+  });
+}
+
+// ----- Detalle de un recuadro (solo lectura) -----
+function abrirDetalleHy(zona, it) {
+  hyAbierta = zona;
+  hyEl("hy-detalle-nombre").textContent = it.nombre;
+  hyEl("hy-detalle-origen").textContent =
+    zona.icono + " " + zona.titulo + (it.extra ? " · " + it.extra : "") + (it.hora ? " · " + it.hora : "");
+  hyEl("hy-detalle-texto").textContent = it.texto || "Sin descripción";
+  hyDetalleIr.textContent = "Abrir " + zona.titulo;
+  hyDetalle.hidden = false;
+}
+function cerrarDetalleHy() {
+  hyDetalle.hidden = true;
+  hyAbierta = null;
+}
+// Lleva a la zona de donde viene el recuadro (para verlo completo o modificarlo)
+function irAZonaHy() {
+  const zona = hyAbierta;
+  if (!zona) return;
+  cerrarDetalleHy();
+  mostrarSeccion(zona.seccion);
+  // Actividades, Trabajo y Pedidos de Yeso arman su zona con las notas: se prepara igual que desde su botón
+  const z = zonas.find((x) => x.cfg.seccion === zona.seccion);
+  if (z) {
+    if (z.actualizar() && !notasCargadas) cargarNotasZonas();
+    else z.dibujar();
+  }
+}
+
+// ----- Carga y sesión -----
+// Pide a la vez los datos de todas las zonas con fecha; si alguna falla, se muestran las demás y se avisa cuál.
+async function cargarHoy() {
+  const peticion = ++hyPeticion;
+  hyCargando = true;
+  setEstado(hyEstado, "Cargando…");
+  const clave = hyClaveHoy();
+  const pedidos = [
+    ["Calendario", "calendario_listar"],
+    ["Notas", "nota_listar"],
+    ["Ejercicio", "ejercicio_listar"],
+    ["Diario", "diario_listar"],
+    ["Información Primordial", "informacion_listar"],
+    ["Comandos", "comando_listar"],
+  ];
+  const resultados = await Promise.allSettled(pedidos.map((p) => llamarNotas(p[1])));
+  if (peticion !== hyPeticion) return; // llegó otra petición más nueva: esta ya no sirve
+  hyCargando = false;
+  if (!sesionVigente()) return; // se cerró la sesión mientras cargaba
+  const fallaron = [];
+  const dato = (i) => {
+    const r = resultados[i];
+    if (r.status === "fulfilled") return r.value;
+    fallaron.push(pedidos[i][0]);
+    return null;
+  };
+  const cal = dato(0), nts = dato(1), ejs = dato(2), dis = dato(3), ips = dato(4), cms = dato(5);
+  hyGrupos = hyArmar(clave, {
+    calendario: cal ? cal.datos : null,
+    notas: nts ? nts.notas : null,
+    ejercicios: ejs ? ejs.ejercicios : null,
+    diarios: dis ? dis.diarios : null,
+    informaciones: ips ? ips.informaciones : null,
+    comandos: cms ? cms.comandosLista : null,
+  });
+  hyCargadas = true;
+  if (fallaron.length) setEstado(hyEstado, "No se pudo leer: " + fallaron.join(", "), "error");
+  else setEstado(hyEstado, "");
+  dibujarHoy();
+}
+
+function actualizarPanelHoy() {
+  if (!sesionVigente()) {
+    // Sin sesión no se guardan datos en pantalla
+    hyCargadas = false;
+    hyGrupos = [];
+  }
+  if (panelHy.hidden || seccionHy.hidden) return;
+  const dentro = sesionVigente();
+  hySinSesion.hidden = dentro;
+  hyContenido.hidden = !dentro;
+  if (dentro) {
+    if (!hyCargadas && !hyCargando) cargarHoy();
+    else dibujarHoy();
+  } else {
+    cerrarDetalleHy();
+    dibujarHoy();
+  }
+}
+
+// Se llama al entrar a la página (desde mostrarSeccion): siempre vuelve a leer, porque «hoy» puede haber cambiado
+function entrarHoy() {
+  cerrarDetalleHy();
+  panelHy.hidden = false;
+  hyCargadas = false;
+  dibujarHoy();
+  actualizarPanelHoy();
+}
+// Día de Hoy es una página: aquí solo se cierra la ventana de detalle
+function cerrarHoy() {
+  cerrarDetalleHy();
+}
+
+hyEl("hy-cerrar").addEventListener("click", cerrarHoy);
+hyEl("hy-actualizar").addEventListener("click", () => {
+  if (sesionVigente()) cargarHoy();
+  else actualizarPanelHoy();
+});
+hyEl("hy-ir-login").addEventListener("click", () => {
+  cerrarHoy();
+  abrirLateral();
+});
+hyEl("hy-detalle-cerrar").addEventListener("click", cerrarDetalleHy);
+hyDetalleIr.addEventListener("click", irAZonaHy);
+hyDetalle.addEventListener("click", (e) => {
+  if (e.target === hyDetalle) cerrarDetalleHy(); // tocar fuera de la ventana la cierra
+});
+// Esc cierra el detalle
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || hyDetalle.hidden) return;
+  cerrarDetalleHy();
 });
 
 dibujarCuenta();
