@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "40";
+const VERSION = "42";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -3624,8 +3624,10 @@ document.addEventListener("keydown", (e) => {
   else if (!diDiaPanel.hidden) cerrarDiaDi();
 });
 
-// ---------- Deudas (hoja «Diario», columnas H a J) ----------
-// Notas aparte, sin fecha: cada una guarda Nombre | Descripcion | Id en las columnas H, I y J de la hoja «Diario».
+// ---------- Deudas (hoja «Diario», columnas H a K) ----------
+// Notas aparte (independientes de las anotaciones del Diario, columnas A a E): cada una guarda
+// Nombre | Fecha (de creación) | Descripcion | Id en las columnas H, I, J y K de la hoja «Diario».
+// Al marcar una deuda como finalizada se quita de aquí y pasa al Diario con la fecha de ese día.
 const deEl = (id) => document.getElementById(id);
 const panelDe = deEl("panel-deudas");
 const deSinSesion = deEl("de-sin-sesion");
@@ -3635,13 +3637,15 @@ const deChips = deEl("de-chips");
 const deForm = deEl("de-form");
 const deFormTitulo = deEl("de-form-titulo");
 const deNombre = deEl("de-nombre");
+const deCreada = deEl("de-creada");
+const deFinalizar = deEl("de-finalizar");
 const deDescripcion = deEl("de-descripcion");
 const deDestino = deEl("de-destino");
 const deGuardar = deEl("de-guardar");
 const deBorrar = deEl("de-borrar");
 const deFormEstado = deEl("de-form-estado");
 
-let deudas = []; // [{ id, nombre, descripcion }]
+let deudas = []; // [{ id, nombre, fecha, descripcion, destino }]  (fecha = día de creación, aaaa-mm-dd)
 let deCargadas = false;
 let deEditando = null; // deuda abierta en la ventana (null = deuda nueva)
 
@@ -3659,7 +3663,16 @@ function dibujarChipsDe() {
     const t = document.createElement("span");
     t.className = "ej-chip-desc";
     t.textContent = resumenCorto(d.descripcion, 70);
-    b.append(n, t);
+    if (d.fecha) {
+      // ipFechaCorta («aaaa-mm-dd» -> «dd/mm/aaaa») está definida más abajo, en Información Primordial
+      b.title = d.nombre + " (creada el " + ipFechaCorta(d.fecha) + ")";
+      const f = document.createElement("span");
+      f.className = "ej-chip-fecha";
+      f.textContent = ipFechaCorta(d.fecha);
+      b.append(n, f, t);
+    } else {
+      b.append(n, t);
+    }
     b.addEventListener("click", () => abrirFormDe(d));
     deChips.appendChild(b);
   });
@@ -3679,7 +3692,12 @@ function abrirFormDe(d) {
   deNombre.value = d ? d.nombre : "";
   deDescripcion.value = d ? d.descripcion : "";
   deDestino.value = d && d.destino === "drive" ? "drive" : "sheets";
+  // La fecha de creación se anota sola al guardar una deuda nueva y no se cambia al editarla
+  deCreada.hidden = !(d && d.fecha);
+  deCreada.textContent = d && d.fecha ? "Creada el " + ipFechaCorta(d.fecha) : "";
   deBorrar.hidden = !d;
+  deFinalizar.hidden = !d; // solo una deuda ya guardada se puede dar por finalizada
+  deFinalizar.disabled = false;
   setEstado(deFormEstado, "");
   deForm.hidden = false;
   deNombre.focus();
@@ -3697,7 +3715,9 @@ async function guardarDe() {
   }
   const editando = deEditando;
   const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
-  const d = { id, nombre, descripcion: deDescripcion.value.trim(), destino: deDestino.value };
+  // Deuda nueva: se anota el día de hoy como fecha de creación. Al editar se conserva la que ya tenía.
+  const fecha = editando ? editando.fecha || "" : ipHoy();
+  const d = { id, nombre, fecha, descripcion: deDescripcion.value.trim(), destino: deDestino.value };
   deGuardar.disabled = true;
   setEstado(deFormEstado, "Guardando…");
   try {
@@ -3727,6 +3747,28 @@ async function borrarDe() {
     setEstado(deFormEstado, "Error: " + err.message, "error");
   } finally {
     deBorrar.disabled = false;
+  }
+}
+
+// «Marcar tarea como finalizada»: la deuda se quita de Deudas y pasa al Diario como «Tarea finalizada»,
+// con la fecha de HOY (el día en que se presiona el botón). Primero se agrega al Diario y después se quita
+// de Deudas; si algo falla a medias se puede volver a intentar sin que quede repetida en el Diario.
+async function finalizarDe() {
+  const d = deEditando;
+  if (!d) return;
+  if (!window.confirm("¿Dar por finalizada la deuda «" + d.nombre + "»? Se quitará de Deudas y pasará al Diario con la fecha de hoy.")) return;
+  deFinalizar.disabled = true;
+  setEstado(deFormEstado, "Finalizando…");
+  try {
+    await llamarNotas("deuda_finalizar", { id: d.id, fecha: ipHoy() });
+    deudas = deudas.filter((x) => x.id !== d.id);
+    diCargados = false; // el Diario se vuelve a leer al entrar y ya trae la nueva anotación
+    cerrarFormDe();
+    dibujarChipsDe();
+    setEstado(deEstado, "Deuda finalizada ✓ (ya está en el Diario)", "ok");
+  } catch (err) {
+    deFinalizar.disabled = false;
+    setEstado(deFormEstado, "Error: " + err.message + " — puedes volver a intentarlo", "error");
   }
 }
 
@@ -3785,6 +3827,7 @@ deEl("de-ir-login").addEventListener("click", () => {
   abrirLateral();
 });
 deGuardar.addEventListener("click", guardarDe);
+deFinalizar.addEventListener("click", finalizarDe);
 deEl("de-cancelar").addEventListener("click", cerrarFormDe);
 deBorrar.addEventListener("click", borrarDe);
 // Esc cierra la ventana de la deuda

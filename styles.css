@@ -1,5 +1,5 @@
 :root {
-  --app-version: "40"; /* debe coincidir con VERSION en app.js */
+  --app-version: "42"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -1675,3 +1675,79 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   box-shadow: 0 0 0 3px rgba(47, 158, 95, 0.3), 0 4px 10px rgba(47, 158, 95, 0.25);
 }
 .ej-chip.ej-chip-finalizada .ej-chip-fecha { color: #1e7a48; }
+
+/* ---------- Polo AI por voz (botón 🎤, ventana y tarjeta de confirmación) ---------- */
+.pv-fab {
+  position: fixed;
+  right: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 45;
+  width: 58px;
+  height: 58px;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: #fff;
+  background: #07080c;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  border-radius: 50%;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+.pv-fab:hover { background: #1b2030; }
+.pv-fab:focus-visible { outline: 3px solid #9cc7f2; outline-offset: 3px; }
+.pv-fab.escuchando { background: #d63a2f; animation: pv-pulso 1.1s ease-in-out infinite; }
+@keyframes pv-pulso {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(214, 58, 47, 0.55), 0 8px 24px rgba(0, 0, 0, 0.45); }
+  50% { box-shadow: 0 0 0 14px rgba(214, 58, 47, 0), 0 8px 24px rgba(0, 0, 0, 0.45); }
+}
+
+.pv-modal {
+  --nb-texto: #1d3a5c; --nb-suave: #55789f; --nb-acento: #4f94d4; --nb-acento-oscuro: #3a7ebd; --nb-borde: #bcd9f3;
+  position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center;
+  padding: 14px; background: rgba(10, 25, 50, 0.6);
+}
+.pv-modal[hidden], .pv-modal [hidden] { display: none !important; }
+.pv-caja {
+  width: min(600px, 100%); max-height: 92vh; overflow-y: auto; padding: 18px 20px 20px; color: var(--nb-texto);
+  background: #fff; border: 1px solid var(--nb-borde); border-radius: 16px; box-shadow: 0 18px 50px rgba(10, 30, 70, 0.45);
+}
+.pv-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.pv-titulo { margin: 0; font-size: 1.25rem; }
+.pv-cerrar {
+  width: 36px; height: 36px; font-size: 1.4rem; line-height: 1; color: var(--nb-acento-oscuro);
+  background: #fff; border: 1px solid var(--nb-borde); border-radius: 50%; cursor: pointer;
+}
+.pv-cerrar:hover { background: #eef6ff; }
+.pv-ayuda { margin: 0 0 10px; font-size: 0.9rem; color: var(--nb-suave); line-height: 1.4; }
+.pv-orden, .pv-texto, .pv-nombre, .pv-fecha, .pv-zona, .pv-etiqueta {
+  display: block; width: 100%; padding: 9px 10px; font: inherit; color: var(--nb-texto);
+  background: #fff; border: 1px solid var(--nb-borde); border-radius: 10px;
+}
+.pv-orden, .pv-texto { resize: vertical; }
+.pv-orden:focus, .pv-texto:focus, .pv-nombre:focus, .pv-fecha:focus, .pv-zona:focus, .pv-etiqueta:focus {
+  outline: 2px solid var(--nb-acento); outline-offset: -1px;
+}
+.pv-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }
+.pv-btn {
+  padding: 9px 18px; font: inherit; font-weight: 600; color: #fff; background: var(--nb-acento);
+  border: none; border-radius: 10px; cursor: pointer;
+}
+.pv-btn:hover:not(:disabled) { background: var(--nb-acento-oscuro); }
+.pv-btn:disabled { opacity: 0.6; cursor: wait; }
+.pv-btn.pv-sec { color: var(--nb-acento-oscuro); background: #eef6ff; border: 1px solid var(--nb-borde); }
+.pv-btn.pv-sec:hover:not(:disabled) { background: #fff; }
+.pv-mic.escuchando { background: #d63a2f; }
+.pv-estado { font-size: 0.88rem; color: var(--nb-suave); }
+.pv-estado.error { color: #c0392b; }
+.pv-estado.ok { color: #1e8a55; }
+.pv-sin-sesion { padding: 18px; text-align: center; background: #f4f9ff; border-radius: 12px; }
+
+.pv-tarjeta, .pv-listo {
+  margin-top: 16px; padding: 14px; background: #f4f9ff; border: 1px solid var(--nb-borde); border-radius: 14px;
+}
+.pv-tarjeta-titulo { margin: 0 0 8px; font-size: 1rem; }
+.pv-campo { display: block; margin-bottom: 10px; }
+.pv-campo > span { display: block; margin-bottom: 4px; font-size: 0.85rem; font-weight: 600; color: var(--nb-suave); }
+.pv-avisos { margin: 0 0 10px; padding: 8px 10px 8px 28px; font-size: 0.88rem; color: #7a5200; background: #fff4d6; border-radius: 10px; }
+.pv-cifras { margin: 0 0 6px; font-size: 0.88rem; font-weight: 600; color: #7a5200; }
+.pv-listo-texto { margin: 0; font-weight: 600; color: #1e8a55; }

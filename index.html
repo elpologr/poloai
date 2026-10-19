@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="40" />
+  <meta name="app-version" content="42" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=40" />
+  <link rel="stylesheet" href="styles.css?v=42" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -677,7 +677,7 @@
   </div>
     </section>
 
-    <!-- DEUDAS (página, como Diario; sus datos viven en la hoja «Diario», columnas H a J) -->
+    <!-- DEUDAS (página, como Diario; sus datos viven en la hoja «Diario», columnas H a K: Nombre | Fecha | Descripcion | Id) -->
     <section id="seccion-deudas" class="seccion seccion-pagina" hidden>
   <div id="panel-deudas" class="panel-notas panel-pagina" hidden>
     <div class="notas-caja ejercicio-caja deudas-caja" role="dialog" aria-modal="true" aria-labelledby="de-titulo">
@@ -717,6 +717,7 @@
           <span>Nombre</span>
           <input id="de-nombre" type="text" maxlength="80" placeholder="Ej. Préstamo a Juan" autocomplete="off" />
         </label>
+        <p id="de-creada" class="notas-estado" hidden></p>
         <label class="notas-campo">
           <span>Guardar en</span>
           <select id="de-destino">
@@ -730,6 +731,7 @@
         </label>
         <div class="notas-fila">
           <button id="de-guardar" class="notas-btn" type="button">Guardar</button>
+          <button id="de-finalizar" class="notas-btn hoy-btn-fin" type="button" hidden>✔ Marcar tarea como finalizada</button>
           <button id="de-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
           <button id="de-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
           <span id="de-form-estado" class="notas-estado"></span>
@@ -1013,8 +1015,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=40"></script>
-  <script src="app.js?v=40"></script>
-  <script type="module" src="firebase.js?v=40"></script>
+  <script src="config.js?v=42"></script>
+  <script src="app.js?v=42"></script>
+  <script src="voz.js?v=42"></script>
+  <script type="module" src="firebase.js?v=42"></script>
 </body>
 </html>
