@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "38";
+const VERSION = "39";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -11,7 +11,7 @@ const VERSION = "38";
     "btn-menu-lateral", "barra-lateral", "google-boton", "btn-notas", "panel-notas",
     "notas-nueva-btn", "notas-fecha", "notas-cancelar", "notas-estado-lista",
     "notas-submenu", "notas-sub-lista", "notas-mas-colores", "notas-color-personal",
-    "notas-identificador", "notas-form-titulo", "btn-proyectos", "panel-proyectos", "proy-form",
+    "notas-identificador", "notas-destino", "notas-form-titulo", "btn-proyectos", "panel-proyectos", "proy-form",
     "btn-yeso", "btn-galeria", "panel-galeria", "gal-form",
     "zona-actividades", "zona-trabajo", "btn-menu-notas", "seccion-notas", "btn-menu-ejercicio",
     "panel-ejercicio", "ej-cuadricula", "ej-dia", "ej-form",
@@ -937,6 +937,7 @@ const notasTexto = document.getElementById("notas-texto");
 const notasForm = document.getElementById("notas-form");
 const notasNombre = document.getElementById("notas-nombre");
 const notasEtiqueta = document.getElementById("notas-etiqueta");
+const notasDestino = document.getElementById("notas-destino");
 const notasColores = document.getElementById("notas-colores");
 const notasGuardar = document.getElementById("notas-guardar");
 const notasEstado = document.getElementById("notas-estado");
@@ -1148,6 +1149,7 @@ function limpiarFormNota() {
   notasNombre.value = "";
   notasIdent.value = "";
   notasEtiqueta.selectedIndex = 0;
+  notasDestino.value = "sheets";
   elegirColor("Blanco");
   notasFecha.value = fechaActualInput();
 }
@@ -1175,6 +1177,7 @@ function abrirEdicionNota(n) {
   elegirColor(colorValido ? (c.startsWith("#") ? c.toLowerCase() : c) : "Blanco");
   notasFecha.value = fechaAInput(n.fecha) || fechaActualInput();
   notasIdent.value = n.identificador || "";
+  notasDestino.value = n.destino === "drive" ? "drive" : "sheets";
   notasTexto.value = n.texto || "";
   notasFormTitulo.textContent = "Editar nota";
   notasGuardar.textContent = "Guardar cambios";
@@ -1200,7 +1203,7 @@ let notasSnap = ""; // valores del formulario de Notas al abrirlo (para saber si
 
 function notasValores() {
   return JSON.stringify([
-    notasNombre.value, notasEtiqueta.value, colorElegido, notasFecha.value, notasIdent.value, notasTexto.value,
+    notasNombre.value, notasEtiqueta.value, colorElegido, notasFecha.value, notasIdent.value, notasTexto.value, notasDestino.value,
   ]);
 }
 // El formulario de Notas está abierto y se cambió algo desde que se abrió
@@ -1490,6 +1493,7 @@ async function agregarNota() {
     texto,
     color: colorElegido,
     identificador: notasIdent.value.trim(),
+    destino: notasDestino.value,
   };
   notasGuardar.disabled = true;
   setEstado(notasEstado, "Guardando…");
@@ -1523,6 +1527,7 @@ async function editarNota() {
     texto,
     color: colorElegido,
     identificador: notasIdent.value.trim(),
+    destino: notasDestino.value,
   };
   notasGuardar.disabled = true;
   setEstado(notasEstado, "Guardando…");
@@ -2332,6 +2337,13 @@ function crearZonaEtiqueta(cfg) {
             <input class="zona-ident" type="text" maxlength="40" placeholder="Opcional" autocomplete="off" />
           </label>
         </div>
+        <label class="notas-campo">
+          <span>Guardar en</span>
+          <select class="zona-destino">
+            <option value="sheets">Google Sheets (en la hoja Notas)</option>
+            <option value="drive">Google Drive (archivo .txt en notaslargas)</option>
+          </select>
+        </label>
         <label class="notas-campo notas-campo-nombre">
           <span>Nombre</span>
           <input class="zona-nombre" type="text" maxlength="80" placeholder="Nombre" autocomplete="off" />
@@ -2366,6 +2378,7 @@ function crearZonaEtiqueta(cfg) {
     colorPersonal: q(".zona-color-personal"),
     fecha: q(".zona-fecha"),
     ident: q(".zona-ident"),
+    destino: q(".zona-destino"),
     texto: q(".zona-texto"),
     guardarBtn: q(".zona-guardar"),
     estado: q(".zona-estado"),
@@ -2489,6 +2502,7 @@ function crearZonaEtiqueta(cfg) {
     z.texto.value = "";
     z.nombre.value = "";
     z.ident.value = "";
+    z.destino.value = "sheets";
     elegirColorZona("Blanco");
     z.fecha.value = fechaActualInput();
   }
@@ -2521,6 +2535,7 @@ function crearZonaEtiqueta(cfg) {
     elegirColorZona(colorValido ? (c.startsWith("#") ? c.toLowerCase() : c) : "Blanco");
     z.fecha.value = fechaAInput(n.fecha) || fechaActualInput();
     z.ident.value = n.identificador || "";
+    z.destino.value = n.destino === "drive" ? "drive" : "sheets";
     z.texto.value = n.texto || "";
     z.titulo.textContent = cfg.editar;
     z.guardarBtn.textContent = "Guardar cambios";
@@ -2547,6 +2562,7 @@ function crearZonaEtiqueta(cfg) {
       texto,
       color: z.color,
       identificador: z.ident.value.trim(),
+      destino: z.destino.value,
     };
     z.guardarBtn.disabled = true;
     setEstado(z.estado, "Guardando…");
@@ -2728,7 +2744,7 @@ function crearZonaEtiqueta(cfg) {
     return dentro;
   };
 
-  z.valores = () => JSON.stringify([z.nombre.value, z.color, z.fecha.value, z.ident.value, z.texto.value]);
+  z.valores = () => JSON.stringify([z.nombre.value, z.color, z.fecha.value, z.ident.value, z.texto.value, z.destino.value]);
   z.sucio = () => !z.form.hidden && z.valores() !== z.snap;
   z.cancelar = cancelar;
   const cancelarConAviso = () => {

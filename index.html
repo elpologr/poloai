@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="38" />
+  <meta name="app-version" content="39" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=38" />
+  <link rel="stylesheet" href="styles.css?v=39" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -449,6 +449,14 @@
                   <input id="notas-identificador" type="text" maxlength="40" placeholder="Opcional" autocomplete="off" />
                 </label>
               </div>
+              <!-- Dónde se guarda el texto de la nota -->
+              <label class="notas-campo">
+                <span>Guardar en</span>
+                <select id="notas-destino">
+                  <option value="sheets">Google Sheets (en la hoja Notas)</option>
+                  <option value="drive">Google Drive (archivo .txt en notaslargas)</option>
+                </select>
+              </label>
               <!-- Nombre de la nota y, justo debajo, la zona para escribirla -->
               <label class="notas-campo notas-campo-nombre">
                 <span>Nombre</span>
@@ -963,8 +971,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=38"></script>
-  <script src="app.js?v=38"></script>
-  <script type="module" src="firebase.js?v=38"></script>
+  <script src="config.js?v=39"></script>
+  <script src="app.js?v=39"></script>
+  <script type="module" src="firebase.js?v=39"></script>
 </body>
 </html>
