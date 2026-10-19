@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="44" />
+  <meta name="app-version" content="45" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=44" />
+  <link rel="stylesheet" href="styles.css?v=45" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -218,8 +218,8 @@
       <button id="btn-menu-hoy" class="btn-menu btn-menu-hoy" type="button" data-seccion="seccion-hoy">
         <span class="btn-menu-icono" aria-hidden="true">&#9728;&#65039;</span><span class="btn-menu-texto">Día de Hoy</span>
       </button>
-      <!-- Botón grande «Empresas/Proyectos»: igual que «Día de Hoy», justo debajo. Aún no abre ninguna sección. -->
-      <button id="btn-menu-empresas" class="btn-menu btn-menu-hoy btn-menu-empresas" type="button">
+      <!-- Botón grande «Empresas/Proyectos»: igual que «Día de Hoy», justo debajo. Abre su página (hoja 1, columnas H a N). -->
+      <button id="btn-menu-empresas" class="btn-menu btn-menu-hoy btn-menu-empresas" type="button" data-seccion="seccion-empresas">
         <span class="btn-menu-icono" aria-hidden="true">&#127970;</span><span class="btn-menu-texto">Empresas/Proyectos</span>
       </button>
       <button class="btn-menu" type="button" data-seccion="calendario">
@@ -893,6 +893,88 @@
   </div>
     </section>
 
+    <!-- EMPRESAS/PROYECTOS (página; sus datos viven en la primera hoja, la del calendario, columnas H a N:
+         Nombre | Fecha | Link | Imagen | Descripcion/Nota | zona de links | Id) -->
+    <section id="seccion-empresas" class="seccion seccion-pagina" hidden>
+  <div id="panel-empresas" class="panel-notas panel-pagina" hidden>
+    <div class="notas-caja ejercicio-caja empresas-caja" role="dialog" aria-modal="true" aria-labelledby="em-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#127970;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#128221;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+      </div>
+
+      <header class="notas-cabecera">
+        <h2 id="em-titulo">Empresas/Proyectos</h2>
+        <div class="notas-cab-botones">
+          <button id="em-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer las empresas y proyectos de Google Sheets" aria-label="Actualizar empresas y proyectos">&#8635;</button>
+          <button id="em-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar empresas y proyectos">&times;</button>
+        </div>
+      </header>
+
+      <div class="notas-cuerpo">
+        <div id="em-sin-sesion" class="notas-aviso-sesion" hidden>
+          <p>Inicia sesión con tu cuenta de Google para ver y guardar tus empresas y proyectos.</p>
+          <button id="em-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
+        </div>
+
+        <div id="em-contenido">
+          <p id="em-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="em-chips" class="ej-chips"></div>
+        </div>
+      </div>
+
+      <!-- Ventana para agregar o editar una empresa / proyecto -->
+      <div id="em-form" class="notas-nueva proy-form modo-editar" hidden>
+        <h3 id="em-form-titulo" class="notas-form-titulo">Nueva empresa / proyecto</h3>
+        <div class="proy-form-cuerpo">
+          <div class="proy-imagen-col">
+            <div id="em-vista" class="proy-vista"></div>
+            <div class="proy-imagen-botones">
+              <button id="em-elegir-img" class="notas-btn notas-btn-sec" type="button">Elegir imagen</button>
+              <button id="em-quitar-img" class="notas-btn notas-btn-sec" type="button" hidden>Quitar imagen</button>
+            </div>
+            <input id="em-archivo" type="file" accept="image/*" hidden />
+          </div>
+          <div class="proy-datos-col">
+            <label class="notas-campo">
+              <span>Nombre</span>
+              <input id="em-nombre" type="text" maxlength="120" placeholder="Nombre de la empresa o proyecto" autocomplete="off" />
+            </label>
+            <label class="notas-campo">
+              <span>Fecha</span>
+              <input id="em-fecha" type="date" min="1999-02-02" max="2099-02-02" />
+            </label>
+            <label class="notas-campo">
+              <span>Link</span>
+              <input id="em-link" type="text" maxlength="2000" placeholder="https://…" autocomplete="off" />
+            </label>
+            <div id="em-link-vista" class="proy-links-vista"></div>
+            <label class="notas-campo">
+              <span>Descripción / Nota</span>
+              <textarea id="em-descripcion" rows="4" maxlength="1000000" placeholder="Describe la empresa o el proyecto…"></textarea>
+            </label>
+            <label class="notas-campo">
+              <span>Zona de links (uno por línea)</span>
+              <textarea id="em-links" rows="3" maxlength="5000" placeholder="https://…"></textarea>
+            </label>
+            <div id="em-links-vista" class="proy-links-vista"></div>
+          </div>
+        </div>
+        <div class="notas-fila">
+          <button id="em-guardar" class="notas-btn" type="button">Guardar</button>
+          <button id="em-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <button id="em-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+          <span id="em-form-estado" class="notas-estado"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </section>
+
     <!-- DÍA DE HOY (página; junta lo que tenga la fecha de hoy en las demás zonas: no tiene hoja propia) -->
     <section id="seccion-hoy" class="seccion seccion-pagina" hidden>
   <div id="panel-hoy" class="panel-notas panel-pagina" hidden>
@@ -972,9 +1054,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=44"></script>
-  <script src="app.js?v=44"></script>
-  <script src="voz.js?v=44"></script>
-  <script type="module" src="firebase.js?v=44"></script>
+  <script src="config.js?v=45"></script>
+  <script src="app.js?v=45"></script>
+  <script src="voz.js?v=45"></script>
+  <script type="module" src="firebase.js?v=45"></script>
 </body>
 </html>
