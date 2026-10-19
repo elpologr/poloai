@@ -4727,14 +4727,15 @@ document.addEventListener("keydown", (e) => {
 });
 
 // ---------- Notario: una zona de notas dentro de una zona de notas ----------
-// Un Notario tiene nombre y descripción, y guarda varias notas por separado dentro de UNA sola celda de
-// la hoja «Notarios» (columna E). Google Sheets permite 50,000 caracteres por celda, así que cada Notario
-// muestra un medidor y avisa cuando queda poco espacio; al llegar al límite ya no deja agregar más.
+// Un Notario tiene nombre y descripción, y guarda varias notas por separado dentro de UN archivo .txt de
+// Google Drive (carpeta «notaslargas»; la hoja «Notarios» solo guarda su link). Así ya no pesa el límite de
+// 50,000 caracteres de una celda de Google Sheets. Cada Notario muestra un medidor y avisa cuando queda poco
+// espacio; al llegar al tope ya no deja agregar más (debe ser igual a LIMITE_NOTARIO del Apps Script).
 // Se puede crear desde cualquiera de estas zonas (la clave debe estar también en ZONAS_NOTARIO del Apps Script).
 // El formato de la celda y las reglas de limpieza deben ser iguales a los del Apps Script.
-const NT_LIMITE = 50000; // máximo de caracteres por celda de Google Sheets
-const NT_AVISO = 45000; // desde aquí: «queda poco espacio» (90 %)
-const NT_CRITICO = 49000; // desde aquí: «casi lleno» (98 %)
+const NT_LIMITE = 1000000; // tope de caracteres por notario (igual a LIMITE_NOTARIO del Apps Script)
+const NT_AVISO = 900000; // desde aquí: «queda poco espacio» (90 %)
+const NT_CRITICO = 980000; // desde aquí: «casi lleno» (98 %)
 const NT_SEPARADOR = "\n~~~✂~~~\n";
 const NT_MARCA = "~~~✂~~~";
 
