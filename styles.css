@@ -1,5 +1,5 @@
 :root {
-  --app-version: "45"; /* debe coincidir con VERSION en app.js */
+  --app-version: "46"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -1876,3 +1876,36 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   background: rgba(255, 255, 255, 0.7);
 }
 .ej-chip-resumen.emp-chip-con-img .ej-chip-desc { -webkit-line-clamp: 1; }
+
+/* ---------- Bazar: división y zona «Pedidos de Yeso» debajo ---------- */
+.bazar-division {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 38px 0 20px;
+  scroll-margin-top: 12px;
+}
+.bazar-division-linea {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.95));
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.55);
+}
+.bazar-division-linea:last-child { background: linear-gradient(270deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.95)); }
+.bazar-division-titulo {
+  margin: 0;
+  padding: 10px 22px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #2b1d5c;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(40, 10, 80, 0.35);
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .bazar-division { margin: 28px 0 16px; gap: 8px; }
+  .bazar-division-titulo { padding: 8px 14px; font-size: 1.05rem; }
+}

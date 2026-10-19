@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="45" />
+  <meta name="app-version" content="46" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=45" />
+  <link rel="stylesheet" href="styles.css?v=46" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -53,7 +53,7 @@
       <span class="btn-lateral-icono" aria-hidden="true">&#128444;&#65039;</span>
       <span>Proyectos</span>
     </button>
-    <!-- Abre la sección propia de Pedidos de Yeso (sus notas llevan la etiqueta «Pedidos de Yeso») -->
+    <!-- Abre Bazar y baja a la zona «Pedidos de Yeso» (sus notas llevan la etiqueta «Pedidos de Yeso») -->
     <button id="btn-yeso" class="btn-lateral-notas btn-lateral-yeso" type="button">
       <span class="btn-lateral-icono" aria-hidden="true">&#128230;</span>
       <span>Pedidos de Yeso</span>
@@ -891,6 +891,14 @@
       </div>
     </div>
   </div>
+
+  <!-- División y zona «Pedidos de Yeso» dentro de Bazar (la arma app.js; usa la hoja «Notas» con la etiqueta «Pedidos de Yeso») -->
+  <div id="bazar-division-yeso" class="bazar-division" role="separator" aria-label="Pedidos de Yeso">
+    <span class="bazar-division-linea" aria-hidden="true"></span>
+    <h3 class="bazar-division-titulo">&#128230; Pedidos de Yeso</h3>
+    <span class="bazar-division-linea" aria-hidden="true"></span>
+  </div>
+  <div id="zona-pedidos-yeso" class="zona-etiqueta"></div>
     </section>
 
     <!-- EMPRESAS/PROYECTOS (página, como Información Primordial; sus datos viven en la PRIMERA hoja, columnas H a N: Nombre | Fecha | Link | Imagen | Descripcion/Nota | zona de links | Id) -->
@@ -1031,13 +1039,6 @@
   </div>
     </section>
 
-    <!-- PEDIDOS DE YESO (sección propia; se abre desde la barra lateral) -->
-    <section id="pedidos-yeso" class="seccion" hidden>
-      <h2>&#128230; Pedidos de Yeso</h2>
-      <!-- Zona con el formulario de notas y la etiqueta «Pedidos de Yeso» (la arma app.js; usa la hoja «Notas») -->
-      <div id="zona-pedidos-yeso" class="zona-etiqueta"></div>
-    </section>
-
     <!-- ACTIVIDADES -->
     <section id="actividades" class="seccion" hidden>
       <h2>Actividades</h2>
@@ -1053,9 +1054,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=45"></script>
-  <script src="app.js?v=45"></script>
-  <script src="voz.js?v=45"></script>
-  <script type="module" src="firebase.js?v=45"></script>
+  <script src="config.js?v=46"></script>
+  <script src="app.js?v=46"></script>
+  <script src="voz.js?v=46"></script>
+  <script type="module" src="firebase.js?v=46"></script>
 </body>
 </html>

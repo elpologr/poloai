@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "45";
+const VERSION = "46";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -16,7 +16,7 @@ const VERSION = "45";
     "zona-actividades", "zona-trabajo", "btn-menu-notas", "seccion-notas", "btn-menu-ejercicio",
     "panel-ejercicio", "ej-cuadricula", "ej-dia", "ej-form",
     "btn-menu-diario", "panel-diario", "di-cuadricula", "di-dia", "di-form",
-    "seccion-ejercicio", "seccion-diario", "di-ejercicios", "di-ej-detalle", "pedidos-yeso", "zona-pedidos-yeso",
+    "seccion-ejercicio", "seccion-diario", "di-ejercicios", "di-ej-detalle", "zona-pedidos-yeso", "bazar-division-yeso",
     "pop-color", "pop-colores", "pop-mas-colores", "pop-paleta", "pop-color-personal",
     "btn-menu-deudas", "seccion-deudas", "panel-deudas", "de-chips", "de-form",
     "btn-menu-informacion", "seccion-informacion", "panel-informacion", "ip-chips", "ip-form", "ip-fecha",
@@ -59,6 +59,8 @@ const secciones = document.querySelectorAll(".seccion");
 const mensajeInicio = document.getElementById("inicio");
 
 function mostrarSeccion(id) {
+  // Pedidos de Yeso ya no es una sección aparte: vive dentro de la página de Bazar
+  if (id === "pedidos-yeso") id = "seccion-bazar";
   // Si hay una nota a medias (en Notas o en una zona), se pregunta antes de salir
   if (!confirmarAbandonoEdicion()) return;
   mensajeInicio.hidden = true;
@@ -2193,8 +2195,8 @@ const ZONAS_ETIQUETA = [
     cuadritos: true, // las tarjetas se ven como cuadritos (igual que en Ejercicio, Diario, etc.)
   },
   {
-    // Sección propia (se abre desde el botón «Pedidos de Yeso» de la barra lateral, no desde el menú superior)
-    seccion: "pedidos-yeso", etiqueta: "Pedidos de Yeso", datos: "tus pedidos de yeso",
+    // Vive dentro de la página de Bazar (debajo de una división; en: «seccion-bazar»). El botón «Pedidos de Yeso» de la barra lateral abre Bazar y baja hasta aquí
+    seccion: "pedidos-yeso", en: "seccion-bazar", etiqueta: "Pedidos de Yeso", datos: "tus pedidos de yeso",
     crear: "+ Crear pedido", nuevo: "Nuevo pedido", editar: "Editar pedido",
     guardar: "Guardar pedido", marcador: "Escribe un pedido nuevo…",
     vacio: "Aún no hay pedidos de yeso. ¡Crea el primero! ✨", borrar: "¿Eliminar este pedido?",
@@ -2271,7 +2273,7 @@ function crearZonaEtiqueta(cfg) {
   const q = (s) => cont.querySelector(s);
   const z = {
     cfg,
-    seccion: document.getElementById(cfg.seccion),
+    seccion: document.getElementById(cfg.en || cfg.seccion),
     sinSesion: q(".zona-sin-sesion"),
     contenido: q(".zona-contenido"),
     nuevoBtn: q(".zona-nueva-btn"),
@@ -2788,12 +2790,15 @@ document.getElementById("btn-yeso").addEventListener("click", () => {
   const z = zonas.find((x) => x.cfg.seccion === "pedidos-yeso");
   if (z.actualizar() && !notasCargadas) cargarNotasZonas();
   else z.dibujar();
+  // Baja hasta la división «Pedidos de Yeso» dentro de Bazar
+  const div = document.getElementById("bazar-division-yeso");
+  if (div) div.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 // Al abrir una de estas secciones se muestra su zona (y se leen las notas si aún no se han leído)
 botonesMenu.forEach((b) =>
   b.addEventListener("click", () => {
-    const z = zonas.find((x) => x.cfg.seccion === b.dataset.seccion);
+    const z = zonas.find((x) => (x.cfg.en || x.cfg.seccion) === b.dataset.seccion);
     if (!z) return;
     if (z.actualizar() && !notasCargadas) cargarNotasZonas();
     else z.dibujar();
