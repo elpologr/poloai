@@ -1,13 +1,13 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "42";
+const VERSION = "43";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
     "calendario", "cal-mes", "cal-anio", "cal-anterior", "cal-siguiente",
     "cal-hoy", "cal-actualizar", "cal-cuadricula", "cal-estado",
-    "dia-popover", "pop-titulo", "pop-cerrar", "pop-secciones",
+    "dia-popover", "pop-titulo", "pop-cerrar", "pop-secciones", "cal-desc-dia", "cal-chips", "cal-form",
     "btn-menu-lateral", "barra-lateral", "google-boton", "btn-notas", "panel-notas",
     "notas-nueva-btn", "notas-fecha", "notas-cancelar", "notas-estado-lista",
     "notas-submenu", "notas-sub-lista", "notas-mas-colores", "notas-color-personal",
@@ -382,26 +382,32 @@ btnActualizar.addEventListener("click", () => {
   cargarDatos();
 });
 
-// ---------- Panel del día ----------
+// ---------- Página del día (igual que la del Diario) ----------
+// Al tocar un día, el calendario se cambia por una página con: el botón largo «Descripción del día»
+// (texto corto: Día de bazar, Día de descanso…), un recuadro por cada Actividad y Anotación del día y un
+// recuadro «+ Añadir». Los datos son los mismos de siempre (columnas B, C y D de la primera hoja).
 const seccionCal = document.getElementById("calendario");
-const popover = document.getElementById("dia-popover");
+const popover = document.getElementById("dia-popover"); // la página del día
 const popTitulo = document.getElementById("pop-titulo");
-const popCerrar = document.getElementById("pop-cerrar");
+const popCerrar = document.getElementById("pop-cerrar"); // botón «‹ Volver»
+const calDescBtn = document.getElementById("cal-desc-dia");
+const calDescTexto = document.getElementById("cal-desc-texto");
+const calDiaEstado = document.getElementById("cal-dia-estado");
+const calChips = document.getElementById("cal-chips");
+const calForm = document.getElementById("cal-form");
+const calFormTitulo = document.getElementById("cal-form-titulo");
+const calTipoCampo = document.getElementById("cal-tipo-campo");
+const calTipo = document.getElementById("cal-tipo");
+const calTextoEtiqueta = document.getElementById("cal-texto-etiqueta");
+const calTexto = document.getElementById("cal-texto");
+const calGuardar = document.getElementById("cal-guardar");
+const calBorrar = document.getElementById("cal-borrar");
+const calFormEstado = document.getElementById("cal-form-estado");
 
-// Textos de cada sección (el orden en pantalla lo define index.html)
-const TEXTOS = {
-  descripcion: {
-    vacio: "Aún no hay descripción para este día.",
-    confirmar: "¿Eliminar esta descripción?",
-  },
-  actividades: {
-    vacio: "Aún no hay actividades para este día.",
-    confirmar: "¿Eliminar esta actividad?",
-  },
-  anotaciones: {
-    vacio: "Aún no hay anotaciones para este día.",
-    confirmar: "¿Eliminar esta anotación?",
-  },
+// Tipos de recuadro que se dibujan en la página del día (la descripción va en su propio botón)
+const CAL_TIPOS = {
+  actividades: { icono: "🎯", nombre: "Actividad", confirmar: "¿Eliminar esta actividad?" },
+  anotaciones: { icono: "📝", nombre: "Anotación", confirmar: "¿Eliminar esta anotación?" },
 };
 
 function setEstado(el, texto, tipo) {
@@ -415,117 +421,8 @@ function actualizarMarca(fecha) {
   if (celda) celda.classList.toggle("con-datos", tieneDatos(fecha));
 }
 
-// Cada sección: botón del título (abre la zona de texto) + botón "Desplegar" (abre los recuadros)
-const bloquesDia = Array.from(
-  document.querySelectorAll("#pop-secciones .pop-seccion[data-campo]")
-).map((el) => ({
-  campo: el.dataset.campo,
-  btnTexto: el.querySelector('[data-accion="texto"]'),
-  panelTexto: el.querySelector(".pop-panel-texto"),
-  txt: el.querySelector("textarea"),
-  btnGuardar: el.querySelector(".btn-guardar"),
-  btnCancelar: el.querySelector(".btn-cancelar"),
-  textoGuardar: el.querySelector(".btn-guardar").textContent,
-  unico: el.dataset.campo === "descripcion", // la descripción es una sola por día
-  editando: null, // posición del texto que se está modificando (null = texto nuevo)
-  est: el.querySelector(".pop-panel-texto .pop-estado"),
-  btnLista: el.querySelector('[data-accion="lista"]'),
-  panelLista: el.querySelector(".pop-panel-lista"),
-  fija: el.querySelector(".lista-fija"),
-  lista: el.querySelector(".lista-extra"),
-  etiquetaLista: el.querySelector(".pop-lista-etiqueta"),
-  estLista: el.querySelector(".pop-estado-lista"),
-}));
-
-function plegar(boton, panel) {
-  panel.hidden = true;
-  boton.setAttribute("aria-expanded", "false");
-}
-
-// Muestra u oculta un panel. Sin "abrir", cambia al estado contrario.
-function alternar(boton, panel, abrir) {
-  const mostrar = abrir === undefined ? panel.hidden : abrir;
-  panel.hidden = !mostrar;
-  boton.setAttribute("aria-expanded", String(mostrar));
-  if (mostrar) panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
 function elementosDe(fecha, campo) {
   return parsearElementos((datos[fecha] || {})[campo]);
-}
-
-const MAX_VISIBLES = 4; // los primeros 4 recuadros siempre se ven
-
-function crearNota(texto, indice, b, completa) {
-  const caja = document.createElement("div");
-  caja.className = "nota" + (completa ? " nota-completa" : "");
-  const t = document.createElement("p");
-  t.className = "nota-texto";
-  t.textContent = texto;
-  const e = document.createElement("button");
-  e.type = "button";
-  e.className = "nota-editar";
-  e.title = "Modificar";
-  e.setAttribute("aria-label", "Modificar");
-  e.textContent = "✎";
-  e.addEventListener("click", () => abrirEditor(b, indice));
-  const x = document.createElement("button");
-  x.type = "button";
-  x.className = "nota-borrar";
-  x.setAttribute("aria-label", "Eliminar");
-  x.textContent = "×";
-  x.addEventListener("click", () => borrarElemento(b, indice));
-  caja.append(t, e, x);
-
-  // Tocar el recuadro en cualquier zona lo abre para modificarlo (✎ y × siguen con su función)
-  caja.tabIndex = 0;
-  caja.setAttribute("role", "button");
-  caja.setAttribute("aria-label", "Modificar este texto");
-  caja.addEventListener("click", (ev) => {
-    if (ev.target.closest("button")) return;
-    if (String(window.getSelection()).length) return; // si estaba seleccionando texto, no se abre
-    abrirEditor(b, indice);
-  });
-  caja.addEventListener("keydown", (ev) => {
-    if (ev.target === caja && (ev.key === "Enter" || ev.key === " ")) {
-      ev.preventDefault();
-      abrirEditor(b, indice);
-    }
-  });
-  return caja;
-}
-
-function dibujarLista(fecha, b) {
-  b.fija.innerHTML = "";
-  b.lista.innerHTML = "";
-  const elementos = elementosDe(fecha, b.campo);
-
-  if (!elementos.length) {
-    const p = document.createElement("p");
-    p.className = "sin-notas";
-    p.textContent = TEXTOS[b.campo].vacio;
-    b.fija.appendChild(p);
-  }
-
-  // La descripción es una sola: se muestra como un solo texto a lo largo del panel
-  // (si en la hoja había varias, se unen aquí en un solo texto)
-  if (b.unico) {
-    if (elementos.length) b.fija.appendChild(crearNota(elementos.join("\n\n"), 0, b, true));
-    b.btnLista.hidden = true;
-    plegar(b.btnLista, b.panelLista);
-    return;
-  }
-
-  elementos.forEach((texto, i) => {
-    const caja = crearNota(texto, i, b);
-    (i < MAX_VISIBLES ? b.fija : b.lista).appendChild(caja);
-  });
-
-  // El botón "Desplegar" solo aparece si hay más de 4 recuadros
-  const extras = Math.max(0, elementos.length - MAX_VISIBLES);
-  b.btnLista.hidden = extras === 0;
-  b.etiquetaLista.textContent = extras ? `Desplegar (${extras} más)` : "Desplegar";
-  if (extras === 0) plegar(b.btnLista, b.panelLista);
 }
 
 // Fecha y hora del momento de guardar, con el formato: 14/10/2026 21:35
@@ -535,148 +432,180 @@ function selloFechaHora() {
     `${dos(n.getHours())}:${dos(n.getMinutes())}`;
 }
 
-// Texto que se carga en la zona de escritura: vacío (texto nuevo) o el texto guardado
-// (la descripción, al ser una sola, se carga completa)
-function textoEditable(fecha, b, indice) {
-  if (indice === null) return "";
-  const elementos = elementosDe(fecha, b.campo);
-  return b.unico ? elementos.join("\n\n") : elementos[indice] || "";
+// Los textos de Actividades y Anotaciones empiezan con una línea «dd/mm/aaaa hh:mm»: se separa del texto
+function partirSello(t) {
+  const m = /^(\d{1,2}\/\d{1,2}\/\d{4} \d{1,2}:\d{2})[ \t]*\r?\n([\s\S]*)$/.exec(String(t || "").trim());
+  return m ? { sello: m[1], texto: m[2].trim() } : { sello: "", texto: String(t || "").trim() };
 }
 
-// Deja la zona de escritura en modo «texto nuevo»
-function reiniciarEditor(b) {
-  b.editando = null;
-  b.txt.value = "";
-  b.btnGuardar.textContent = b.textoGuardar;
-  b.btnCancelar.hidden = true;
+// ----- Botón «Descripción del día» -----
+// La descripción es una sola por día (si en la hoja había varias, se unen en un solo texto)
+const textoDescripcionDia = (fecha) => elementosDe(fecha, "descripcion").join("\n\n");
+
+function dibujarDescDia(fecha) {
+  const t = textoDescripcionDia(fecha);
+  calDescTexto.textContent = t || "Toca para escribir…";
+  calDescBtn.classList.toggle("vacia", !t);
+  calDescBtn.title = t || "Descripción del día";
 }
 
-// Abre la zona de escritura: para un texto nuevo (indice = null) o para modificar uno guardado.
-// La descripción es una sola: si ya existe, siempre se abre para modificarla.
-function abrirEditor(b, indice) {
-  const fecha = seleccion;
-  if (!fecha) return;
-  if (b.unico && elementosDe(fecha, b.campo).length) indice = 0;
-
-  if (indice === null) {
-    // Texto nuevo: se conserva lo que ya se hubiera escrito
-    if (b.editando !== null) reiniciarEditor(b);
-    alternar(b.btnTexto, b.panelTexto, true);
-    b.txt.focus();
-    return;
-  }
-  if (b.editando === indice && !b.panelTexto.hidden) {
-    b.txt.focus();
-    return;
-  }
-  const original = b.editando === null ? "" : textoEditable(fecha, b, b.editando);
-  if (b.txt.value.trim() && b.txt.value !== original &&
-      !window.confirm("Tienes texto sin guardar en esta sección. ¿Descartarlo?")) return;
-
-  b.editando = indice;
-  b.txt.value = textoEditable(fecha, b, indice);
-  b.btnGuardar.textContent = "Guardar cambios";
-  b.btnCancelar.hidden = false;
-  setEstado(b.est, "");
-  alternar(b.btnTexto, b.panelTexto, true);
-  b.txt.focus();
-}
-
-// Guarda un texto nuevo o los cambios de uno que se estaba modificando
-async function guardarElemento(b) {
-  const fecha = seleccion;
-  const texto = b.txt.value.trim();
-  if (!fecha) return;
-  if (!texto) {
-    setEstado(b.est, "Escribe algo primero", "error");
-    return;
-  }
-  const editando = b.editando;
-  let elementos = elementosDe(fecha, b.campo);
-  if (editando !== null && b.unico) {
-    elementos = [limpiarElemento(texto)]; // la descripción es una sola
-  } else if (editando !== null) {
-    if (editando >= elementos.length) {
-      setEstado(b.est, "Ese texto ya no existe. Cierra y vuelve a abrir el día.", "error");
-      return;
-    }
-    elementos[editando] = limpiarElemento(texto);
-  } else if (b.unico && elementos.length) {
-    setEstado(b.est, "Ya hay una descripción: modifícala con el lápiz ✎.", "error");
-    return;
-  } else {
-    // La fecha y hora van al inicio del recuadro, en su propia línea, antes del texto
-    const conSello = selloFechaHora() + "\n" + texto;
-    elementos = elementos.concat(limpiarElemento(conSello));
-  }
-  b.btnGuardar.disabled = true;
-  setEstado(b.est, "Guardando…");
-  try {
-    await guardarCampo(fecha, b.campo, serializarElementos(elementos));
-    if (seleccion === fecha) {
-      dibujarLista(fecha, b);
-      if (editando !== null || b.unico) {
-        // Al terminar de modificar (o de escribir la descripción) se cierra la zona de texto
-        reiniciarEditor(b);
-        plegar(b.btnTexto, b.panelTexto);
-        setEstado(b.est, "");
-        setEstado(b.estLista, editando !== null ? "Cambios guardados ✓" : "Guardada ✓", "ok");
+// ----- Recuadros de Actividades y Anotaciones -----
+function dibujarChipsCal(fecha) {
+  calChips.innerHTML = "";
+  Object.keys(CAL_TIPOS).forEach((campo) => {
+    const tipo = CAL_TIPOS[campo];
+    elementosDe(fecha, campo).forEach((crudo, indice) => {
+      const { sello, texto } = partirSello(crudo);
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "ej-chip ej-chip-resumen";
+      b.title = tipo.nombre + (sello ? " (" + sello + ")" : "");
+      b.setAttribute("aria-label", "Ver o editar la " + tipo.nombre.toLowerCase());
+      const n = document.createElement("span");
+      n.className = "ej-chip-nombre";
+      n.textContent = tipo.icono + " " + tipo.nombre;
+      const d = document.createElement("span");
+      d.className = "ej-chip-desc";
+      d.textContent = resumenCorto(texto, 70);
+      if (sello) {
+        const f = document.createElement("span");
+        f.className = "ej-chip-fecha";
+        f.textContent = sello.split(" ")[1] || sello; // solo la hora; la fecha ya es el día abierto
+        b.append(n, f, d);
       } else {
-        b.txt.value = "";
-        // Si el recuadro nuevo quedó después del 4.º, abre la lista para que se vea
-        if (elementos.length > MAX_VISIBLES) alternar(b.btnLista, b.panelLista, true);
-        setEstado(b.est, "Guardado ✓", "ok");
+        b.append(n, d);
       }
-    }
-    actualizarMarca(fecha);
-  } catch (e) {
-    setEstado(b.est, "Error: " + e.message, "error");
-  } finally {
-    b.btnGuardar.disabled = false;
-  }
+      b.addEventListener("click", () => abrirFormCal(campo, indice));
+      calChips.appendChild(b);
+    });
+  });
+  const nuevo = document.createElement("button");
+  nuevo.type = "button";
+  nuevo.className = "ej-chip ej-chip-nuevo";
+  nuevo.setAttribute("aria-label", "Añadir una actividad o anotación");
+  nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
+  nuevo.addEventListener("click", () => abrirFormCal("nuevo", null));
+  calChips.appendChild(nuevo);
 }
 
-async function borrarElemento(b, indice) {
+// ----- Ventana para escribir / editar -----
+// calEditando = { campo: "descripcion" | "actividades" | "anotaciones" | "nuevo", indice }
+let calEditando = null;
+
+function abrirFormCal(campo, indice) {
   const fecha = seleccion;
   if (!fecha) return;
-  if (!window.confirm(TEXTOS[b.campo].confirmar)) return;
-  const elementos = b.unico ? [] : elementosDe(fecha, b.campo); // la descripción se borra completa
-  if (!b.unico) elementos.splice(indice, 1);
-  setEstado(b.estLista, "Guardando…");
+  calEditando = { campo, indice };
+  let texto = "";
+  let hayGuardado = false;
+  calTipoCampo.hidden = campo !== "nuevo";
+  if (campo === "descripcion") {
+    texto = textoDescripcionDia(fecha);
+    hayGuardado = !!texto;
+    calFormTitulo.textContent = "Descripción del día";
+    calTextoEtiqueta.textContent = "Descripción del día";
+    calTexto.placeholder = "Ej. Día de bazar, día de descanso, día de compras…";
+  } else if (campo === "nuevo") {
+    calFormTitulo.textContent = "Nueva nota del día";
+    calTextoEtiqueta.textContent = "Texto";
+    calTexto.placeholder = "Escribe aquí…";
+    calTipo.value = "actividades";
+  } else {
+    const crudo = elementosDe(fecha, campo)[indice];
+    if (crudo === undefined) return;
+    texto = partirSello(crudo).texto;
+    hayGuardado = true;
+    calFormTitulo.textContent = "Editar " + CAL_TIPOS[campo].nombre.toLowerCase();
+    calTextoEtiqueta.textContent = "Texto";
+    calTexto.placeholder = "Escribe aquí…";
+  }
+  calTexto.value = texto;
+  calBorrar.hidden = !hayGuardado;
+  calBorrar.disabled = false;
+  calGuardar.disabled = false;
+  setEstado(calFormEstado, "");
+  calForm.hidden = false;
+  calTexto.focus();
+}
+
+function cerrarFormCal() {
+  calForm.hidden = true;
+  calEditando = null;
+}
+
+async function guardarFormCal() {
+  const fecha = seleccion;
+  const edit = calEditando;
+  if (!fecha || !edit) return;
+  const texto = calTexto.value.trim();
+  if (!texto) {
+    setEstado(calFormEstado, edit.campo === "descripcion" ? "Escribe la descripción (o usa Eliminar)" : "Escribe algo primero", "error");
+    return;
+  }
+  let campo = edit.campo;
+  let elementos;
+  if (campo === "descripcion") {
+    elementos = [limpiarElemento(texto)]; // la descripción es una sola
+  } else if (campo === "nuevo") {
+    campo = calTipo.value === "anotaciones" ? "anotaciones" : "actividades";
+    // La fecha y hora van al inicio del recuadro, en su propia línea, antes del texto
+    elementos = elementosDe(fecha, campo).concat(limpiarElemento(selloFechaHora() + "\n" + texto));
+  } else {
+    elementos = elementosDe(fecha, campo);
+    if (edit.indice >= elementos.length) {
+      setEstado(calFormEstado, "Ese texto ya no existe. Vuelve a abrir el día.", "error");
+      return;
+    }
+    const { sello } = partirSello(elementos[edit.indice]);
+    elementos[edit.indice] = limpiarElemento(sello ? sello + "\n" + texto : texto); // se conserva su fecha y hora
+  }
+  calGuardar.disabled = true;
+  setEstado(calFormEstado, "Guardando…");
   try {
-    await guardarCampo(fecha, b.campo, serializarElementos(elementos));
+    await guardarCampo(fecha, campo, serializarElementos(elementos));
     if (seleccion === fecha) {
-      if (b.editando !== null) {
-        reiniciarEditor(b);
-        plegar(b.btnTexto, b.panelTexto);
-      }
-      dibujarLista(fecha, b);
-      setEstado(b.estLista, "Eliminado", "ok");
+      cerrarFormCal();
+      dibujarDescDia(fecha);
+      dibujarChipsCal(fecha);
+      setEstado(calDiaEstado, "Guardado ✓", "ok");
     }
     actualizarMarca(fecha);
   } catch (e) {
-    setEstado(b.estLista, "Error: " + e.message, "error");
+    setEstado(calFormEstado, "Error: " + e.message, "error");
+  } finally {
+    calGuardar.disabled = false;
   }
 }
 
-bloquesDia.forEach((b) => {
-  b.btnTexto.addEventListener("click", () => {
-    if (!b.panelTexto.hidden) {
-      // Se cierra la zona de texto (si se estaba modificando algo, se deja sin cambios)
-      if (b.editando !== null) reiniciarEditor(b);
-      plegar(b.btnTexto, b.panelTexto);
-      return;
+async function borrarFormCal() {
+  const fecha = seleccion;
+  const edit = calEditando;
+  if (!fecha || !edit || edit.campo === "nuevo") return;
+  const aviso = edit.campo === "descripcion" ? "¿Eliminar la descripción del día?" : CAL_TIPOS[edit.campo].confirmar;
+  if (!window.confirm(aviso)) return;
+  const elementos = edit.campo === "descripcion" ? [] : elementosDe(fecha, edit.campo);
+  if (edit.campo !== "descripcion") elementos.splice(edit.indice, 1);
+  calBorrar.disabled = true;
+  setEstado(calFormEstado, "Eliminando…");
+  try {
+    await guardarCampo(fecha, edit.campo, serializarElementos(elementos));
+    if (seleccion === fecha) {
+      cerrarFormCal();
+      dibujarDescDia(fecha);
+      dibujarChipsCal(fecha);
+      setEstado(calDiaEstado, "Eliminado", "ok");
     }
-    abrirEditor(b, null);
-  });
-  b.btnLista.addEventListener("click", () => alternar(b.btnLista, b.panelLista));
-  b.btnGuardar.addEventListener("click", () => guardarElemento(b));
-  b.btnCancelar.addEventListener("click", () => {
-    reiniciarEditor(b);
-    plegar(b.btnTexto, b.panelTexto);
-    setEstado(b.est, "");
-  });
-});
+    actualizarMarca(fecha);
+  } catch (e) {
+    calBorrar.disabled = false;
+    setEstado(calFormEstado, "Error: " + e.message, "error");
+  }
+}
+
+calDescBtn.addEventListener("click", () => abrirFormCal("descripcion", 0));
+calGuardar.addEventListener("click", guardarFormCal);
+calBorrar.addEventListener("click", borrarFormCal);
+document.getElementById("cal-cancelar").addEventListener("click", cerrarFormCal);
 
 function textoFecha(fecha) {
   const [a, m, d] = fecha.split("-").map(Number);
@@ -685,71 +614,43 @@ function textoFecha(fecha) {
   });
 }
 
-function posicionarPopover(celda) {
-  const rs = seccionCal.getBoundingClientRect();
-  const rc = celda.getBoundingClientRect();
-  const ancho = popover.offsetWidth;
-  const centro = rc.left - rs.left + rc.width / 2;
-  // Centrado en el día, pero sin salirse de la pantalla (el panel puede ser más ancho que la sección)
-  const minIzq = 12 - rs.left;
-  const maxIzq = document.documentElement.clientWidth - 12 - rs.left - ancho;
-  const izq = Math.max(minIzq, Math.min(centro - ancho / 2, maxIzq));
-  popover.style.left = izq + "px";
-  popover.style.top = rc.bottom - rs.top + 10 + "px";
-  const flecha = Math.max(24, Math.min(centro - izq, Math.max(ancho - 24, 24)));
-  popover.style.setProperty("--flecha", flecha + "px");
-}
-
 function abrirDia(fecha) {
   seleccion = fecha;
   dibujarCalendario();
 
   popTitulo.textContent = textoFecha(fecha);
-  // Al abrir un día se ven los 3 títulos y sus primeros 4 recuadros; lo demás empieza plegado
-  bloquesDia.forEach((b) => {
-    b.txt.value = "";
-    reiniciarEditor(b);
-    setEstado(b.est, "");
-    setEstado(b.estLista, "");
-    plegar(b.btnTexto, b.panelTexto);
-    plegar(b.btnLista, b.panelLista);
-    dibujarLista(fecha, b);
-  });
+  cerrarFormCal();
+  setEstado(calDiaEstado, "");
+  dibujarDescDia(fecha);
+  dibujarChipsCal(fecha);
 
   pintarPanelDia((datos[fecha] || {}).color);
   setEstado(popColorEstado, "");
   plegarPaletaDia();
 
+  // El calendario se cambia por la página del día (como en el Diario); «‹ Volver» lo trae de vuelta
+  seccionCal.classList.add("con-dia-abierto");
   popover.hidden = false;
-  posicionarPopover(cuadricula.querySelector(`[data-fecha="${fecha}"]`));
   popover.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 function cerrarPopover() {
   if (popover.hidden && !seleccion) return;
+  cerrarFormCal();
   popover.hidden = true;
   seleccion = null;
+  seccionCal.classList.remove("con-dia-abierto");
   cuadricula
     .querySelectorAll(".seleccionado")
     .forEach((e) => e.classList.remove("seleccionado"));
 }
 
 popCerrar.addEventListener("click", cerrarPopover);
+// Esc cierra primero la ventana de escritura y después la página del día
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") cerrarPopover();
-});
-document.addEventListener("click", (e) => {
-  if (popover.hidden) return;
-  const ruta = e.composedPath();
-  if (ruta.includes(popover)) return;
-  if (ruta.some((n) => n.classList && n.classList.contains("cal-dia"))) return;
-  cerrarPopover();
-});
-window.addEventListener("resize", () => {
-  if (!popover.hidden && seleccion) {
-    const celda = cuadricula.querySelector(`[data-fecha="${seleccion}"]`);
-    if (celda) posicionarPopover(celda);
-  }
+  if (e.key !== "Escape" || popover.hidden) return;
+  if (!calForm.hidden) cerrarFormCal();
+  else cerrarPopover();
 });
 
 // ---------- Barra lateral e inicio de sesión con Google ----------

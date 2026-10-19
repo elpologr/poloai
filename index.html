@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="42" />
+  <meta name="app-version" content="43" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=42" />
+  <link rel="stylesheet" href="styles.css?v=43" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -269,12 +269,13 @@
 
       <div id="cal-cuadricula" class="cal-cuadricula" role="grid"></div>
 
-      <!-- Panel grande anclado al día seleccionado -->
-      <div id="dia-popover" class="popover" role="dialog" aria-labelledby="pop-titulo" hidden>
-        <div class="pop-cabecera">
+      <!-- Página del día (se ve como la del Diario): recuadros con las notas del día + botón «Descripción del día» -->
+      <div id="dia-popover" class="notas-submenu cal-dia-vista" role="dialog" aria-labelledby="pop-titulo" hidden>
+        <header class="notas-sub-cabecera">
+          <button id="pop-cerrar" class="notas-btn notas-btn-sec" type="button">&#8249; Volver</button>
           <h3 id="pop-titulo"></h3>
-          <button id="pop-cerrar" class="pop-cerrar" aria-label="Cerrar">&times;</button>
-        </div>
+        </header>
+        <div class="notas-sub-cuerpo">
 
         <!-- Color del día: pinta el recuadro del día en el calendario y el fondo de este panel -->
         <div id="pop-color" class="pop-color">
@@ -294,85 +295,37 @@
           </div>
         </div>
 
-        <!--
-          Tres secciones, una debajo de otra: Descripción, Actividades y Anotaciones.
-          Cada una tiene un botón con flecha (abre la zona de texto) y, pegado debajo,
-          un botón "Desplegar" (abre los recuadros del 5 en adelante; los primeros 4 siempre se ven).
-        -->
-        <div id="pop-secciones" class="pop-cuerpo">
+        <div id="pop-secciones" class="cal-dia-cuerpo">
+          <!-- Botón largo (4 veces su alto): aquí se ve el texto corto del día (Día de bazar, Día de descanso…) -->
+          <button id="cal-desc-dia" class="cal-desc-dia vacia" type="button" aria-label="Descripción del día: escribir o modificar">
+            <span class="cal-desc-titulo">Descripción del día</span>
+            <span id="cal-desc-texto" class="cal-desc-texto">Toca para escribir…</span>
+          </button>
+          <p id="cal-dia-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="cal-chips" class="ej-chips"></div>
+        </div>
+        </div>
 
-          <section class="pop-seccion" data-campo="descripcion">
-            <button type="button" class="pop-toggle pop-toggle-texto" data-accion="texto" aria-expanded="false">
-              <span>Descripción</span><span class="flecha" aria-hidden="true">&#9662;</span>
-            </button>
-            <div class="pop-panel pop-panel-texto" hidden>
-              <textarea rows="4" placeholder="Escribe la descripción del día…" aria-label="Descripción del día"></textarea>
-              <div class="pop-acciones">
-                <button type="button" class="btn-guardar">Guardar</button>
-                <button type="button" class="btn-cancelar" hidden>Cancelar</button>
-                <span class="pop-estado"></span>
-              </div>
-            </div>
-            <div class="pop-panel pop-panel-fija">
-              <div class="lista-notas lista-fija"></div>
-              <p class="pop-estado pop-estado-lista"></p>
-            </div>
-            <button type="button" class="pop-toggle pop-toggle-lista" data-accion="lista" aria-expanded="false" hidden>
-              <span class="pop-lista-etiqueta">Desplegar</span><span class="flecha" aria-hidden="true">&#9662;</span>
-            </button>
-            <div class="pop-panel pop-panel-lista" hidden>
-              <div class="lista-notas lista-extra"></div>
-            </div>
-          </section>
-
-          <section class="pop-seccion" data-campo="actividades">
-            <button type="button" class="pop-toggle pop-toggle-texto" data-accion="texto" aria-expanded="false">
-              <span>Actividades</span><span class="flecha" aria-hidden="true">&#9662;</span>
-            </button>
-            <div class="pop-panel pop-panel-texto" hidden>
-              <textarea rows="4" placeholder="Escribe una actividad nueva…" aria-label="Nueva actividad"></textarea>
-              <div class="pop-acciones">
-                <button type="button" class="btn-guardar">Guardar</button>
-                <button type="button" class="btn-cancelar" hidden>Cancelar</button>
-                <span class="pop-estado"></span>
-              </div>
-            </div>
-            <div class="pop-panel pop-panel-fija">
-              <div class="lista-notas lista-fija"></div>
-              <p class="pop-estado pop-estado-lista"></p>
-            </div>
-            <button type="button" class="pop-toggle pop-toggle-lista" data-accion="lista" aria-expanded="false" hidden>
-              <span class="pop-lista-etiqueta">Desplegar</span><span class="flecha" aria-hidden="true">&#9662;</span>
-            </button>
-            <div class="pop-panel pop-panel-lista" hidden>
-              <div class="lista-notas lista-extra"></div>
-            </div>
-          </section>
-
-          <section class="pop-seccion" data-campo="anotaciones">
-            <button type="button" class="pop-toggle pop-toggle-texto" data-accion="texto" aria-expanded="false">
-              <span>Anotaciones</span><span class="flecha" aria-hidden="true">&#9662;</span>
-            </button>
-            <div class="pop-panel pop-panel-texto" hidden>
-              <textarea rows="4" placeholder="Escribe una anotación nueva…" aria-label="Nueva anotación"></textarea>
-              <div class="pop-acciones">
-                <button type="button" class="btn-guardar">Guardar</button>
-                <button type="button" class="btn-cancelar" hidden>Cancelar</button>
-                <span class="pop-estado"></span>
-              </div>
-            </div>
-            <div class="pop-panel pop-panel-fija">
-              <div class="lista-notas lista-fija"></div>
-              <p class="pop-estado pop-estado-lista"></p>
-            </div>
-            <button type="button" class="pop-toggle pop-toggle-lista" data-accion="lista" aria-expanded="false" hidden>
-              <span class="pop-lista-etiqueta">Desplegar</span><span class="flecha" aria-hidden="true">&#9662;</span>
-            </button>
-            <div class="pop-panel pop-panel-lista" hidden>
-              <div class="lista-notas lista-extra"></div>
-            </div>
-          </section>
-
+        <!-- Ventana para escribir la descripción del día o para agregar / editar una actividad o anotación -->
+        <div id="cal-form" class="notas-nueva modo-editar" hidden>
+          <h3 id="cal-form-titulo" class="notas-form-titulo">Descripción del día</h3>
+          <label id="cal-tipo-campo" class="notas-campo" hidden>
+            <span>Tipo</span>
+            <select id="cal-tipo">
+              <option value="actividades">Actividad</option>
+              <option value="anotaciones">Anotación</option>
+            </select>
+          </label>
+          <label class="notas-campo">
+            <span id="cal-texto-etiqueta">Texto</span>
+            <textarea id="cal-texto" rows="4" maxlength="5000" placeholder="Escribe aquí…"></textarea>
+          </label>
+          <div class="notas-fila">
+            <button id="cal-guardar" class="notas-btn" type="button">Guardar</button>
+            <button id="cal-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+            <button id="cal-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+            <span id="cal-form-estado" class="notas-estado"></span>
+          </div>
         </div>
       </div>
     </section>
@@ -1015,9 +968,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=42"></script>
-  <script src="app.js?v=42"></script>
-  <script src="voz.js?v=42"></script>
-  <script type="module" src="firebase.js?v=42"></script>
+  <script src="config.js?v=43"></script>
+  <script src="app.js?v=43"></script>
+  <script src="voz.js?v=43"></script>
+  <script type="module" src="firebase.js?v=43"></script>
 </body>
 </html>

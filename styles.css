@@ -1,5 +1,5 @@
 :root {
-  --app-version: "42"; /* debe coincidir con VERSION en app.js */
+  --app-version: "43"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -1751,3 +1751,84 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 .pv-avisos { margin: 0 0 10px; padding: 8px 10px 8px 28px; font-size: 0.88rem; color: #7a5200; background: #fff4d6; border-radius: 10px; }
 .pv-cifras { margin: 0 0 6px; font-size: 0.88rem; font-weight: 600; color: #7a5200; }
 .pv-listo-texto { margin: 0; font-weight: 600; color: #1e8a55; }
+
+/* ---------- Calendario: la página del día se ve como la del Diario (v43) ---------- */
+/* Al abrir un día, el calendario se oculta y su lugar lo toma la página del día */
+#calendario.con-dia-abierto > .cal-controles,
+#calendario.con-dia-abierto > .cal-estado,
+#calendario.con-dia-abierto > .cal-cuadricula { display: none; }
+
+.cal-dia-vista {
+  --nb-texto: #1d3a5c;
+  --nb-suave: #55789f;
+  --nb-acento: #4f94d4;
+  --nb-acento-oscuro: #3a7ebd;
+  --nb-borde: #bcd9f3;
+  position: relative;
+  inset: auto;
+  z-index: 1;
+  min-height: min(78vh, 640px);
+  overflow: hidden;
+  background-color: var(--pop-fondo, #07080c);
+  border: 1px solid #3b3256;
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(40, 10, 80, 0.35);
+}
+.cal-dia-vista .notas-sub-cabecera h3 {
+  color: var(--pop-titulo, #eaf2fc);
+  text-transform: capitalize;
+}
+.cal-dia-vista .notas-sub-cuerpo { overflow-y: visible; }
+.cal-dia-vista .proy-estado-lista:not(.error):not(.ok) { color: var(--pop-titulo, #b9c9de); }
+.cal-dia-vista .pop-color { margin-top: 4px; }
+
+/* Botón «Descripción del día»: del mismo alto que un recuadro y 4 veces más largo que alto */
+.cal-dia-cuerpo { margin-top: 4px; }
+.cal-desc-dia {
+  --chip: 88px; /* igual que .ej-chip */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  width: calc(var(--chip) * 4);
+  max-width: 100%;
+  height: var(--chip);
+  padding: 6px 12px;
+  font: inherit;
+  text-align: left;
+  color: var(--nb-texto);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--nb-borde);
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(60, 110, 170, 0.2);
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.cal-desc-dia:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(60, 110, 170, 0.3); }
+.cal-desc-dia:focus-visible { outline: 3px solid var(--nb-acento); outline-offset: 2px; }
+.cal-desc-titulo {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--nb-acento-oscuro);
+}
+.cal-desc-texto {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.cal-desc-dia.vacia .cal-desc-texto { font-weight: 500; font-style: italic; color: var(--nb-suave); }
+@media (max-width: 480px) {
+  .cal-desc-dia { --chip: 76px; }
+  .cal-dia-vista { border-radius: 14px; }
+}
+/* La tarjeta blanca que envuelve al calendario no hace falta cuando se ve la página del día */
+#calendario.con-dia-abierto { padding: 0; background: none; border: none; box-shadow: none; }
