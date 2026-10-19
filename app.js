@@ -2336,7 +2336,7 @@ function crearZonaEtiqueta(cfg) {
           <span>Nombre</span>
           <input class="zona-nombre" type="text" maxlength="80" placeholder="Nombre" autocomplete="off" />
         </label>
-        <textarea class="zona-texto" rows="4" maxlength="5000"
+        <textarea class="zona-texto" rows="4" maxlength="1000000"
                   placeholder="${cfg.marcador}" aria-label="${cfg.nuevo}"></textarea>
         <div class="notas-fila">
           <button type="button" class="notas-btn zona-guardar">${cfg.guardar}</button>
@@ -3783,14 +3783,14 @@ const ipNombre = ipEl("ip-nombre");
 const ipFecha = ipEl("ip-fecha");
 const ipDescripcion = ipEl("ip-descripcion");
 const ipContador = ipEl("ip-contador");
-const IP_LIMITE = 50000; // máximo de caracteres por celda de Google Sheets
+const IP_LIMITE = 1000000; // tope de caracteres por texto (igual a LIMITE_TEXTO_LARGO del Apps Script; los largos van a Drive)
 // Contador de caracteres de la descripción; avisa cuando queda poco espacio
 function ipActualizarContador() {
   const largo = ipDescripcion.value.length;
   const resta = Math.max(0, IP_LIMITE - largo);
   ipContador.textContent = largo.toLocaleString("es-MX") + " / " + IP_LIMITE.toLocaleString("es-MX") + " caracteres" +
-    (largo >= 45000 ? (resta === 0 ? " — límite alcanzado" : " — queda poco espacio (" + resta.toLocaleString("es-MX") + ")") : "");
-  ipContador.className = "nt-contador" + (largo >= 49000 ? " nt-contador-error" : largo >= 45000 ? " nt-contador-aviso" : "");
+    (largo >= IP_LIMITE * 0.9 ? (resta === 0 ? " — límite alcanzado" : " — queda poco espacio (" + resta.toLocaleString("es-MX") + ")") : "");
+  ipContador.className = "nt-contador" + (largo >= IP_LIMITE * 0.98 ? " nt-contador-error" : largo >= IP_LIMITE * 0.9 ? " nt-contador-aviso" : "");
 }
 ipDescripcion.addEventListener("input", ipActualizarContador);
 const ipGuardar = ipEl("ip-guardar");
@@ -4565,7 +4565,7 @@ async function finalizarHy() {
   setEstado(estado, "Finalizando…");
   const hoyClave = hyClaveHoy();
   const id = o.id || it.finId || (it.finId = String(Date.now() * 1000 + Math.floor(Math.random() * 1000)));
-  const descripcion = String(it.texto || "").slice(0, 50000);
+  const descripcion = String(it.texto || "").slice(0, 1000000);
   try {
     // 1) Agregarla al Diario como tarea finalizada
     await llamarNotas("diario_agregar", { id, nombre, fecha: hoyClave, descripcion, terminado: "Tarea finalizada" });
