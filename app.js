@@ -22,6 +22,7 @@ const VERSION = "46";
     "btn-menu-informacion", "seccion-informacion", "panel-informacion", "ip-chips", "ip-form", "ip-fecha",
     "btn-menu-comandos", "seccion-comandos", "panel-comandos", "cm-chips", "cm-form", "cm-fecha",
     "btn-menu-bazar", "seccion-bazar", "panel-bazar", "bz-chips", "bz-form", "bz-informacion",
+    "cuenta-nota", "cuenta-dispositivos", "disp-panel", "disp-estado", "disp-lista", "disp-todas",
     "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
     "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha",
@@ -161,6 +162,7 @@ async function cargarDatos() {
       body: JSON.stringify({ token: CONFIG.TOKEN, idToken, accion: "calendario_listar" }),
     });
     const j = await r.json();
+    sesionRechazada(j);
     if (!j.ok) throw new Error(j.error || "Error desconocido");
     Object.keys(datos).forEach((k) => delete datos[k]);
     Object.assign(datos, j.datos);
@@ -196,6 +198,7 @@ async function guardarCampo(fecha, campo, valor) {
     body: JSON.stringify({ token: CONFIG.TOKEN, idToken, fecha, campo, valor }),
   });
   const j = await r.json();
+  sesionRechazada(j);
   if (!j.ok) throw new Error(j.error || "Error al guardar");
   datos[fecha] = datos[fecha] || {};
   datos[fecha][campo] = valor;
@@ -698,16 +701,26 @@ const cuentaFoto = document.getElementById("cuenta-foto");
 const cuentaNombre = document.getElementById("cuenta-nombre");
 const cuentaCorreo = document.getElementById("cuenta-correo");
 const btnSalir = document.getElementById("cuenta-salir");
+const cuentaNota = document.getElementById("cuenta-nota");
+const btnDispositivos = document.getElementById("cuenta-dispositivos");
+const panelDispositivos = document.getElementById("disp-panel");
+const dispEstado = document.getElementById("disp-estado");
+const dispLista = document.getElementById("disp-lista");
+const dispTodas = document.getElementById("disp-todas");
 
-let usuario = null; // { nombre, correo, foto, credencial, exp }
+let usuario = null; // { nombre, correo, foto, credencial, exp, tipo }  (tipo: "dispositivo" o "google")
 try {
   usuario = JSON.parse(localStorage.getItem(CLAVE_SESION));
 } catch (e) {
   usuario = null;
 }
 
-// La credencial de Google dura cerca de 1 hora. Pasado ese tiempo hay que volver a entrar
-// (si ya habías aceptado antes, Google suele volver a iniciar sesión solo).
+// Cómo dura la sesión:
+//  - "dispositivo": al iniciar sesión con Google, el Apps Script le da a ESTE dispositivo un pase propio de
+//    larga duración (365 días) que se renueva solo cada vez que abres la página. Así la sesión casi nunca
+//    se cierra. Se puede cerrar desde la barra lateral (Dispositivos).
+//  - "google": respaldo si el Apps Script no entregó el pase: la credencial de Google dura cerca de 1 hora
+//    y pasado ese tiempo hay que volver a entrar.
 function sesionVigente() {
   return !!(usuario && usuario.credencial && usuario.exp * 1000 > Date.now() + 15000);
 }
@@ -725,16 +738,29 @@ if (usuario && !sesionVigente()) {
   } catch (e) {}
 }
 
+function guardarUsuario() {
+  try {
+    localStorage.setItem(CLAVE_SESION, JSON.stringify(usuario));
+  } catch (e) {}
+}
+
 let temporizadorSesion = null;
 function programarCaducidad() {
   clearTimeout(temporizadorSesion);
   if (!usuario) return;
-  const ms = Math.max(usuario.exp * 1000 - Date.now() - 15000, 0);
+  // setTimeout no admite esperas de más de ~24 días: se programa por tramos
+  const ms = Math.min(Math.max(usuario.exp * 1000 - Date.now() - 15000, 0), 2000000000);
   temporizadorSesion = setTimeout(expirarSesion, ms);
 }
 
 // Vence la credencial: se cierra la sesión en pantalla y se intenta volver a entrar sola
 function expirarSesion() {
+  // Si la sesión se renovó mientras tanto (o el tramo del temporizador no era el final), no se cierra
+  if (sesionVigente()) {
+    programarCaducidad();
+    return;
+  }
+  clearTimeout(temporizadorSesion);
   usuario = null;
   try {
     localStorage.removeItem(CLAVE_SESION);
@@ -743,6 +769,65 @@ function expirarSesion() {
   actualizarPanelNotas();
   if (window.google && google.accounts && google.accounts.id) google.accounts.id.prompt();
 }
+
+// El Apps Script avisa con «sesionInvalida» cuando el pase de este dispositivo ya no sirve
+// (se cerró desde otro dispositivo, venció, etc.): se cierra la sesión en pantalla
+function sesionRechazada(j) {
+  if (j && j.sesionInvalida && usuario && usuario.tipo === "dispositivo") {
+    usuario.exp = 0;
+    expirarSesion();
+  }
+}
+
+// Llamada directa al Apps Script para las acciones de sesión
+async function llamarSesion(accion, credencial, extra) {
+  const r = await fetch(CONFIG.APPS_SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(Object.assign({ token: CONFIG.TOKEN, idToken: credencial, accion }, extra || {})),
+  });
+  return r.json();
+}
+
+// Nombre corto del dispositivo, para reconocerlo en la lista («Chrome en Android»…)
+function nombreDispositivo() {
+  const ua = navigator.userAgent || "";
+  const nav = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Firefox\//.test(ua) ? "Firefox"
+    : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "Navegador";
+  const so = /Android/.test(ua) ? "Android" : /iPhone|iPad|iPod/.test(ua) ? "iPhone/iPad" : /Windows/.test(ua) ? "Windows"
+    : /Mac OS X|Macintosh/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "otro sistema";
+  return nav + " en " + so;
+}
+
+// Con el token de Google recién emitido, pide al Apps Script el pase de este dispositivo.
+// Si falla (por ejemplo, el Apps Script aún es una versión vieja), se sigue con la credencial de Google.
+async function crearSesionDispositivo(credencialGoogle) {
+  if (!configurado()) return null;
+  try {
+    const j = await llamarSesion("sesion_crear", credencialGoogle, { dispositivo: nombreDispositivo() });
+    if (j.ok && j.token && j.exp) return { token: j.token, exp: j.exp };
+  } catch (e) {
+    /* se usa la credencial de Google */
+  }
+  return null;
+}
+
+// Renueva el pase de este dispositivo (se llama al abrir la página y cada cierto tiempo)
+async function renovarSesionDispositivo() {
+  if (!usuario || usuario.tipo !== "dispositivo" || !sesionVigente() || !configurado()) return;
+  try {
+    const j = await llamarSesion("sesion_renovar", usuario.credencial);
+    sesionRechazada(j);
+    if (j.ok && j.exp && usuario && usuario.tipo === "dispositivo") {
+      usuario.exp = j.exp;
+      guardarUsuario();
+      programarCaducidad();
+    }
+  } catch (e) {
+    /* sin conexión: se reintenta la próxima vez */
+  }
+}
+setInterval(renovarSesionDispositivo, 6 * 60 * 60 * 1000);
 
 // El token de Google (JWT) trae los datos de la cuenta en su parte central, en base64
 function decodificarJWT(token) {
@@ -759,28 +844,38 @@ function decodificarJWT(token) {
 function dibujarCuenta() {
   cuentaSin.hidden = !!usuario;
   cuentaCon.hidden = !usuario;
-  if (!usuario) return;
+  if (!usuario) {
+    cerrarDispositivos();
+    return;
+  }
   cuentaNombre.textContent = usuario.nombre || "";
   cuentaCorreo.textContent = usuario.correo || "";
   const fotoValida = typeof usuario.foto === "string" && usuario.foto.startsWith("https://");
   cuentaFoto.hidden = !fotoValida;
   if (fotoValida) cuentaFoto.src = usuario.foto;
+  // «Dispositivos» solo tiene sentido con el pase de dispositivo
+  btnDispositivos.hidden = usuario.tipo !== "dispositivo";
+  cuentaNota.textContent =
+    usuario.tipo === "dispositivo"
+      ? "Sesión guardada en este dispositivo."
+      : "Sesión temporal (dura cerca de 1 hora).";
 }
 
-function respuestaGoogle(resp) {
+async function respuestaGoogle(resp) {
   try {
     const p = decodificarJWT(resp.credential);
+    googleAviso.hidden = true;
+    // Primero se intenta el pase de larga duración de este dispositivo; si no, se usa el token de Google
+    const pase = await crearSesionDispositivo(resp.credential);
     usuario = {
       nombre: p.name || "",
       correo: p.email || "",
       foto: p.picture || "",
-      credencial: resp.credential,
-      exp: p.exp,
+      credencial: pase ? pase.token : resp.credential,
+      exp: pase ? pase.exp : p.exp,
+      tipo: pase ? "dispositivo" : "google",
     };
-    try {
-      localStorage.setItem(CLAVE_SESION, JSON.stringify(usuario));
-    } catch (e) {}
-    googleAviso.hidden = true;
+    guardarUsuario();
     dibujarCuenta();
     programarCaducidad();
     actualizarPanelNotas();
@@ -792,6 +887,10 @@ function respuestaGoogle(resp) {
 
 function cerrarSesion() {
   clearTimeout(temporizadorSesion);
+  // Se cierra también en el Apps Script el pase de este dispositivo (si lo hay)
+  if (usuario && usuario.tipo === "dispositivo" && usuario.credencial && configurado()) {
+    llamarSesion("sesion_cerrar", usuario.credencial).catch(() => {});
+  }
   usuario = null;
   try {
     localStorage.removeItem(CLAVE_SESION);
@@ -803,6 +902,78 @@ function cerrarSesion() {
   actualizarPanelNotas();
 }
 btnSalir.addEventListener("click", cerrarSesion);
+
+// ----- Dispositivos con sesión guardada (barra lateral) -----
+function fechaHoraCorta(ms) {
+  if (!ms) return "—";
+  const d = new Date(ms);
+  return `${dos(d.getDate())}/${dos(d.getMonth() + 1)}/${d.getFullYear()} ${dos(d.getHours())}:${dos(d.getMinutes())}`;
+}
+
+function cerrarDispositivos() {
+  if (typeof panelDispositivos !== "undefined") panelDispositivos.hidden = true;
+}
+
+async function cargarDispositivos() {
+  if (!usuario || usuario.tipo !== "dispositivo") return;
+  dispEstado.textContent = "Cargando…";
+  try {
+    const j = await llamarSesion("sesion_listar", usuario.credencial);
+    sesionRechazada(j);
+    if (!j.ok) throw new Error(j.error || "Error");
+    dispEstado.textContent = j.sesiones.length ? "" : "No hay dispositivos guardados.";
+    dispLista.innerHTML = "";
+    j.sesiones.forEach((x) => {
+      const li = document.createElement("li");
+      li.className = "disp-item";
+      const txt = document.createElement("div");
+      txt.className = "disp-texto";
+      const n = document.createElement("strong");
+      n.textContent = x.dispositivo + (x.actual ? " (este dispositivo)" : "");
+      const f = document.createElement("span");
+      f.textContent = "Último uso: " + fechaHoraCorta(x.ultimo);
+      txt.append(n, f);
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "disp-cerrar";
+      b.textContent = x.actual ? "Salir" : "Cerrar";
+      b.addEventListener("click", async () => {
+        if (!window.confirm("¿Cerrar la sesión de «" + x.dispositivo + "»?")) return;
+        b.disabled = true;
+        if (x.actual) {
+          cerrarSesion();
+          return;
+        }
+        try {
+          const r = await llamarSesion("sesion_revocar", usuario.credencial, { id: x.id });
+          if (!r.ok) throw new Error(r.error || "Error");
+          cargarDispositivos();
+        } catch (err) {
+          dispEstado.textContent = "Error: " + err.message;
+          b.disabled = false;
+        }
+      });
+      li.append(txt, b);
+      dispLista.appendChild(li);
+    });
+  } catch (err) {
+    dispEstado.textContent = "Error: " + err.message;
+  }
+}
+
+btnDispositivos.addEventListener("click", () => {
+  panelDispositivos.hidden = !panelDispositivos.hidden;
+  if (!panelDispositivos.hidden) cargarDispositivos();
+});
+dispTodas.addEventListener("click", async () => {
+  if (!window.confirm("¿Cerrar la sesión en TODOS los dispositivos, incluido este?")) return;
+  try {
+    await llamarSesion("sesion_revocar", usuario.credencial, { todas: true });
+  } catch (err) {
+    /* aun así se cierra la de este dispositivo */
+  }
+  cerrarSesion();
+});
 
 function iniciarGoogle() {
   if (typeof CONFIG === "undefined" || !CONFIG.GOOGLE_CLIENT_ID) {
@@ -1013,6 +1184,7 @@ async function llamarNotas(accion, extra) {
     body: JSON.stringify(Object.assign({ token: CONFIG.TOKEN, idToken, accion }, extra || {})),
   });
   const j = await r.json();
+  sesionRechazada(j);
   if (!j.ok) throw new Error(j.error || "Error");
   return j;
 }
@@ -2862,6 +3034,7 @@ async function guardarColorDia(fecha, color) {
     body: JSON.stringify({ token: CONFIG.TOKEN, idToken, accion: "calendario_color", fecha, color }),
   });
   const j = await r.json();
+  sesionRechazada(j);
   if (!j.ok) throw new Error(j.error || "Error al guardar");
 }
 
@@ -5628,6 +5801,7 @@ function ntRecargarSiHaySesion() {
 dibujarCuenta();
 programarCaducidad();
 iniciarGoogle();
+renovarSesionDispositivo(); // al abrir la página se renueva el pase de este dispositivo
 
 // ---------- Inicio ----------
 // Al abrir o recargar la página (F5) el calendario ya aparece en la fecha actual

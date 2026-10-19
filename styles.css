@@ -1915,3 +1915,37 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 .bazar-zona-extra { margin-top: 14px; }
 .bazar-zona-extra .ej-chips { margin-top: 0; }
 #bz-zona-ventas { margin-bottom: 8px; }
+
+/* ---------- Sesión: dispositivos con sesión guardada ---------- */
+.cuenta-nota { margin: 0 0 10px; font-size: 0.8rem; color: #b9aedb; }
+.btn-dispositivos { margin-top: 8px; }
+.disp-panel { margin-top: 10px; }
+.disp-panel[hidden] { display: none; }
+.disp-estado { margin: 0 0 8px; font-size: 0.85rem; color: #b9aedb; }
+.disp-lista { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.disp-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+.disp-texto { display: flex; flex-direction: column; min-width: 0; font-size: 0.85rem; }
+.disp-texto strong { overflow-wrap: anywhere; }
+.disp-texto span { font-size: 0.75rem; color: #b9aedb; }
+.disp-cerrar {
+  flex: none;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(220, 70, 90, 0.85);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.disp-cerrar:disabled { opacity: 0.5; cursor: default; }
