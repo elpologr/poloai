@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#4a2685" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <title>Polo AI · Sin internet</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: #2b2140; background: #4a2685; padding: 16px; }
+    main { max-width: 640px; margin: 0 auto; }
+    h1 { margin: 4px 0 10px; color: #fff; font-size: 1.5rem; }
+    .tarjeta { background: rgba(255,255,255,.96); border-radius: 16px; padding: 16px; margin-bottom: 14px;
+      box-shadow: 0 10px 28px rgba(40,10,80,.35); }
+    .estado { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+    .pildora { padding: 4px 12px; border-radius: 999px; font-size: .85rem; font-weight: 700; }
+    .on { background: #d3f9d8; color: #1e6b32; }
+    .off { background: #ffe3e3; color: #a02b20; }
+    .pend { background: #fff3bf; color: #7a5200; }
+    label { display: block; margin-bottom: 10px; font-size: .85rem; font-weight: 600; color: #6f6585; }
+    input, select, textarea { display: block; width: 100%; margin-top: 4px; padding: 10px; font: inherit; font-weight: 400;
+      color: #2b2140; background: #fff; border: 1px solid #e3d8f6; border-radius: 10px; }
+    textarea { resize: vertical; min-height: 130px; }
+    button { padding: 10px 18px; font: inherit; font-weight: 700; color: #fff; background: #7a44d6; border: 0;
+      border-radius: 10px; cursor: pointer; }
+    button.sec { color: #6234b8; background: #efe6ff; }
+    button:disabled { opacity: .6; }
+    .fila { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .msg { font-size: .88rem; font-weight: 600; margin: 8px 0 0; min-height: 1.2em; }
+    .msg.error { color: #c0392b; } .msg.ok { color: #1e8a55; }
+    .item { border: 1px solid #e3d8f6; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; position: relative; }
+    .item b { display: block; padding-right: 28px; overflow-wrap: anywhere; }
+    .item small { color: #6f6585; }
+    .item p { margin: 4px 0 0; font-size: .9rem; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 5.5em; overflow: hidden; }
+    .item .err { color: #c0392b; font-size: .8rem; font-weight: 600; }
+    .item .x { position: absolute; top: 6px; right: 8px; padding: 0 6px; background: none; color: #6f6585; font-size: 1.2rem; }
+    h2 { margin: 0 0 10px; font-size: 1.05rem; }
+    .nota { font-size: .82rem; color: #6f6585; margin: 8px 0 0; }
+    a { color: #6234b8; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>📴 Polo AI · Sin internet</h1>
+
+  <div class="tarjeta">
+    <div class="estado">
+      <span id="p-red" class="pildora off">Sin internet</span>
+      <span id="p-cola" class="pildora pend">0 pendientes</span>
+      <span id="p-sesion" class="pildora off">Sin sesión</span>
+    </div>
+
+    <label>Zona
+      <select id="zona"></select>
+    </label>
+    <label id="c-etiqueta">Etiqueta
+      <select id="etiqueta"></select>
+    </label>
+    <label>Nombre (opcional)
+      <input id="nombre" type="text" maxlength="80" autocomplete="off" placeholder="Si lo dejas vacío se arma con el texto" />
+    </label>
+    <label id="c-fecha">Fecha y hora
+      <input id="fecha" type="datetime-local" />
+    </label>
+    <label>Texto
+      <textarea id="texto" placeholder="Escribe tu anotación…"></textarea>
+    </label>
+    <div class="fila">
+      <button id="guardar" type="button">💾 Guardar en este dispositivo</button>
+    </div>
+    <p id="msg" class="msg"></p>
+  </div>
+
+  <div class="tarjeta">
+    <h2>Pendientes por subir</h2>
+    <div id="lista"></div>
+    <div class="fila">
+      <button id="sincronizar" type="button">⬆ Subir ahora</button>
+      <button id="copiar" type="button" class="sec">Copiar todo (respaldo)</button>
+    </div>
+    <p id="msg-sync" class="msg"></p>
+    <p class="nota">Se suben solas, una por una, cuando vuelve el internet y hay sesión iniciada. Una nota solo se quita de aquí cuando ya quedó guardada en tu hoja.
+      Para iniciar sesión (con internet) entra a la <a href="index.html">página principal</a>.</p>
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  "use strict";
+  const CLAVE_COLA = "polo-offline-cola";
+  const CLAVE_SESION = "polo-ai-sesion"; // la misma que usa la página principal
+  const dos = (n) => String(n).padStart(2, "0");
+  const $ = (id) => document.getElementById(id);
+
+  // accion = acción del Apps Script (las mismas que usan los formularios de la página principal)
+  const ZONAS = [
+    { id: "notas", titulo: "Notas", tipo: "nota", accion: "nota_agregar" },
+    { id: "ejercicio", titulo: "Ejercicio", tipo: "dia", accion: "ejercicio_agregar" },
+    { id: "actividades", titulo: "Actividades", tipo: "nota", accion: "nota_agregar", etiqueta: "Actividades" },
+    { id: "trabajo", titulo: "Trabajo", tipo: "nota", accion: "nota_agregar", etiqueta: "Trabajo" },
+    { id: "diario", titulo: "Diario", tipo: "dia", accion: "diario_agregar" },
+    { id: "deudas", titulo: "Deudas", tipo: "deuda", accion: "deuda_agregar" },
+    { id: "informacion", titulo: "Información Primordial", tipo: "dia", accion: "informacion_agregar" },
+    { id: "comandos", titulo: "Comandos", tipo: "dia", accion: "comando_agregar" },
+    { id: "bazar", titulo: "Bazar", tipo: "bazar", accion: "bazar_agregar", categoria: "Bazar" },
+    { id: "ventas", titulo: "Ventas", tipo: "bazar", accion: "bazar_agregar", categoria: "Ventas" },
+    { id: "yeso", titulo: "Pedidos de Yeso", tipo: "nota", accion: "nota_agregar", etiqueta: "Pedidos de Yeso" },
+  ];
+  const ETIQUETAS = ["General", "Tarea/Actividad", "Conjunto de Datos", "Sueños", "Pendiente Importante"];
+
+  ZONAS.forEach((z) => $("zona").add(new Option(z.titulo, z.id)));
+  ETIQUETAS.forEach((e) => $("etiqueta").add(new Option(e, e)));
+
+  function ahoraInput() {
+    const n = new Date();
+    return `${n.getFullYear()}-${dos(n.getMonth() + 1)}-${dos(n.getDate())}T${dos(n.getHours())}:${dos(n.getMinutes())}`;
+  }
+  $("fecha").value = ahoraInput();
+
+  function actualizarCampos() {
+    const z = ZONAS.find((x) => x.id === $("zona").value);
+    $("c-etiqueta").hidden = z.id !== "notas";
+    $("c-fecha").hidden = z.tipo === "bazar";
+  }
+  $("zona").addEventListener("change", actualizarCampos);
+  actualizarCampos();
+
+  // ---------- Cola guardada en el dispositivo ----------
+  function leerCola() {
+    try { return JSON.parse(localStorage.getItem(CLAVE_COLA)) || []; } catch (e) { return []; }
+  }
+  function guardarCola(c) {
+    try { localStorage.setItem(CLAVE_COLA, JSON.stringify(c)); return true; } catch (e) { return false; }
+  }
+  const nuevoId = () => String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
+
+  function decir(el, t, tipo) { el.textContent = t || ""; el.className = "msg" + (tipo ? " " + tipo : ""); }
+
+  function nombreDeTexto(t) {
+    const p = t.trim().split(/\s+/).slice(0, 8).join(" ");
+    return (p.length > 60 ? p.slice(0, 60) : p) || "Sin nombre";
+  }
+
+  function armarPayload(z, nombre, fechaInput, texto, etiqueta) {
+    const id = nuevoId();
+    const iso = fechaInput.slice(0, 10);
+    if (z.tipo === "nota") {
+      const [a, m, d] = iso.split("-");
+      return { id, nombre, fecha: `${d}/${m}/${a} ${fechaInput.slice(11, 16) || "12:00"}`,
+        etiqueta: z.etiqueta || etiqueta || "General", texto, color: "Blanco", identificador: "", destino: "sheets" };
+    }
+    if (z.tipo === "bazar") return { id, nombre, informacion: texto, categoria: z.categoria, destino: "sheets" };
+    if (z.tipo === "deuda") return { id, nombre, fecha: iso, descripcion: texto, destino: "sheets" };
+    return { id, nombre, fecha: iso, descripcion: texto, destino: "sheets" };
+  }
+
+  $("guardar").addEventListener("click", () => {
+    const z = ZONAS.find((x) => x.id === $("zona").value);
+    const texto = $("texto").value.trim();
+    if (!texto) { decir($("msg"), "Escribe algo primero", "error"); return; }
+    const nombre = $("nombre").value.trim().slice(0, 80) || nombreDeTexto(texto);
+    const fechaInput = $("fecha").value || ahoraInput();
+    const cola = leerCola();
+    cola.push({ zona: z.titulo, accion: z.accion, payload: armarPayload(z, nombre, fechaInput, texto, $("etiqueta").value), creado: Date.now() });
+    if (!guardarCola(cola)) { decir($("msg"), "No cupo en el dispositivo. Usa «Copiar todo» para respaldar.", "error"); return; }
+    $("texto").value = "";
+    $("nombre").value = "";
+    $("fecha").value = ahoraInput();
+    decir($("msg"), "Guardada en este dispositivo ✓", "ok");
+    dibujar();
+    if (navigator.onLine) sincronizar();
+  });
+
+  function dibujar() {
+    const cola = leerCola();
+    $("p-cola").textContent = cola.length + (cola.length === 1 ? " pendiente" : " pendientes");
+    $("p-cola").className = "pildora " + (cola.length ? "pend" : "on");
+    const l = $("lista");
+    l.innerHTML = "";
+    if (!cola.length) { l.textContent = "No hay nada pendiente 🎉"; l.style.marginBottom = "10px"; return; }
+    cola.forEach((it, i) => {
+      const d = document.createElement("div");
+      d.className = "item";
+      const b = document.createElement("b"); b.textContent = it.payload.nombre;
+      const s = document.createElement("small"); s.textContent = it.zona;
+      const p = document.createElement("p"); p.textContent = it.payload.texto || it.payload.descripcion || it.payload.informacion || "";
+      const x = document.createElement("button"); x.className = "x"; x.type = "button"; x.textContent = "×";
+      x.setAttribute("aria-label", "Quitar de pendientes");
+      x.addEventListener("click", () => {
+        if (!confirm("¿Quitar esta nota de los pendientes? No se subirá.")) return;
+        const c = leerCola(); c.splice(i, 1); guardarCola(c); dibujar();
+      });
+      d.append(b, s, p, x);
+      if (it.error) { const e = document.createElement("div"); e.className = "err"; e.textContent = "⚠ " + it.error; d.appendChild(e); }
+      l.appendChild(d);
+    });
+  }
+
+  $("copiar").addEventListener("click", async () => {
+    const t = leerCola().map((it) => `[${it.zona}] ${it.payload.nombre}\n${it.payload.texto || it.payload.descripcion || it.payload.informacion || ""}`).join("\n\n---\n\n");
+    try { await navigator.clipboard.writeText(t); decir($("msg-sync"), "Copiado ✓", "ok"); }
+    catch (e) { decir($("msg-sync"), "No se pudo copiar", "error"); }
+  });
+
+  // ---------- Sesión y estado de la red ----------
+  function sesion() {
+    try {
+      const u = JSON.parse(localStorage.getItem(CLAVE_SESION));
+      return u && u.credencial && u.exp * 1000 > Date.now() + 15000 ? u : null;
+    } catch (e) { return null; }
+  }
+  function actualizarPildoras() {
+    const on = navigator.onLine;
+    $("p-red").textContent = on ? "Con internet" : "Sin internet";
+    $("p-red").className = "pildora " + (on ? "on" : "off");
+    const s = sesion();
+    $("p-sesion").textContent = s ? "Sesión lista" : "Sin sesión";
+    $("p-sesion").className = "pildora " + (s ? "on" : "off");
+  }
+
+  // ---------- Subir a las hojas, una por una ----------
+  let subiendo = false;
+  async function llamar(u, accion, extra) {
+    const r = await fetch(CONFIG.APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(Object.assign({ token: CONFIG.TOKEN, idToken: u.credencial, accion }, extra || {})),
+    });
+    return r.json();
+  }
+
+  async function sincronizar() {
+    if (subiendo) return;
+    const cola = leerCola();
+    if (!cola.length) { decir($("msg-sync"), "", ""); return; }
+    if (!navigator.onLine) { decir($("msg-sync"), "Sin internet: se subirán cuando vuelva.", ""); return; }
+    const u = sesion();
+    if (!u) { decir($("msg-sync"), "Hace falta iniciar sesión: abre la página principal con internet y entra con Google.", "error"); return; }
+    subiendo = true;
+    $("sincronizar").disabled = true;
+    let subidas = 0, fallos = 0;
+    try {
+      while (true) {
+        const c = leerCola();
+        const idx = c.findIndex((x) => !x.error);
+        if (idx === -1) break;
+        decir($("msg-sync"), `Subiendo… (${subidas + 1})`, "");
+        let j;
+        try {
+          j = await llamar(u, c[idx].accion, c[idx].payload);
+        } catch (e) {
+          decir($("msg-sync"), "Se cortó la conexión. Lo que falta se subirá después.", "error");
+          break;
+        }
+        if (j && j.sesionInvalida) { decir($("msg-sync"), "La sesión ya no es válida: inicia sesión en la página principal.", "error"); break; }
+        const c2 = leerCola();
+        const pos = c2.findIndex((x) => x.payload.id === c[idx].payload.id);
+        if (j && j.ok) { if (pos !== -1) c2.splice(pos, 1); subidas++; }
+        else { if (pos !== -1) c2[pos].error = (j && j.error) || "Error desconocido"; fallos++; }
+        guardarCola(c2);
+        dibujar();
+        await new Promise((r) => setTimeout(r, 400)); // poco a poco
+      }
+      // Se renueva el pase de este dispositivo para que la sesión siga viva
+      if (subidas && String(u.credencial).indexOf("polo_s1.") === 0) {
+        try { const r = await llamar(u, "sesion_renovar"); if (r.ok && r.exp) { u.exp = r.exp; localStorage.setItem(CLAVE_SESION, JSON.stringify(u)); } } catch (e) {}
+      }
+      if (subidas || fallos) {
+        decir($("msg-sync"), `Subidas: ${subidas}` + (fallos ? ` · Con error: ${fallos} (se quedan aquí)` : " ✓"), fallos ? "error" : "ok");
+      }
+    } finally {
+      subiendo = false;
+      $("sincronizar").disabled = false;
+      dibujar();
+    }
+  }
+
+  $("sincronizar").addEventListener("click", () => {
+    // Quita los errores anteriores para reintentarlos
+    const c = leerCola(); c.forEach((x) => delete x.error); guardarCola(c); dibujar();
+    sincronizar();
+  });
+  window.addEventListener("online", () => { actualizarPildoras(); sincronizar(); });
+  window.addEventListener("offline", actualizarPildoras);
+  window.addEventListener("storage", () => { actualizarPildoras(); dibujar(); });
+
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  actualizarPildoras();
+  dibujar();
+  sincronizar();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "Polo AI · Sin internet",
+  "short_name": "Polo Offline",
+  "start_url": "sin-internet.html",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#4a2685",
+  "theme_color": "#4a2685",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
