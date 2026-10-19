@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "43";
+const VERSION = "45";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -23,6 +23,7 @@ const VERSION = "43";
     "btn-menu-comandos", "seccion-comandos", "panel-comandos", "cm-chips", "cm-form", "cm-fecha",
     "btn-menu-bazar", "seccion-bazar", "panel-bazar", "bz-chips", "bz-form", "bz-informacion",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
+    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
   ];
   const problemas = [];
@@ -87,6 +88,9 @@ function mostrarSeccion(id) {
   // Bazar también es una página
   if (id === "seccion-bazar") entrarBazar();
   else cerrarBazar();
+  // Empresas/Proyectos también es una página
+  if (id === "seccion-empresas") entrarEmpresas();
+  else cerrarEmpresas();
   // Día de Hoy también es una página
   if (id === "seccion-hoy") entrarHoy();
   else cerrarHoy();
@@ -1470,6 +1474,7 @@ function actualizarPanelNotas() {
   actualizarPanelInformacion(); // y al de Información Primordial
   actualizarPanelComandos(); // y al de Comandos
   actualizarPanelBazar(); // y al de Bazar
+  actualizarPanelEmpresas(); // y al de Empresas/Proyectos
   actualizarPanelHoy(); // y al de Día de Hoy
   actualizarZonasEtiqueta(); // y a las zonas de Actividades y Trabajo
   if (typeof actualizarNotarios === "function") actualizarNotarios(); // y a los Notarios de todas las zonas
@@ -2176,6 +2181,7 @@ const ZONAS_ETIQUETA = [
     crear: "+ Crear actividad", nuevo: "Nueva actividad", editar: "Editar actividad",
     guardar: "Guardar actividad", marcador: "Escribe una actividad nueva…",
     vacio: "Aún no hay actividades. ¡Crea la primera! ✨", borrar: "¿Eliminar esta actividad?",
+    cuadritos: true, // las tarjetas se ven como cuadritos (igual que en Ejercicio, Diario, etc.)
   },
   {
     seccion: "trabajo", etiqueta: "Trabajo", datos: "tus trabajos",
@@ -2184,6 +2190,7 @@ const ZONAS_ETIQUETA = [
     vacio: "Aún no hay trabajos. ¡Crea el primero! ✨", borrar: "¿Eliminar este trabajo?",
     vista: true, // al tocar una tarjeta se abre primero una nota sencilla (la tuerca abre la edición)
     finalizar: true, // cada tarjeta lleva el botón «Marcar tarea como finalizada» (pasa al Diario)
+    cuadritos: true, // las tarjetas se ven como cuadritos (igual que en Ejercicio, Diario, etc.)
   },
   {
     // Sección propia (se abre desde el botón «Pedidos de Yeso» de la barra lateral, no desde el menú superior)
@@ -2527,8 +2534,76 @@ function crearZonaEtiqueta(cfg) {
     }
   }
 
+  // ----- Cuadrito (misma apariencia que los cuadros de Ejercicio / Diario, con el color de la nota) -----
+  function crearCuadrito(n) {
+    const hex = hexDeColor(n.color);
+    const c = document.createElement("div");
+    c.className = "ej-chip ej-chip-resumen zona-cuadrito";
+    c.style.setProperty("--fondo", hex);
+    aplicarContraste(c, hex);
+    c.title = n.nombre || "Sin nombre";
+    const nombre = document.createElement("span");
+    nombre.className = "ej-chip-nombre";
+    nombre.textContent = n.nombre || "Sin nombre";
+    c.appendChild(nombre);
+    if (n.fecha) {
+      const f = document.createElement("span");
+      f.className = "ej-chip-fecha";
+      f.textContent = String(n.fecha).split(" ")[0];
+      c.appendChild(f);
+    }
+    const desc = document.createElement("span");
+    desc.className = "ej-chip-desc";
+    desc.textContent = n.texto || "";
+    c.appendChild(desc);
+
+    const x = document.createElement("button");
+    x.type = "button";
+    x.className = "tarjeta-borrar";
+    x.setAttribute("aria-label", "Eliminar");
+    x.title = "Eliminar";
+    x.textContent = "×";
+    x.addEventListener("click", (e) => {
+      e.stopPropagation();
+      borrar(n.id);
+    });
+    c.appendChild(x);
+
+    if (cfg.finalizar) {
+      const fin = document.createElement("button");
+      fin.type = "button";
+      fin.className = "zona-cuadrito-fin";
+      fin.setAttribute("aria-label", "Marcar tarea como finalizada");
+      fin.title = "Marcar tarea como finalizada";
+      fin.textContent = "✔";
+      fin.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (window.confirm("¿Marcar como finalizada? Se quitará de Trabajo y pasará al Diario con la fecha de hoy.")) {
+          finalizar(n, fin);
+        }
+      });
+      c.appendChild(fin);
+    }
+
+    c.tabIndex = 0;
+    c.setAttribute("role", "button");
+    c.setAttribute("aria-label", (vista ? "Ver " : "Editar ") + (n.nombre || "Sin nombre"));
+    c.addEventListener("click", (e) => {
+      if (e.target.closest("button, input")) return;
+      abrirTarjeta(n);
+    });
+    c.addEventListener("keydown", (e) => {
+      if (e.target === c && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        abrirTarjeta(n);
+      }
+    });
+    return c;
+  }
+
   // ----- Lista de tarjetas (solo las de esta etiqueta) -----
   function crearTarjeta(n) {
+    if (cfg.cuadritos) return crearCuadrito(n);
     const hex = hexDeColor(n.color);
     const tarjeta = document.createElement("div");
     tarjeta.className = "tarjeta-nota";
@@ -2622,6 +2697,7 @@ function crearZonaEtiqueta(cfg) {
   }
 
   z.dibujar = function () {
+    z.lista.classList.toggle("zona-lista-cuadritos", !!cfg.cuadritos);
     z.lista.innerHTML = "";
     const lista = notasOrdenadas().filter((n) => (n.etiqueta || "General") === cfg.etiqueta);
     if (!lista.length) {
@@ -4288,6 +4364,286 @@ bzBorrar.addEventListener("click", borrarBz);
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelBz.hidden) return;
   if (!bzForm.hidden) cerrarFormBz();
+});
+
+// ---------- Empresas/Proyectos (primera hoja, la del calendario, columnas H a N) ----------
+// Mini notas con Nombre | Fecha | Link | Imagen | Descripcion/Nota | zona de links | Id.
+// Las columnas A a D siguen siendo del calendario: este grupo es independiente. La imagen se sube a imgbb
+// (igual que en Proyectos) y la zona de links lleva un link por línea.
+const emEl = (id) => document.getElementById(id);
+const panelEm = emEl("panel-empresas");
+const emSinSesion = emEl("em-sin-sesion");
+const emContenido = emEl("em-contenido");
+const emEstado = emEl("em-estado");
+const emChips = emEl("em-chips");
+const emForm = emEl("em-form");
+const emFormTitulo = emEl("em-form-titulo");
+const emVista = emEl("em-vista");
+const emElegirImg = emEl("em-elegir-img");
+const emQuitarImg = emEl("em-quitar-img");
+const emArchivo = emEl("em-archivo");
+const emNombre = emEl("em-nombre");
+const emFecha = emEl("em-fecha");
+const emLink = emEl("em-link");
+const emLinkVista = emEl("em-link-vista");
+const emDescripcion = emEl("em-descripcion");
+const emLinks = emEl("em-links");
+const emLinksVista = emEl("em-links-vista");
+const emGuardar = emEl("em-guardar");
+const emBorrar = emEl("em-borrar");
+const emFormEstado = emEl("em-form-estado");
+
+let empresas = []; // [{ id, nombre, fecha, link, imagen, descripcion, links }]
+let emCargadas = false;
+let emEditando = null; // empresa abierta en la ventana (null = nueva)
+let emImagenUrl = ""; // imagen actual (URL de imgbb)
+let emImagenNueva = null; // { base64, vista } cuando se eligió una imagen que aún no se sube
+
+// Dibuja uno o varios links (como enlaces si son direcciones web) dentro de un contenedor
+function emDibujarEnlaces(contenedor, lista) {
+  contenedor.innerHTML = "";
+  lista.forEach((l) => {
+    const href = hrefSeguro(l);
+    const el = document.createElement(href ? "a" : "span");
+    if (href) {
+      el.href = href;
+      el.target = "_blank";
+      el.rel = "noopener noreferrer";
+    }
+    el.textContent = l;
+    contenedor.appendChild(el);
+  });
+}
+emLink.addEventListener("input", () => emDibujarEnlaces(emLinkVista, enlacesDeTexto(emLink.value.slice(0, 2000)).slice(0, 1)));
+emLinks.addEventListener("input", () => emDibujarEnlaces(emLinksVista, enlacesDeTexto(emLinks.value)));
+
+// ----- Imagen -----
+function emDibujarVistaImagen() {
+  emVista.innerHTML = "";
+  const src = emImagenNueva ? emImagenNueva.vista : emImagenUrl;
+  if (src && (emImagenNueva || imagenValida(src))) {
+    const img = document.createElement("img");
+    img.alt = "Imagen de la empresa o proyecto";
+    img.referrerPolicy = "no-referrer";
+    img.src = src;
+    emVista.appendChild(img);
+  } else {
+    emVista.textContent = "Sin imagen";
+  }
+  emQuitarImg.hidden = !(emImagenNueva || emImagenUrl);
+  emElegirImg.textContent = emImagenNueva || emImagenUrl ? "Cambiar imagen" : "Elegir imagen";
+}
+emElegirImg.addEventListener("click", () => emArchivo.click());
+emQuitarImg.addEventListener("click", () => {
+  emImagenNueva = null;
+  emImagenUrl = "";
+  emArchivo.value = "";
+  emDibujarVistaImagen();
+});
+emArchivo.addEventListener("change", async () => {
+  const archivo = emArchivo.files && emArchivo.files[0];
+  if (!archivo) return;
+  setEstado(emFormEstado, "Preparando imagen…");
+  try {
+    emImagenNueva = await leerImagenReducida(archivo);
+    emDibujarVistaImagen();
+    setEstado(emFormEstado, "");
+  } catch (err) {
+    setEstado(emFormEstado, "Error: " + err.message, "error");
+  }
+  emArchivo.value = "";
+});
+
+// ----- Mini notas cuadradas -----
+function dibujarChipsEm() {
+  emChips.innerHTML = "";
+  empresas.forEach((d) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    const conImg = imagenValida(d.imagen);
+    b.className = "ej-chip ej-chip-resumen" + (conImg ? " emp-chip-con-img" : "");
+    b.title = d.nombre + (d.fecha ? " (" + ipFechaCorta(d.fecha) + ")" : "");
+    b.setAttribute("aria-label", "Ver o editar " + d.nombre);
+    if (conImg) {
+      const img = document.createElement("img");
+      img.className = "emp-chip-img";
+      img.alt = "";
+      img.loading = "lazy";
+      img.referrerPolicy = "no-referrer";
+      img.src = d.imagen;
+      img.addEventListener("error", () => img.remove());
+      b.appendChild(img);
+    }
+    const n = document.createElement("span");
+    n.className = "ej-chip-nombre";
+    n.textContent = (conImg ? "" : "🏢 ") + d.nombre;
+    const f = document.createElement("span");
+    f.className = "ej-chip-fecha";
+    f.textContent = ipFechaCorta(d.fecha);
+    const t = document.createElement("span");
+    t.className = "ej-chip-desc";
+    t.textContent = resumenCorto(d.descripcion, 70);
+    b.append(n, f, t);
+    b.addEventListener("click", () => abrirFormEm(d));
+    emChips.appendChild(b);
+  });
+  const nuevo = document.createElement("button");
+  nuevo.type = "button";
+  nuevo.className = "ej-chip ej-chip-nuevo";
+  nuevo.setAttribute("aria-label", "Añadir empresa o proyecto");
+  nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
+  nuevo.addEventListener("click", () => abrirFormEm(null));
+  emChips.appendChild(nuevo);
+}
+
+// ----- Ventana para añadir / editar -----
+function abrirFormEm(d) {
+  emEditando = d;
+  emImagenUrl = d ? d.imagen || "" : "";
+  emImagenNueva = null;
+  emFormTitulo.textContent = d ? "Editar empresa / proyecto" : "Nueva empresa / proyecto";
+  emNombre.value = d ? d.nombre : "";
+  emFecha.value = d && d.fecha ? d.fecha : ipHoy(); // si es nueva, empieza con la fecha de hoy
+  emLink.value = d ? d.link || "" : "";
+  emDescripcion.value = d ? d.descripcion || "" : "";
+  emLinks.value = d ? enlacesDeTexto(d.links).join("\n") : "";
+  emBorrar.hidden = !d;
+  setEstado(emFormEstado, "");
+  emDibujarVistaImagen();
+  emDibujarEnlaces(emLinkVista, enlacesDeTexto(emLink.value).slice(0, 1));
+  emDibujarEnlaces(emLinksVista, enlacesDeTexto(emLinks.value));
+  emForm.hidden = false;
+  emForm.scrollTop = 0;
+  emNombre.focus();
+}
+function cerrarFormEm() {
+  emForm.hidden = true;
+  emEditando = null;
+  emImagenNueva = null;
+  emImagenUrl = "";
+  emArchivo.value = "";
+}
+
+async function guardarEm() {
+  const nombre = emNombre.value.trim();
+  if (!nombre) {
+    setEstado(emFormEstado, "Escribe el nombre", "error");
+    return;
+  }
+  emGuardar.disabled = true;
+  try {
+    // 1) Si se eligió una imagen nueva, se sube a imgbb a través del Apps Script
+    if (emImagenNueva) {
+      setEstado(emFormEstado, "Subiendo imagen…");
+      const j = await llamarNotas("proyecto_imagen", { imagen: emImagenNueva.base64 });
+      emImagenUrl = j.url;
+      emImagenNueva = null; // si el guardado falla, no se vuelve a subir
+    }
+    // 2) Se guarda en la hoja (columnas H a N)
+    setEstado(emFormEstado, "Guardando…");
+    const editando = emEditando;
+    const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
+    const d = {
+      id,
+      nombre,
+      fecha: emFecha.value || ipHoy(),
+      link: emLink.value.trim(),
+      imagen: emImagenUrl,
+      descripcion: emDescripcion.value.trim(),
+      links: enlacesDeTexto(emLinks.value).join("\n"),
+    };
+    await llamarNotas(editando ? "empresa_editar" : "empresa_agregar", d);
+    if (editando) empresas = empresas.map((x) => (x.id === id ? d : x));
+    else empresas.push(d);
+    cerrarFormEm();
+    dibujarChipsEm();
+    setEstado(emEstado, "Guardado ✓", "ok");
+  } catch (err) {
+    setEstado(emFormEstado, "Error: " + err.message, "error");
+  } finally {
+    emGuardar.disabled = false;
+  }
+}
+
+async function borrarEm() {
+  const d = emEditando;
+  if (!d || !window.confirm("¿Eliminar «" + d.nombre + "»? (la imagen seguirá en imgbb)")) return;
+  emBorrar.disabled = true;
+  setEstado(emFormEstado, "Eliminando…");
+  try {
+    await llamarNotas("empresa_borrar", { id: d.id });
+    empresas = empresas.filter((x) => x.id !== d.id);
+    cerrarFormEm();
+    dibujarChipsEm();
+    setEstado(emEstado, "Eliminado", "ok");
+  } catch (err) {
+    setEstado(emFormEstado, "Error: " + err.message, "error");
+  } finally {
+    emBorrar.disabled = false;
+  }
+}
+
+// ----- Carga y sesión -----
+async function cargarEmpresas() {
+  setEstado(emEstado, "Cargando…");
+  try {
+    const j = await llamarNotas("empresa_listar");
+    empresas = Array.isArray(j.empresas) ? j.empresas : [];
+    emCargadas = true;
+    setEstado(emEstado, "");
+    dibujarChipsEm();
+  } catch (err) {
+    setEstado(emEstado, "Error: " + err.message, "error");
+  }
+}
+
+function actualizarPanelEmpresas() {
+  if (!sesionVigente()) {
+    // Sin sesión no se guardan datos en pantalla
+    emCargadas = false;
+    empresas = [];
+  }
+  if (panelEm.hidden) return;
+  const dentro = sesionVigente();
+  emSinSesion.hidden = dentro;
+  emContenido.hidden = !dentro;
+  if (dentro) {
+    if (!emCargadas) cargarEmpresas();
+    else dibujarChipsEm();
+  } else {
+    cerrarFormEm();
+    dibujarChipsEm();
+  }
+}
+
+// Se llama al entrar a la página de Empresas/Proyectos (desde mostrarSeccion)
+function entrarEmpresas() {
+  cerrarFormEm();
+  panelEm.hidden = false;
+  dibujarChipsEm();
+  actualizarPanelEmpresas();
+}
+// Empresas/Proyectos es una página: aquí solo se cierra la ventana
+function cerrarEmpresas() {
+  cerrarFormEm();
+}
+
+emEl("em-cerrar").addEventListener("click", cerrarEmpresas);
+emEl("em-actualizar").addEventListener("click", () => {
+  if (sesionVigente()) cargarEmpresas();
+  else actualizarPanelEmpresas();
+});
+emEl("em-ir-login").addEventListener("click", () => {
+  cerrarEmpresas();
+  abrirLateral();
+});
+emGuardar.addEventListener("click", guardarEm);
+emEl("em-cancelar").addEventListener("click", cerrarFormEm);
+emBorrar.addEventListener("click", borrarEm);
+// Esc cierra la ventana
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || panelEm.hidden) return;
+  if (!emForm.hidden) cerrarFormEm();
 });
 
 // ---------- Día de Hoy ----------

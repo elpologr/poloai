@@ -1,5 +1,5 @@
 :root {
-  --app-version: "43"; /* debe coincidir con VERSION en app.js */
+  --app-version: "45"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -1271,6 +1271,39 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   .zona-lista { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 }
 
+/* Actividades y Trabajo: tarjetas como cuadritos (igual que los de Ejercicio y Diario) */
+.zona-lista.zona-lista-cuadritos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.zona-lista-cuadritos .notas-vacio { width: 100%; }
+.zona-cuadrito {
+  position: relative;
+  justify-content: flex-start;
+  background: var(--fondo, #fff);
+  cursor: pointer;
+}
+.zona-cuadrito .ej-chip-nombre { -webkit-line-clamp: 2; margin-right: 12px; }
+.zona-cuadrito .tarjeta-borrar { top: 1px; right: 3px; font-size: 1.1rem; }
+.zona-cuadrito-fin {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 0.7rem;
+  line-height: 1;
+  color: #1e8a55;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #1e8a55;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.zona-cuadrito-fin:hover { color: #fff; background: #1e8a55; }
+.zona-cuadrito:focus-visible { outline: 3px solid var(--nb-acento); outline-offset: 2px; }
+
 /* ---------- Calendario: modificar textos, descripción única y color del día ---------- */
 /* Día con color propio (el color y el contraste del texto los pone app.js) */
 .cal-dia.con-color:hover { filter: brightness(0.95); }
@@ -1832,3 +1865,14 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 }
 /* La tarjeta blanca que envuelve al calendario no hace falta cuando se ve la página del día */
 #calendario.con-dia-abierto { padding: 0; background: none; border: none; box-shadow: none; }
+
+/* ---------- Empresas/Proyectos: mini notas cuadradas (reutilizan .ej-chip) con imagen pequeña opcional ---------- */
+.emp-chip-img {
+  display: block;
+  width: 100%;
+  height: 34px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.7);
+}
+.ej-chip-resumen.emp-chip-con-img .ej-chip-desc { -webkit-line-clamp: 1; }
