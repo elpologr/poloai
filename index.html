@@ -218,7 +218,7 @@
       <button id="btn-menu-hoy" class="btn-menu btn-menu-hoy" type="button" data-seccion="seccion-hoy">
         <span class="btn-menu-icono" aria-hidden="true">&#9728;&#65039;</span><span class="btn-menu-texto">Día de Hoy</span>
       </button>
-      <!-- Botón grande «Empresas/Proyectos»: igual que «Día de Hoy», justo debajo. Abre su página (hoja 1, columnas H a N). -->
+      <!-- Botón grande «Empresas/Proyectos»: igual que «Día de Hoy», justo debajo. Abre la sección Empresas/Proyectos. -->
       <button id="btn-menu-empresas" class="btn-menu btn-menu-hoy btn-menu-empresas" type="button" data-seccion="seccion-empresas">
         <span class="btn-menu-icono" aria-hidden="true">&#127970;</span><span class="btn-menu-texto">Empresas/Proyectos</span>
       </button>
@@ -893,8 +893,7 @@
   </div>
     </section>
 
-    <!-- EMPRESAS/PROYECTOS (página; sus datos viven en la primera hoja, la del calendario, columnas H a N:
-         Nombre | Fecha | Link | Imagen | Descripcion/Nota | zona de links | Id) -->
+    <!-- EMPRESAS/PROYECTOS (página, como Información Primordial; sus datos viven en la PRIMERA hoja, columnas H a N: Nombre | Fecha | Link | Imagen | Descripcion/Nota | zona de links | Id) -->
     <section id="seccion-empresas" class="seccion seccion-pagina" hidden>
   <div id="panel-empresas" class="panel-notas panel-pagina" hidden>
     <div class="notas-caja ejercicio-caja empresas-caja" role="dialog" aria-modal="true" aria-labelledby="em-titulo">
@@ -927,7 +926,7 @@
         </div>
       </div>
 
-      <!-- Ventana para agregar o editar una empresa / proyecto -->
+      <!-- Ventana para agregar o editar una empresa o proyecto -->
       <div id="em-form" class="notas-nueva proy-form modo-editar" hidden>
         <h3 id="em-form-titulo" class="notas-form-titulo">Nueva empresa / proyecto</h3>
         <div class="proy-form-cuerpo">
@@ -959,7 +958,7 @@
             </label>
             <label class="notas-campo">
               <span>Zona de links (uno por línea)</span>
-              <textarea id="em-links" rows="3" maxlength="5000" placeholder="https://…"></textarea>
+              <textarea id="em-links" rows="3" maxlength="3000" placeholder="https://…"></textarea>
             </label>
             <div id="em-links-vista" class="proy-links-vista"></div>
           </div>
