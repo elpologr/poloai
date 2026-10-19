@@ -22,6 +22,7 @@ const VERSION = "46";
     "btn-menu-informacion", "seccion-informacion", "panel-informacion", "ip-chips", "ip-form", "ip-fecha",
     "btn-menu-comandos", "seccion-comandos", "panel-comandos", "cm-chips", "cm-form", "cm-fecha",
     "btn-menu-bazar", "seccion-bazar", "panel-bazar", "bz-chips", "bz-form", "bz-informacion",
+    "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
     "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
@@ -4203,29 +4204,44 @@ document.addEventListener("keydown", (e) => {
 });
 
 // ---------- Bazar (hoja «Bazar») ----------
-// Registros con Nombre | Informacion | Id (la Id de la columna C se llena sola).
+// Registros con Nombre | Informacion | Categoria | Id (la Id de la columna D se llena sola).
+// La categoría puede ser Bazar, Pedidos de Yeso o Ventas y decide en qué zona de la página se ve el registro:
+// «Bazar» (arriba), «Pedidos de Yeso» (solo aparece si hay registros) o «Ventas» (zona nueva, al final).
+const BZ_CATEGORIAS = ["Bazar", "Pedidos de Yeso", "Ventas"];
 const bzEl = (id) => document.getElementById(id);
 const panelBz = bzEl("panel-bazar");
 const bzSinSesion = bzEl("bz-sin-sesion");
 const bzContenido = bzEl("bz-contenido");
 const bzEstado = bzEl("bz-estado");
 const bzChips = bzEl("bz-chips");
+const bzChipsYeso = bzEl("bz-chips-yeso");
+const bzChipsVentas = bzEl("bz-chips-ventas");
+const bzZonaYeso = bzEl("bz-zona-yeso");
+const bzZonaVentas = bzEl("bz-zona-ventas");
 const bzForm = bzEl("bz-form");
 const bzFormTitulo = bzEl("bz-form-titulo");
 const bzNombre = bzEl("bz-nombre");
+const bzCategoria = bzEl("bz-categoria");
 const bzInformacion = bzEl("bz-informacion");
 const bzDestino = bzEl("bz-destino");
 const bzGuardar = bzEl("bz-guardar");
 const bzBorrar = bzEl("bz-borrar");
 const bzFormEstado = bzEl("bz-form-estado");
 
-let bazarLista = []; // [{ id, nombre, informacion }]
+let bazarLista = []; // [{ id, nombre, informacion, categoria }]
 let bzCargadas = false;
 let bzEditando = null; // registro abierto en la ventana (null = registro nuevo)
 
-function dibujarChipsBz() {
-  bzChips.innerHTML = "";
-  bazarLista.forEach((d) => {
+// Categoría válida de un registro (los que no traen una, o traen otra cosa, cuentan como «Bazar»)
+function categoriaBz(d) {
+  return d && BZ_CATEGORIAS.indexOf(d.categoria) !== -1 ? d.categoria : "Bazar";
+}
+
+// Dibuja en un contenedor los registros de una categoría. conAnadir: agrega el cuadro «+ Añadir»
+// (que abre la ventana con esa categoría ya elegida).
+function dibujarChipsBzEn(cont, categoria, conAnadir) {
+  cont.innerHTML = "";
+  bazarLista.filter((d) => categoriaBz(d) === categoria).forEach((d) => {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "ej-chip ej-chip-resumen";
@@ -4239,28 +4255,43 @@ function dibujarChipsBz() {
     t.textContent = resumenCorto(d.informacion, 70);
     b.append(n, t);
     b.addEventListener("click", () => abrirFormBz(d));
-    bzChips.appendChild(b);
+    cont.appendChild(b);
   });
+  if (!conAnadir) return;
   const nuevo = document.createElement("button");
   nuevo.type = "button";
   nuevo.className = "ej-chip ej-chip-nuevo";
-  nuevo.setAttribute("aria-label", "Añadir un registro al bazar");
+  nuevo.setAttribute("aria-label", "Añadir un registro a " + categoria);
   nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
-  nuevo.addEventListener("click", () => abrirFormBz(null));
-  bzChips.appendChild(nuevo);
+  nuevo.addEventListener("click", () => abrirFormBz(null, categoria));
+  cont.appendChild(nuevo);
+}
+
+function dibujarChipsBz() {
+  dibujarChipsBzEn(bzChips, "Bazar", true);
+  dibujarChipsBzEn(bzChipsVentas, "Ventas", true);
+  dibujarChipsBzEn(bzChipsYeso, "Pedidos de Yeso", false);
+  const dentro = sesionVigente();
+  // Ventas se ve siempre que haya sesión; la de Pedidos de Yeso solo si ya hay registros con esa categoría
+  bzZonaVentas.hidden = !dentro;
+  bzZonaYeso.hidden = !dentro || !bazarLista.some((d) => categoriaBz(d) === "Pedidos de Yeso");
 }
 
 // ----- Ventana para añadir / editar -----
-function abrirFormBz(d) {
+// categoriaInicial: la categoría que aparece elegida en un registro nuevo (por defecto «Bazar»)
+function abrirFormBz(d, categoriaInicial) {
   bzEditando = d;
   bzFormTitulo.textContent = d ? "Editar registro" : "Nuevo registro";
   bzNombre.value = d ? d.nombre : "";
+  bzCategoria.value = d ? categoriaBz(d) : BZ_CATEGORIAS.indexOf(categoriaInicial) !== -1 ? categoriaInicial : "Bazar";
   bzInformacion.value = d ? d.informacion : "";
   bzDestino.value = d && d.destino === "drive" ? "drive" : "sheets";
   bzBorrar.hidden = !d;
   setEstado(bzFormEstado, "");
   bzForm.hidden = false;
-  bzNombre.focus();
+  // El formulario vive en la parte de arriba (zona Bazar): si se abrió desde Ventas, se baja/sube hasta él
+  bzForm.scrollIntoView({ behavior: "smooth", block: "center" });
+  bzNombre.focus({ preventScroll: true });
 }
 function cerrarFormBz() {
   bzForm.hidden = true;
@@ -4275,7 +4306,8 @@ async function guardarBz() {
   }
   const editando = bzEditando;
   const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
-  const d = { id, nombre, informacion: bzInformacion.value.trim(), destino: bzDestino.value };
+  const categoria = BZ_CATEGORIAS.indexOf(bzCategoria.value) !== -1 ? bzCategoria.value : "Bazar";
+  const d = { id, nombre, informacion: bzInformacion.value.trim(), categoria, destino: bzDestino.value };
   bzGuardar.disabled = true;
   setEstado(bzFormEstado, "Guardando…");
   try {

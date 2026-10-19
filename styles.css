@@ -1909,3 +1909,9 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   .bazar-division { margin: 28px 0 16px; gap: 8px; }
   .bazar-division-titulo { padding: 8px 14px; font-size: 1.05rem; }
 }
+
+/* ---------- Bazar: zonas «Pedidos de Yeso» (registros de la hoja Bazar) y «Ventas» ---------- */
+.bazar-zona-extra[hidden] { display: none; }
+.bazar-zona-extra { margin-top: 14px; }
+.bazar-zona-extra .ej-chips { margin-top: 0; }
+#bz-zona-ventas { margin-bottom: 8px; }

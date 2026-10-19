@@ -13,7 +13,7 @@
   // ======================================================================
   //  ZONAS (cómo guarda cada una y con qué palabras se le nombra)
   // ======================================================================
-  // tipo: nota (hoja Notas) | dia (nombre+fecha+descripcion) | sinFecha (Deudas) | bazar (nombre+informacion)
+  // tipo: nota (hoja Notas) | dia (nombre+fecha+descripcion) | sinFecha (Deudas) | bazar (nombre+informacion+categoria)
   const ZONAS = [
     { id: "notas", titulo: "Notas", seccion: "seccion-notas", tipo: "nota", etiqueta: "General",
       alias: ["notas", "nota"] },
@@ -32,7 +32,9 @@
     { id: "comandos", titulo: "Comandos", seccion: "seccion-comandos", tipo: "dia", accion: "comando_agregar",
       alias: ["comandos", "comando"] },
     { id: "bazar", titulo: "Bazar", seccion: "seccion-bazar", tipo: "bazar", accion: "bazar_agregar",
-      alias: ["bazar"] },
+      categoria: "Bazar", alias: ["bazar"] },
+    { id: "ventas", titulo: "Ventas", seccion: "seccion-bazar", tipo: "bazar", accion: "bazar_agregar",
+      categoria: "Ventas", alias: ["ventas", "venta"] },
     { id: "yeso", titulo: "Pedidos de Yeso", seccion: "pedidos-yeso", tipo: "nota", etiqueta: "Pedidos de Yeso",
       alias: ["pedidos de yeso", "pedido de yeso", "pedidos", "pedido", "yeso"] },
   ];
@@ -41,7 +43,7 @@
   // Palabra que dices justo después del verbo («crea una DEUDA…») y que ya indica la zona
   const OBJETO_ZONA = {
     deuda: "deudas", adeudo: "deudas", actividad: "actividades", trabajo: "trabajo",
-    pedido: "yeso", ejercicio: "ejercicio", comando: "comandos", pendiente: "notas",
+    pedido: "yeso", ejercicio: "ejercicio", comando: "comandos", pendiente: "notas", venta: "ventas",
   };
   const OBJETO_ETIQUETA = { pendiente: "Pendiente Importante" };
 
@@ -385,7 +387,7 @@
       return z;
     }
     if (z.tipo === "bazar") {
-      const d = { id: idRegistro(), nombre, informacion: c.texto, destino };
+      const d = { id: idRegistro(), nombre, informacion: c.texto, categoria: z.categoria || "Bazar", destino };
       await llamarNotas(z.accion, d);
       try { if (bzCargadas) { bazarLista.push(d); dibujarChipsBz(); } } catch (e) { /* idem */ }
       return z;

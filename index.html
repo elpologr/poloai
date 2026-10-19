@@ -831,7 +831,8 @@
   </div>
     </section>
 
-    <!-- BAZAR (página, como Información Primordial; sus datos viven en la hoja «Bazar»: Nombre | Informacion | Id) -->
+    <!-- BAZAR (página, como Información Primordial; sus datos viven en la hoja «Bazar»: Nombre | Informacion | Categoria | Id).
+         Tiene tres zonas: Bazar (arriba), Pedidos de Yeso y Ventas; la categoría de cada registro decide en cuál se ve. -->
     <section id="seccion-bazar" class="seccion seccion-pagina" hidden>
   <div id="panel-bazar" class="panel-notas panel-pagina" hidden>
     <div class="notas-caja ejercicio-caja bazar-caja" role="dialog" aria-modal="true" aria-labelledby="bz-titulo">
@@ -872,6 +873,14 @@
           <input id="bz-nombre" type="text" maxlength="80" placeholder="Ej. Lámpara vintage" autocomplete="off" />
         </label>
         <label class="notas-campo">
+          <span>Categoría</span>
+          <select id="bz-categoria">
+            <option value="Bazar">Bazar</option>
+            <option value="Pedidos de Yeso">Pedidos de Yeso</option>
+            <option value="Ventas">Ventas</option>
+          </select>
+        </label>
+        <label class="notas-campo">
           <span>Guardar en</span>
           <select id="bz-destino">
             <option value="sheets">Google Sheets (en la hoja)</option>
@@ -899,6 +908,20 @@
     <span class="bazar-division-linea" aria-hidden="true"></span>
   </div>
   <div id="zona-pedidos-yeso" class="zona-etiqueta"></div>
+  <!-- Registros de la hoja «Bazar» con categoría «Pedidos de Yeso» (solo se ve si hay alguno; la arma app.js) -->
+  <div id="bz-zona-yeso" class="zona-etiqueta bazar-zona-extra" hidden>
+    <div id="bz-chips-yeso" class="ej-chips"></div>
+  </div>
+
+  <!-- División y zona «Ventas» dentro de Bazar (registros de la hoja «Bazar» con categoría «Ventas»; la arma app.js) -->
+  <div id="bazar-division-ventas" class="bazar-division" role="separator" aria-label="Ventas">
+    <span class="bazar-division-linea" aria-hidden="true"></span>
+    <h3 class="bazar-division-titulo">&#128176; Ventas</h3>
+    <span class="bazar-division-linea" aria-hidden="true"></span>
+  </div>
+  <div id="bz-zona-ventas" class="zona-etiqueta bazar-zona-extra" hidden>
+    <div id="bz-chips-ventas" class="ej-chips"></div>
+  </div>
     </section>
 
     <!-- EMPRESAS/PROYECTOS (página, como Información Primordial; sus datos viven en la PRIMERA hoja, columnas H a N: Nombre | Fecha | Link | Imagen | Descripcion/Nota | zona de links | Id) -->
