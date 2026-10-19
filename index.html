@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="39" />
+  <meta name="app-version" content="40" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=39" />
+  <link rel="stylesheet" href="styles.css?v=40" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -550,6 +550,13 @@
           <input id="ej-nombre" type="text" maxlength="80" placeholder="Ej. Sentadillas" autocomplete="off" />
         </label>
         <label class="notas-campo">
+          <span>Guardar en</span>
+          <select id="ej-destino">
+            <option value="sheets">Google Sheets (en la hoja)</option>
+            <option value="drive">Google Drive (archivo .txt en notaslargas)</option>
+          </select>
+        </label>
+        <label class="notas-campo">
           <span>Descripción</span>
           <textarea id="ej-descripcion" rows="4" maxlength="1000000" placeholder="Series, repeticiones, tiempo…"></textarea>
         </label>
@@ -649,6 +656,13 @@
           <input id="di-nombre" type="text" maxlength="80" placeholder="Ej. Idea del día" autocomplete="off" />
         </label>
         <label class="notas-campo">
+          <span>Guardar en</span>
+          <select id="di-destino">
+            <option value="sheets">Google Sheets (en la hoja)</option>
+            <option value="drive">Google Drive (archivo .txt en notaslargas)</option>
+          </select>
+        </label>
+        <label class="notas-campo">
           <span>Descripción</span>
           <textarea id="di-descripcion" rows="4" maxlength="1000000" placeholder="Escribe tu anotación…"></textarea>
         </label>
@@ -702,6 +716,13 @@
         <label class="notas-campo">
           <span>Nombre</span>
           <input id="de-nombre" type="text" maxlength="80" placeholder="Ej. Préstamo a Juan" autocomplete="off" />
+        </label>
+        <label class="notas-campo">
+          <span>Guardar en</span>
+          <select id="de-destino">
+            <option value="sheets">Google Sheets (en la hoja)</option>
+            <option value="drive">Google Drive (archivo .txt en notaslargas)</option>
+          </select>
         </label>
         <label class="notas-campo">
           <span>Descripción</span>
@@ -761,6 +782,13 @@
         <label class="notas-campo">
           <span>Fecha</span>
           <input id="ip-fecha" type="date" min="1999-02-02" max="2099-02-02" />
+        </label>
+        <label class="notas-campo">
+          <span>Guardar en</span>
+          <select id="ip-destino">
+            <option value="sheets">Google Sheets (en la hoja)</option>
+            <option value="drive">Google Drive (archivo .txt en notaslargas)</option>
+          </select>
         </label>
         <label class="notas-campo">
           <span>Descripción</span>
@@ -823,6 +851,13 @@
           <input id="cm-fecha" type="date" min="1999-02-02" max="2099-02-02" />
         </label>
         <label class="notas-campo">
+          <span>Guardar en</span>
+          <select id="cm-destino">
+            <option value="sheets">Google Sheets (en la hoja)</option>
+            <option value="drive">Google Drive (archivo .txt en notaslargas)</option>
+          </select>
+        </label>
+        <label class="notas-campo">
           <span>Descripción</span>
           <textarea id="cm-descripcion" rows="4" maxlength="1000000" placeholder="Qué debe hacer este comando…"></textarea>
         </label>
@@ -876,6 +911,13 @@
         <label class="notas-campo">
           <span>Nombre</span>
           <input id="bz-nombre" type="text" maxlength="80" placeholder="Ej. Lámpara vintage" autocomplete="off" />
+        </label>
+        <label class="notas-campo">
+          <span>Guardar en</span>
+          <select id="bz-destino">
+            <option value="sheets">Google Sheets (en la hoja)</option>
+            <option value="drive">Google Drive (archivo .txt en notaslargas)</option>
+          </select>
         </label>
         <label class="notas-campo">
           <span>Información</span>
@@ -971,8 +1013,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=39"></script>
-  <script src="app.js?v=39"></script>
-  <script type="module" src="firebase.js?v=39"></script>
+  <script src="config.js?v=40"></script>
+  <script src="app.js?v=40"></script>
+  <script type="module" src="firebase.js?v=40"></script>
 </body>
 </html>

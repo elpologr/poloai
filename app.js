@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "39";
+const VERSION = "40";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -23,6 +23,7 @@ const VERSION = "39";
     "btn-menu-comandos", "seccion-comandos", "panel-comandos", "cm-chips", "cm-form", "cm-fecha",
     "btn-menu-bazar", "seccion-bazar", "panel-bazar", "bz-chips", "bz-form", "bz-informacion",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
+    "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
   ];
   const problemas = [];
 
@@ -2968,6 +2969,7 @@ const ejForm = ejEl("ej-form");
 const ejFormTitulo = ejEl("ej-form-titulo");
 const ejNombre = ejEl("ej-nombre");
 const ejDescripcion = ejEl("ej-descripcion");
+const ejDestino = ejEl("ej-destino");
 const ejGuardar = ejEl("ej-guardar");
 const ejBorrar = ejEl("ej-borrar");
 const ejFormEstado = ejEl("ej-form-estado");
@@ -3073,6 +3075,7 @@ function abrirFormEj(e) {
   ejFormTitulo.textContent = e ? "Editar ejercicio" : "Nuevo ejercicio";
   ejNombre.value = e ? e.nombre : "";
   ejDescripcion.value = e ? e.descripcion : "";
+  ejDestino.value = e && e.destino === "drive" ? "drive" : "sheets";
   ejBorrar.hidden = !e;
   setEstado(ejFormEstado, "");
   ejForm.hidden = false;
@@ -3091,7 +3094,7 @@ async function guardarEj() {
   }
   const editando = ejEditando;
   const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
-  const e = { id, nombre, fecha: editando ? editando.fecha : ejDia, descripcion: ejDescripcion.value.trim() };
+  const e = { id, nombre, fecha: editando ? editando.fecha : ejDia, descripcion: ejDescripcion.value.trim(), destino: ejDestino.value };
   ejGuardar.disabled = true;
   setEstado(ejFormEstado, "Guardando…");
   try {
@@ -3232,6 +3235,7 @@ const diForm = diEl("di-form");
 const diFormTitulo = diEl("di-form-titulo");
 const diNombre = diEl("di-nombre");
 const diDescripcion = diEl("di-descripcion");
+const diDestino = diEl("di-destino");
 const diGuardar = diEl("di-guardar");
 const diBorrar = diEl("di-borrar");
 const diFormEstado = diEl("di-form-estado");
@@ -3457,6 +3461,7 @@ function abrirFormDi(e) {
     : "Nueva anotación";
   diNombre.value = e ? e.nombre : "";
   diDescripcion.value = e ? e.descripcion : "";
+  diDestino.value = e && e.destino === "drive" ? "drive" : "sheets";
   diBorrar.hidden = !e;
   setEstado(diFormEstado, "");
   diForm.hidden = false;
@@ -3480,6 +3485,7 @@ async function guardarDi() {
     nombre,
     fecha: editando ? editando.fecha : diDia,
     descripcion: diDescripcion.value.trim(),
+    destino: diDestino.value,
     terminado: editando ? !!editando.terminado : false, // solo informativo: el Apps Script no toca la columna D
   };
   diGuardar.disabled = true;
@@ -3630,6 +3636,7 @@ const deForm = deEl("de-form");
 const deFormTitulo = deEl("de-form-titulo");
 const deNombre = deEl("de-nombre");
 const deDescripcion = deEl("de-descripcion");
+const deDestino = deEl("de-destino");
 const deGuardar = deEl("de-guardar");
 const deBorrar = deEl("de-borrar");
 const deFormEstado = deEl("de-form-estado");
@@ -3671,6 +3678,7 @@ function abrirFormDe(d) {
   deFormTitulo.textContent = d ? "Editar deuda" : "Nueva deuda";
   deNombre.value = d ? d.nombre : "";
   deDescripcion.value = d ? d.descripcion : "";
+  deDestino.value = d && d.destino === "drive" ? "drive" : "sheets";
   deBorrar.hidden = !d;
   setEstado(deFormEstado, "");
   deForm.hidden = false;
@@ -3689,7 +3697,7 @@ async function guardarDe() {
   }
   const editando = deEditando;
   const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
-  const d = { id, nombre, descripcion: deDescripcion.value.trim() };
+  const d = { id, nombre, descripcion: deDescripcion.value.trim(), destino: deDestino.value };
   deGuardar.disabled = true;
   setEstado(deFormEstado, "Guardando…");
   try {
@@ -3798,6 +3806,7 @@ const ipFormTitulo = ipEl("ip-form-titulo");
 const ipNombre = ipEl("ip-nombre");
 const ipFecha = ipEl("ip-fecha");
 const ipDescripcion = ipEl("ip-descripcion");
+const ipDestino = ipEl("ip-destino");
 const ipContador = ipEl("ip-contador");
 const IP_LIMITE = 1000000; // tope de caracteres por texto (igual a LIMITE_TEXTO_LARGO del Apps Script; los largos van a Drive)
 // Contador de caracteres de la descripción; avisa cuando queda poco espacio
@@ -3865,6 +3874,7 @@ function abrirFormIp(d) {
   ipNombre.value = d ? d.nombre : "";
   ipFecha.value = d && d.fecha ? d.fecha : ipHoy(); // si es nueva, empieza con la fecha de hoy
   ipDescripcion.value = d ? d.descripcion : "";
+  ipDestino.value = d && d.destino === "drive" ? "drive" : "sheets";
   ipActualizarContador();
   ipBorrar.hidden = !d;
   setEstado(ipFormEstado, "");
@@ -3885,7 +3895,7 @@ async function guardarIp() {
   const fecha = ipFecha.value || ipHoy();
   const editando = ipEditando;
   const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
-  const d = { id, nombre, fecha, descripcion: ipDescripcion.value.trim() };
+  const d = { id, nombre, fecha, descripcion: ipDescripcion.value.trim(), destino: ipDestino.value };
   ipGuardar.disabled = true;
   setEstado(ipFormEstado, "Guardando…");
   try {
@@ -3994,6 +4004,7 @@ const cmFormTitulo = cmEl("cm-form-titulo");
 const cmNombre = cmEl("cm-nombre");
 const cmFecha = cmEl("cm-fecha");
 const cmDescripcion = cmEl("cm-descripcion");
+const cmDestino = cmEl("cm-destino");
 const cmGuardar = cmEl("cm-guardar");
 const cmBorrar = cmEl("cm-borrar");
 const cmFormEstado = cmEl("cm-form-estado");
@@ -4050,6 +4061,7 @@ function abrirFormCm(d) {
   cmNombre.value = d ? d.nombre : "";
   cmFecha.value = d && d.fecha ? d.fecha : cmHoy(); // si es nueva, empieza con la fecha de hoy
   cmDescripcion.value = d ? d.descripcion : "";
+  cmDestino.value = d && d.destino === "drive" ? "drive" : "sheets";
   cmBorrar.hidden = !d;
   setEstado(cmFormEstado, "");
   cmForm.hidden = false;
@@ -4069,7 +4081,7 @@ async function guardarCm() {
   const fecha = cmFecha.value || cmHoy();
   const editando = cmEditando;
   const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
-  const d = { id, nombre, fecha, descripcion: cmDescripcion.value.trim() };
+  const d = { id, nombre, fecha, descripcion: cmDescripcion.value.trim(), destino: cmDestino.value };
   cmGuardar.disabled = true;
   setEstado(cmFormEstado, "Guardando…");
   try {
@@ -4177,6 +4189,7 @@ const bzForm = bzEl("bz-form");
 const bzFormTitulo = bzEl("bz-form-titulo");
 const bzNombre = bzEl("bz-nombre");
 const bzInformacion = bzEl("bz-informacion");
+const bzDestino = bzEl("bz-destino");
 const bzGuardar = bzEl("bz-guardar");
 const bzBorrar = bzEl("bz-borrar");
 const bzFormEstado = bzEl("bz-form-estado");
@@ -4218,6 +4231,7 @@ function abrirFormBz(d) {
   bzFormTitulo.textContent = d ? "Editar registro" : "Nuevo registro";
   bzNombre.value = d ? d.nombre : "";
   bzInformacion.value = d ? d.informacion : "";
+  bzDestino.value = d && d.destino === "drive" ? "drive" : "sheets";
   bzBorrar.hidden = !d;
   setEstado(bzFormEstado, "");
   bzForm.hidden = false;
@@ -4236,7 +4250,7 @@ async function guardarBz() {
   }
   const editando = bzEditando;
   const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
-  const d = { id, nombre, informacion: bzInformacion.value.trim() };
+  const d = { id, nombre, informacion: bzInformacion.value.trim(), destino: bzDestino.value };
   bzGuardar.disabled = true;
   setEstado(bzFormEstado, "Guardando…");
   try {
