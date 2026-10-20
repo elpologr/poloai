@@ -4693,7 +4693,8 @@ function dibujarChipsEm() {
     const t = document.createElement("span");
     t.className = "ej-chip-desc";
     t.textContent = resumenCorto(d.descripcion, 70);
-    b.append(n, f, t);
+    if (conImg) b.append(n, f); // con imagen: la foto ocupa el cuadro y no se muestra la vista previa del texto
+    else b.append(n, f, t);
     b.addEventListener("click", () => abrirFormEm(d));
     emChips.appendChild(b);
   });

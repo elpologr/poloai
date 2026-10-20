@@ -1866,16 +1866,65 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 /* La tarjeta blanca que envuelve al calendario no hace falta cuando se ve la página del día */
 #calendario.con-dia-abierto { padding: 0; background: none; border: none; box-shadow: none; }
 
-/* ---------- Empresas/Proyectos: mini notas cuadradas (reutilizan .ej-chip) con imagen pequeña opcional ---------- */
+/* ---------- Empresas/Proyectos: cuadrícula de 4 por fila; la imagen llena el cuadro ---------- */
+#em-chips {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+#em-chips .ej-chip {
+  position: relative;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+}
+#em-chips .ej-chip-resumen { padding: 10px; }
+#em-chips .ej-chip-nombre { font-size: 0.85rem; }
+#em-chips .ej-chip-desc { font-size: 0.72rem; -webkit-line-clamp: 4; }
+#em-chips .ej-chip-nuevo { align-items: center; justify-content: center; }
 .emp-chip-img {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
-  height: 34px;
+  height: 100%;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 0;
   background: rgba(255, 255, 255, 0.7);
 }
-.ej-chip-resumen.emp-chip-con-img .ej-chip-desc { -webkit-line-clamp: 1; }
+/* Con imagen: el nombre y la fecha van sobre la foto, abajo, con degradado para que se lean */
+#em-chips .emp-chip-con-img {
+  justify-content: flex-end;
+  padding: 0;
+}
+#em-chips .emp-chip-con-img .ej-chip-nombre,
+#em-chips .emp-chip-con-img .ej-chip-fecha {
+  position: relative;
+  z-index: 1;
+  padding: 0 8px;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+#em-chips .emp-chip-con-img .ej-chip-nombre { padding-top: 22px; }
+#em-chips .emp-chip-con-img .ej-chip-fecha { padding-bottom: 7px; }
+#em-chips .emp-chip-con-img::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 55%;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+@media (max-width: 480px) {
+  #em-chips { gap: 8px; }
+  #em-chips .ej-chip { width: 100%; height: auto; }
+  #em-chips .ej-chip-resumen { padding: 6px; }
+  #em-chips .ej-chip-nombre { font-size: 0.7rem; }
+  #em-chips .ej-chip-desc { font-size: 0.6rem; -webkit-line-clamp: 3; }
+  #em-chips .emp-chip-con-img .ej-chip-nombre { padding: 18px 5px 0; }
+  #em-chips .emp-chip-con-img .ej-chip-fecha { padding: 0 5px 5px; font-size: 0.58rem; }
+}
 
 /* ---------- Bazar: división y zona «Pedidos de Yeso» debajo ---------- */
 .bazar-division {
