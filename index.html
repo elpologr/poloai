@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="47" />
+  <meta name="app-version" content="48" />
   <title>Polo AI</title>
   <link rel="stylesheet" href="styles.css?v=46" />
 </head>
@@ -970,7 +970,25 @@
         </div>
       </div>
 
-      <!-- Ventana para agregar o editar una empresa o proyecto -->
+      <!-- Vista de la empresa o proyecto (se abre al tocar un recuadro). La ventana de abajo (em-form) es la zona de ajustes: se abre con el botón de engrane -->
+      <div id="em-detalle" class="em-detalle" hidden>
+        <div class="em-det-barra">
+          <button id="em-det-volver" class="em-det-btn" type="button" aria-label="Volver a la lista" title="Volver">&#8592;</button>
+          <button id="em-det-ajustes" class="em-det-btn" type="button" aria-label="Ajustes de este proyecto" title="Ajustes">&#9881;&#xFE0E;</button>
+        </div>
+        <div id="em-det-imagen" class="em-det-hero"></div>
+        <div class="em-det-titulo-fila">
+          <h3 id="em-det-nombre" class="em-det-nombre"></h3>
+          <span id="em-det-fecha" class="em-det-fecha"></span>
+        </div>
+        <p id="em-det-desc" class="em-det-desc"></p>
+        <div id="em-det-links-zona" class="em-det-links-zona" hidden>
+          <h4 class="em-det-subtitulo">Enlaces</h4>
+          <div id="em-det-links" class="em-det-links"></div>
+        </div>
+      </div>
+
+      <!-- Ventana de ajustes: agregar o editar una empresa o proyecto -->
       <div id="em-form" class="notas-nueva proy-form modo-editar" hidden>
         <h3 id="em-form-titulo" class="notas-form-titulo">Nueva empresa / proyecto</h3>
         <div class="proy-form-cuerpo">

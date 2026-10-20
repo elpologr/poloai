@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "47";
+const VERSION = "48";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -25,7 +25,7 @@ const VERSION = "47";
     "cuenta-nota", "cuenta-dispositivos", "disp-panel", "disp-estado", "disp-lista", "disp-todas",
     "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
-    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url",
+    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
   ];
   const problemas = [];
@@ -4701,6 +4701,149 @@ emArchivo.addEventListener("change", async () => {
   emArchivo.value = "";
 });
 
+// ----- Vista del proyecto (al tocar un recuadro): imagen, nombre y fecha, descripción y botones de redes -----
+const emDetalle = emEl("em-detalle");
+const emDetImagen = emEl("em-det-imagen");
+const emDetNombre = emEl("em-det-nombre");
+const emDetFecha = emEl("em-det-fecha");
+const emDetDesc = emEl("em-det-desc");
+const emDetLinksZona = emEl("em-det-links-zona");
+const emDetLinks = emEl("em-det-links");
+let emDetActual = null; // empresa o proyecto que se está viendo (null = ninguno)
+
+// Redes conocidas: se reconocen por el dominio del link. Lo que no esté aquí sale como «Enlace».
+const REDES_EM = [
+  { id: "youtube", nombre: "YouTube", glifo: "▶", hosts: ["youtube.com", "youtu.be", "youtube-nocookie.com"] },
+  { id: "facebook", nombre: "Facebook", glifo: "f", hosts: ["facebook.com", "fb.com", "fb.me", "fb.watch"] },
+  { id: "x", nombre: "X (Twitter)", glifo: "X", hosts: ["twitter.com", "x.com", "t.co"] },
+  { id: "instagram", nombre: "Instagram", glifo: "◎", hosts: ["instagram.com", "instagr.am"] },
+  { id: "threads", nombre: "Threads", glifo: "@", hosts: ["threads.net", "threads.com"] },
+  { id: "tiktok", nombre: "TikTok", glifo: "♪", hosts: ["tiktok.com"] },
+  { id: "whatsapp", nombre: "WhatsApp", glifo: "✆", hosts: ["whatsapp.com", "wa.me"] },
+  { id: "telegram", nombre: "Telegram", glifo: "➤", hosts: ["t.me", "telegram.me", "telegram.org"] },
+  { id: "linkedin", nombre: "LinkedIn", glifo: "in", hosts: ["linkedin.com"] },
+  { id: "github", nombre: "GitHub", glifo: "</>", hosts: ["github.com", "github.io"] },
+  { id: "twitch", nombre: "Twitch", glifo: "T", hosts: ["twitch.tv"] },
+  { id: "spotify", nombre: "Spotify", glifo: "♫", hosts: ["spotify.com", "spotify.link"] },
+  { id: "pinterest", nombre: "Pinterest", glifo: "P", hosts: ["pinterest.com", "pin.it"] },
+  { id: "reddit", nombre: "Reddit", glifo: "r/", hosts: ["reddit.com", "redd.it"] },
+  { id: "discord", nombre: "Discord", glifo: "D", hosts: ["discord.com", "discord.gg"] },
+  { id: "drive", nombre: "Google Drive", glifo: "▲", hosts: ["drive.google.com", "docs.google.com"] },
+];
+
+// Devuelve la red de un link (o una «Enlace» genérico) y un texto corto para mostrar debajo del nombre
+function emRedDeLink(href) {
+  let host = "";
+  let resto = "";
+  try {
+    const u = new URL(href);
+    host = u.hostname.toLowerCase().replace(/^(www|m|mobile)\./, "");
+    resto = (u.pathname + u.search).replace(/\/$/, "");
+  } catch (e) {}
+  const red = REDES_EM.find((r) => r.hosts.some((h) => host === h || host.endsWith("." + h)));
+  let corto = host + (resto && resto !== "/" ? resto : "");
+  if (corto.length > 38) corto = corto.slice(0, 37) + "…";
+  return {
+    id: red ? red.id : "enlace",
+    nombre: red ? red.nombre : "Enlace",
+    glifo: red ? red.glifo : "🔗",
+    corto: corto || href,
+  };
+}
+
+function emFechaLarga(f) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || "");
+  if (!m) return "";
+  try {
+    return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" });
+  } catch (e) {
+    return ipFechaCorta(f);
+  }
+}
+
+function dibujarDetalleEm() {
+  const d = emDetActual;
+  if (!d) return;
+  // Imagen
+  emDetImagen.innerHTML = "";
+  const vacio = () => {
+    emDetImagen.innerHTML = "";
+    const v = document.createElement("span");
+    v.className = "em-det-hero-vacio";
+    v.setAttribute("aria-hidden", "true");
+    v.textContent = "🏢";
+    emDetImagen.appendChild(v);
+  };
+  if (imagenValida(d.imagen)) {
+    const img = document.createElement("img");
+    img.alt = "Imagen de " + d.nombre;
+    img.referrerPolicy = "no-referrer";
+    img.addEventListener("error", vacio);
+    img.src = d.imagen;
+    emDetImagen.appendChild(img);
+  } else {
+    vacio();
+  }
+  // Nombre y fecha (en la misma línea)
+  emDetNombre.textContent = d.nombre;
+  emDetFecha.textContent = emFechaLarga(d.fecha);
+  // Descripción
+  const desc = String(d.descripcion || "").trim();
+  emDetDesc.textContent = desc || "Sin descripción todavía. Puedes añadirla desde los ajustes (⚙).";
+  emDetDesc.classList.toggle("vacia", !desc);
+  // Botones de enlaces: el link principal y los de la zona de links, sin repetir
+  const lista = [];
+  [d.link].concat(enlacesDeTexto(d.links)).forEach((l) => {
+    const t = String(l || "").trim();
+    if (t && !lista.includes(t)) lista.push(t);
+  });
+  emDetLinks.innerHTML = "";
+  lista.forEach((l) => {
+    const href = hrefSeguro(l);
+    const red = href ? emRedDeLink(href) : { id: "enlace", nombre: "Texto", glifo: "✎", corto: l.length > 38 ? l.slice(0, 37) + "…" : l };
+    const el = document.createElement(href ? "a" : "span");
+    el.className = "em-red";
+    el.dataset.red = red.id;
+    if (href) {
+      el.href = href;
+      el.target = "_blank";
+      el.rel = "noopener noreferrer";
+      el.title = href;
+    }
+    const ico = document.createElement("span");
+    ico.className = "em-red-ico";
+    ico.setAttribute("aria-hidden", "true");
+    ico.textContent = red.glifo;
+    const txt = document.createElement("span");
+    txt.className = "em-red-txt";
+    const b = document.createElement("b");
+    b.textContent = red.nombre;
+    const sm = document.createElement("small");
+    sm.textContent = red.corto;
+    txt.append(b, sm);
+    el.append(ico, txt);
+    emDetLinks.appendChild(el);
+  });
+  emDetLinksZona.hidden = lista.length === 0;
+}
+
+function abrirDetalleEm(d) {
+  emDetActual = d;
+  dibujarDetalleEm();
+  emDetalle.hidden = false;
+  emDetalle.scrollTop = 0;
+  emEl("em-det-volver").focus();
+}
+function cerrarDetalleEm() {
+  emDetalle.hidden = true;
+  emDetActual = null;
+}
+emEl("em-det-volver").addEventListener("click", cerrarDetalleEm);
+// El engrane abre la zona de ajustes (el formulario de editar) de este proyecto
+emEl("em-det-ajustes").addEventListener("click", () => {
+  if (emDetActual) abrirFormEm(emDetActual);
+});
+
 // ----- Mini notas cuadradas -----
 function dibujarChipsEm() {
   emChips.innerHTML = "";
@@ -4710,7 +4853,7 @@ function dibujarChipsEm() {
     const conImg = imagenValida(d.imagen);
     b.className = "ej-chip ej-chip-resumen" + (conImg ? " emp-chip-con-img" : "");
     b.title = d.nombre + (d.fecha ? " (" + ipFechaCorta(d.fecha) + ")" : "");
-    b.setAttribute("aria-label", "Ver o editar " + d.nombre);
+    b.setAttribute("aria-label", "Abrir " + d.nombre);
     if (conImg) {
       const img = document.createElement("img");
       img.className = "emp-chip-img";
@@ -4732,7 +4875,7 @@ function dibujarChipsEm() {
     t.textContent = resumenCorto(d.descripcion, 70);
     if (conImg) b.append(n, f); // con imagen: la foto ocupa el cuadro y no se muestra la vista previa del texto
     else b.append(n, f, t);
-    b.addEventListener("click", () => abrirFormEm(d));
+    b.addEventListener("click", () => abrirDetalleEm(d));
     emChips.appendChild(b);
   });
   const nuevo = document.createElement("button");
@@ -4811,6 +4954,10 @@ async function guardarEm() {
     else empresas.push(d);
     cerrarFormEm();
     dibujarChipsEm();
+    if (editando && emDetActual) {
+      emDetActual = d;
+      dibujarDetalleEm();
+    }
     setEstado(emEstado, "Guardado ✓", "ok");
     cargarEmpresas().then(() => setEstado(emEstado, "Guardado ✓", "ok"));
   } catch (err) {
@@ -4829,6 +4976,7 @@ async function borrarEm() {
     await llamarNotas("empresa_borrar", { id: d.id });
     empresas = empresas.filter((x) => x !== d);
     cerrarFormEm();
+    cerrarDetalleEm();
     dibujarChipsEm();
     setEstado(emEstado, "Eliminado", "ok");
     cargarEmpresas().then(() => setEstado(emEstado, "Eliminado", "ok"));
@@ -4848,6 +4996,15 @@ async function cargarEmpresas() {
     emCargadas = true;
     setEstado(emEstado, "");
     dibujarChipsEm();
+    if (emDetActual) {
+      const nueva = empresas.find((x) => x.id === emDetActual.id);
+      if (nueva) {
+        emDetActual = nueva;
+        dibujarDetalleEm();
+      } else {
+        cerrarDetalleEm();
+      }
+    }
   } catch (err) {
     setEstado(emEstado, "Error: " + err.message, "error");
   }
@@ -4868,6 +5025,7 @@ function actualizarPanelEmpresas() {
     else dibujarChipsEm();
   } else {
     cerrarFormEm();
+    cerrarDetalleEm();
     dibujarChipsEm();
   }
 }
@@ -4875,6 +5033,7 @@ function actualizarPanelEmpresas() {
 // Se llama al entrar a la página de Empresas/Proyectos (desde mostrarSeccion)
 function entrarEmpresas() {
   cerrarFormEm();
+  cerrarDetalleEm();
   panelEm.hidden = false;
   dibujarChipsEm();
   actualizarPanelEmpresas();
@@ -4882,6 +5041,7 @@ function entrarEmpresas() {
 // Empresas/Proyectos es una página: aquí solo se cierra la ventana
 function cerrarEmpresas() {
   cerrarFormEm();
+  cerrarDetalleEm();
 }
 
 emEl("em-cerrar").addEventListener("click", cerrarEmpresas);
@@ -4900,6 +5060,7 @@ emBorrar.addEventListener("click", borrarEm);
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelEm.hidden) return;
   if (!emForm.hidden) cerrarFormEm();
+  else if (!emDetalle.hidden) cerrarDetalleEm();
 });
 
 // ---------- Día de Hoy ----------

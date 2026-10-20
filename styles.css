@@ -1,5 +1,5 @@
 :root {
-  --app-version: "47"; /* debe coincidir con VERSION en app.js */
+  --app-version: "48"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -1939,6 +1939,170 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   #em-chips .ej-chip-desc { font-size: 0.6rem; -webkit-line-clamp: 3; }
   #em-chips .emp-chip-con-img .ej-chip-nombre { padding: 18px 5px 0; }
   #em-chips .emp-chip-con-img .ej-chip-fecha { padding: 0 5px 5px; font-size: 0.58rem; }
+}
+
+/* ---------- Empresas/Proyectos: vista del proyecto (imagen, nombre y fecha, descripción y botones de redes) ---------- */
+.em-detalle {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  color: #f2f4fa;
+  border-radius: inherit;
+  background-color: #07080c;
+  background-image:
+    radial-gradient(circle at 12% 0%, rgba(120, 150, 255, 0.16) 0, transparent 42%),
+    radial-gradient(circle at 100% 32%, rgba(255, 255, 255, 0.07) 0, transparent 36%),
+    radial-gradient(circle at 0% 96%, rgba(150, 190, 255, 0.10) 0, transparent 38%);
+}
+.em-detalle[hidden] { display: none; }
+.em-det-barra {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(to bottom, rgba(7, 8, 12, 0.95), rgba(7, 8, 12, 0.55) 70%, rgba(7, 8, 12, 0));
+}
+.em-det-btn {
+  width: 42px;
+  height: 42px;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.12s, transform 0.12s;
+}
+.em-det-btn:hover { background: rgba(255, 255, 255, 0.24); transform: scale(1.06); }
+.em-det-btn:focus-visible { outline: 3px solid #8fb8ff; outline-offset: 2px; }
+
+.em-det-hero {
+  flex: none;
+  display: grid;
+  place-items: center;
+  margin: 0 20px;
+  aspect-ratio: 16 / 9;
+  max-height: 46vh;
+  overflow: hidden;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #1b2036, #0d0f18);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+}
+.em-det-hero img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.em-det-hero-vacio { font-size: 3.4rem; opacity: 0.6; }
+
+.em-det-titulo-fila {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 14px;
+  margin: 18px 22px 0;
+}
+.em-det-nombre {
+  margin: 0;
+  min-width: 0;
+  font-size: 1.7rem;
+  line-height: 1.15;
+  color: #fff;
+  overflow-wrap: anywhere;
+  text-shadow: 0 2px 12px rgba(130, 175, 235, 0.45);
+}
+.em-det-fecha { flex: none; font-size: 0.9rem; font-weight: 700; color: #9fb4de; white-space: nowrap; }
+.em-det-desc {
+  flex: none;
+  margin: 12px 22px 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #dfe5f5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.em-det-desc.vacia { font-style: italic; color: #7d88a6; }
+
+.em-det-links-zona { flex: none; margin: 22px 22px 26px; }
+.em-det-links-zona[hidden] { display: none; }
+.em-det-subtitulo {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9fb4de;
+}
+.em-det-links { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 10px; }
+.em-red {
+  --red-fondo: #3a4160;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  padding: 10px 13px;
+  color: #fff;
+  text-decoration: none;
+  background: var(--red-fondo);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  transition: transform 0.12s, filter 0.12s;
+}
+a.em-red:hover { transform: translateY(-2px); filter: brightness(1.12); }
+a.em-red:focus-visible { outline: 3px solid #8fb8ff; outline-offset: 2px; }
+.em-red-ico {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
+}
+.em-red-txt { display: flex; flex-direction: column; min-width: 0; }
+.em-red-txt b { font-size: 0.95rem; }
+.em-red-txt small {
+  overflow: hidden;
+  font-size: 0.72rem;
+  opacity: 0.85;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+span.em-red { --red-fondo: #262b3d; border-style: dashed; }
+.em-red[data-red="youtube"] { --red-fondo: #d6201a; }
+.em-red[data-red="facebook"] { --red-fondo: #1877f2; }
+.em-red[data-red="x"] { --red-fondo: #111; }
+.em-red[data-red="instagram"] { --red-fondo: linear-gradient(45deg, #f2a23c, #e1306c 55%, #7b3fe4); }
+.em-red[data-red="threads"] { --red-fondo: #1c1c1f; }
+.em-red[data-red="tiktok"] { --red-fondo: #050505; border-color: #fe2c55; }
+.em-red[data-red="whatsapp"] { --red-fondo: #1faa59; }
+.em-red[data-red="telegram"] { --red-fondo: #2a9ad6; }
+.em-red[data-red="linkedin"] { --red-fondo: #0a66c2; }
+.em-red[data-red="github"] { --red-fondo: #24292f; }
+.em-red[data-red="twitch"] { --red-fondo: #7c46d6; }
+.em-red[data-red="spotify"] { --red-fondo: #1db954; }
+.em-red[data-red="pinterest"] { --red-fondo: #d42027; }
+.em-red[data-red="reddit"] { --red-fondo: #e8480c; }
+.em-red[data-red="discord"] { --red-fondo: #5865f2; }
+.em-red[data-red="drive"] { --red-fondo: #2f7d4f; }
+@media (max-width: 480px) {
+  .em-det-barra { padding: 10px 12px; }
+  .em-det-hero { margin: 0 12px; border-radius: 14px; }
+  .em-det-titulo-fila, .em-det-desc, .em-det-links-zona { margin-left: 14px; margin-right: 14px; }
+  .em-det-nombre { font-size: 1.4rem; }
+  .em-det-links { grid-template-columns: 1fr; }
 }
 
 /* ---------- Bazar: división y zona «Pedidos de Yeso» debajo ---------- */
