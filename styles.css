@@ -1,5 +1,5 @@
 :root {
-  --app-version: "58"; /* debe coincidir con VERSION en app.js */
+  --app-version: "59"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -2574,3 +2574,40 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
 .td-alarma-aviso { font-size: 0.9rem !important; color: #ffe3a3; }
 .td-alarma-caja button { padding: 16px; font: inherit; font-size: 1.1rem; font-weight: 800; color: #4a2685; background: #fff; border: 0; border-radius: 14px; cursor: pointer; }
 .td-alarma-caja .td-alarma-parar { color: #fff; background: #d6336c; }
+
+
+/* ---------- Nota especial del proyecto (redes, descripciones y hashtags) ---------- */
+.em-hoja-nota-btn {
+  flex: none; height: 30px; padding: 0 10px; font: inherit; font-size: 0.85rem; font-weight: 700; color: #3c4043;
+  background: #fff; border: 1px solid #dadce0; border-radius: 999px; cursor: pointer; white-space: nowrap;
+}
+.em-hoja-nota-btn:hover { background: #fef7e0; border-color: #f9ab00; }
+@media (max-width: 480px) { .em-hoja-nota-btn { width: 34px; padding: 0; } .em-hoja-nota-btn span { display: none; } }
+.em-nesp { z-index: 85; }
+.em-nesp-cuerpo {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px;
+  display: flex; flex-direction: column; gap: 12px; background: #f1f3f4;
+}
+.em-nesp-ayuda { width: 100%; max-width: 760px; margin: 0 auto; font-size: 0.82rem; color: #5f6368; }
+.em-nesp-tarjeta {
+  width: 100%; max-width: 760px; margin: 0 auto; box-sizing: border-box; padding: 12px; display: flex; flex-direction: column; gap: 10px;
+  background: #fff; border: 1px solid #dadce0; border-left: 5px solid #188038; border-radius: 12px;
+}
+.em-nesp-tarjeta[data-plat="YT"] { border-left-color: #ff0000; }
+.em-nesp-tarjeta[data-plat="FB"] { border-left-color: #1877f2; }
+.em-nesp-tarjeta[data-plat="IG"] { border-left-color: #e1306c; }
+.em-nesp-tarjeta[data-plat="TT"] { border-left-color: #111; }
+.em-nesp-tarjeta h4 { margin: 0; font-size: 1rem; color: #202124; }
+.em-nesp-campo { display: flex; flex-direction: column; gap: 4px; }
+.em-nesp-campo-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.85rem; font-weight: 700; color: #5f6368; }
+.em-nesp-campo textarea {
+  width: 100%; box-sizing: border-box; min-height: 44px; padding: 8px 10px; font: inherit; font-size: 0.95rem; color: #202124;
+  background: #fff; border: 1px solid #dadce0; border-radius: 8px; resize: vertical;
+}
+.em-nesp-campo textarea:focus { outline: 2px solid #188038; outline-offset: -1px; }
+.em-nesp-copiar {
+  flex: none; padding: 4px 12px; font: inherit; font-size: 0.8rem; font-weight: 700; color: #137333;
+  background: #e6f4ea; border: 0; border-radius: 999px; cursor: pointer;
+}
+.em-nesp-copiar:hover { background: #ceead6; }
+.em-nesp-copiar-todo { align-self: flex-start; padding: 7px 14px; font-size: 0.85rem; }

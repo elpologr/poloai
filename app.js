@@ -25,7 +25,7 @@ const VERSION = "59";
     "cuenta-nota", "cuenta-dispositivos", "disp-panel", "disp-estado", "disp-lista", "disp-todas",
     "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
-    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2",
+    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
   ];
   const problemas = [];
@@ -5371,6 +5371,8 @@ function cerrarDetalleEm() {
   emSubBoton = null;
   emDetalle.hidden = true;
   emHoja.hidden = true;
+  const nesp = document.getElementById("em-nesp");
+  if (nesp) nesp.hidden = true;
   emDetActual = null;
 }
 emEl("em-det-volver").addEventListener("click", cerrarDetalleEm);
@@ -6529,6 +6531,9 @@ const EM_LIM_SHEETS = 50000; // igual a LIMITE_NOTARIO_SHEETS del Apps Script
 const EM_LIM_DRIVE = 1000000; // igual a LIMITE_NOTARIO del Apps Script
 const EM_SEP_LARGO = 9; // largo del separador entre notas dentro de la celda
 const EM_ENCABEZADO = 70; // largo aproximado del encabezado de una nota en la celda (sin el nombre)
+// La nota especial (redes + descripciones y hashtags) se guarda como una nota del proyecto con este nombre reservado.
+// «Mis notas» no la muestra: se abre con el botón ⭐ de la hoja de redes.
+const NESP_NOMBRE = "⭐ Nota especial";
 const emNotaForm = emEl("em-nota-form");
 const emNotaFormTitulo = emEl("em-nota-form-titulo");
 const emNotaNombre = emEl("em-nota-nombre");
@@ -6639,7 +6644,7 @@ emNotaDestino.addEventListener("change", emActualizarContador);
 function dibujarNotasEm() {
   const d = emDetActual;
   if (!d) return;
-  const lista = Array.isArray(d.notas) ? d.notas : [];
+  const lista = (Array.isArray(d.notas) ? d.notas : []).filter((n) => n.nombre !== NESP_NOMBRE);
   emNotasTitulo.textContent = lista.length ? "📝 Mis notas (" + lista.length + ")" : "📝 Mis notas";
   emNotasLista.innerHTML = "";
   if (!lista.length) {
@@ -6798,6 +6803,239 @@ async function emGuardarNota() {
   }
 }
 emNotaAgregar.addEventListener("click", emGuardarNota);
+
+// ----- Nota especial: redes del proyecto + descripción y hashtags para YouTube, Facebook, Instagram y TikTok -----
+// Se guarda como una nota más del proyecto (en Drive) con el nombre NESP_NOMBRE, así no hace falta cambiar el Apps Script.
+const NESP_ESPERA = 1500; // ms sin escribir antes de guardar sola
+const NESP_MAX = 5000; // caracteres por campo
+const NESP_PLATAFORMAS = [
+  { id: "YT", nombre: "YouTube", icono: "\u25B6\uFE0F" },
+  { id: "FB", nombre: "Facebook", icono: "\u{1F4D8}" },
+  { id: "IG", nombre: "Instagram", icono: "\u{1F4F8}" },
+  { id: "TT", nombre: "TikTok", icono: "\u{1F3B5}" },
+];
+const emNesp = emEl("em-nesp");
+const nespCuerpo = emEl("em-nesp-cuerpo");
+const nespEstado = emEl("em-nesp-estado");
+const nespBtnGuardar = emEl("em-nesp-guardar");
+const nespTitulo = emEl("em-nesp-titulo");
+let nespProyecto = null; // proyecto dueño de la nota especial abierta
+let nespValores = {}; // { REDES, YT_DESC, YT_TAGS, FB_DESC, … }
+let nespCambios = 0;
+let nespGuardado = 0;
+let nespTemporizador = null;
+let nespGuardando = null;
+const nespSucio = () => nespCambios !== nespGuardado;
+
+const nespBuscar = (d) => (Array.isArray(d.notas) ? d.notas : []).find((n) => n.nombre === NESP_NOMBRE) || null;
+
+function nespClaves() {
+  const k = ["REDES"];
+  NESP_PLATAFORMAS.forEach((p) => k.push(p.id + "_DESC", p.id + "_TAGS"));
+  return k;
+}
+
+// Texto de la nota: «##CLAVE##» y debajo lo escrito en ese campo
+function nespSerializar() {
+  return nespClaves()
+    .map((k) => "##" + k + "##\n" + String(nespValores[k] || "").replace(/^(#)(#[A-Z_]+##)/gm, "$1 $2").replace(/\s+$/, ""))
+    .join("\n\n");
+}
+function nespParsear(texto) {
+  const v = {};
+  const partes = String(texto || "").split(/^##([A-Z_]+)##[ \t]*\r?\n?/m);
+  for (let i = 1; i < partes.length; i += 2) v[partes[i]] = (partes[i + 1] || "").replace(/\s+$/, "");
+  return v;
+}
+
+function nespAvisoBoton(boton, msg) {
+  if (!boton.dataset.texto) boton.dataset.texto = boton.textContent;
+  boton.textContent = msg;
+  clearTimeout(boton._t);
+  boton._t = setTimeout(() => { boton.textContent = boton.dataset.texto; }, 1500);
+}
+async function nespCopiar(texto, boton) {
+  if (!String(texto || "").trim()) { nespAvisoBoton(boton, "Vacío"); return; }
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(texto);
+    ok = true;
+  } catch (e) {
+    const t = document.createElement("textarea");
+    t.value = texto;
+    t.style.cssText = "position:fixed;opacity:0;top:0;left:0";
+    document.body.appendChild(t);
+    t.select();
+    try { ok = document.execCommand("copy"); } catch (e2) { ok = false; }
+    t.remove();
+  }
+  nespAvisoBoton(boton, ok ? "¡Copiado!" : "No se pudo");
+}
+
+function nespCrearCampo(clave, etiqueta, aria, filas, ph) {
+  const campo = document.createElement("div");
+  campo.className = "em-nesp-campo";
+  const cab = document.createElement("div");
+  cab.className = "em-nesp-campo-cab";
+  const et = document.createElement("span");
+  et.textContent = etiqueta;
+  const copiar = document.createElement("button");
+  copiar.type = "button";
+  copiar.className = "em-nesp-copiar";
+  copiar.textContent = "Copiar";
+  cab.append(et, copiar);
+  const ta = document.createElement("textarea");
+  ta.rows = filas;
+  ta.maxLength = NESP_MAX;
+  ta.placeholder = ph || "";
+  ta.value = nespValores[clave] || "";
+  ta.setAttribute("aria-label", aria);
+  ta.addEventListener("input", () => { nespValores[clave] = ta.value; nespMarcarCambio(); });
+  copiar.addEventListener("click", () => nespCopiar(ta.value, copiar));
+  campo.append(cab, ta);
+  return campo;
+}
+
+function nespConstruir() {
+  nespCuerpo.innerHTML = "";
+  const ayuda = document.createElement("p");
+  ayuda.className = "em-nesp-ayuda";
+  ayuda.textContent = "Se guarda sola al escribir. Con «Copiar» pegas el texto directo en cada red.";
+  nespCuerpo.appendChild(ayuda);
+
+  const redes = document.createElement("section");
+  redes.className = "em-nesp-tarjeta";
+  const hr = document.createElement("h4");
+  hr.textContent = "\u{1F310} Redes sociales del proyecto";
+  redes.append(hr, nespCrearCampo("REDES", "Links o usuarios (uno por línea)", "Redes sociales del proyecto", 5,
+    "YouTube: https://…\nFacebook: https://…\nInstagram: @…\nTikTok: @…"));
+  nespCuerpo.appendChild(redes);
+
+  NESP_PLATAFORMAS.forEach((p) => {
+    const t = document.createElement("section");
+    t.className = "em-nesp-tarjeta";
+    t.dataset.plat = p.id;
+    const h4 = document.createElement("h4");
+    h4.textContent = p.icono + " " + p.nombre;
+    const todo = document.createElement("button");
+    todo.type = "button";
+    todo.className = "em-nesp-copiar em-nesp-copiar-todo";
+    todo.textContent = "Copiar descripción + hashtags";
+    todo.addEventListener("click", () =>
+      nespCopiar([nespValores[p.id + "_DESC"], nespValores[p.id + "_TAGS"]].filter((x) => x && x.trim()).join("\n\n"), todo));
+    t.append(
+      h4,
+      nespCrearCampo(p.id + "_DESC", "Descripción", p.nombre + ": descripción", 6, "Descripción que usas en " + p.nombre + "…"),
+      nespCrearCampo(p.id + "_TAGS", "Hashtags", p.nombre + ": hashtags", 2, "#hashtag1 #hashtag2 #hashtag3"),
+      todo
+    );
+    nespCuerpo.appendChild(t);
+  });
+}
+
+function nespMarcarCambio() {
+  nespCambios++;
+  setEstado(nespEstado, "Sin guardar…");
+  clearTimeout(nespTemporizador);
+  nespTemporizador = setTimeout(nespGuardar, NESP_ESPERA);
+}
+
+// Guarda la nota especial. Devuelve true si quedó guardada.
+async function nespGuardar() {
+  clearTimeout(nespTemporizador);
+  nespTemporizador = null;
+  const d = nespProyecto;
+  if (!d) return false;
+  while (nespGuardando) await nespGuardando.catch(() => {});
+  if (!nespSucio()) return true;
+  const marca = nespCambios;
+  const previa = nespBuscar(d);
+  const nota = {
+    id: previa ? previa.id : ntNuevoId(),
+    nombre: NESP_NOMBRE,
+    fecha: previa && previa.fecha ? previa.fecha : selloFechaHora(),
+    modificada: previa ? selloFechaHora() : "",
+    destino: "drive",
+    texto: ntLimpiar(nespSerializar()),
+  };
+  setEstado(nespEstado, "Guardando…");
+  nespBtnGuardar.disabled = true;
+  nespGuardando = llamarNotas("empresa_nota_guardar", {
+    id: d.id,
+    notaId: nota.id,
+    nombre: nota.nombre,
+    fecha: nota.fecha,
+    modificada: nota.modificada,
+    destino: "drive",
+    texto: nota.texto,
+  });
+  try {
+    const j = await nespGuardando;
+    nota.largo = typeof j.notaLargo === "number" ? j.notaLargo : 0;
+    if (typeof j.largo === "number") d.notasLargo = j.largo;
+    const lista = Array.isArray(d.notas) ? d.notas : [];
+    d.notas = previa ? lista.map((n) => (n.id === nota.id ? nota : n)) : lista.concat([nota]);
+    nespGuardado = marca;
+    if (nespSucio()) {
+      setEstado(nespEstado, "Sin guardar…");
+      nespTemporizador = setTimeout(nespGuardar, NESP_ESPERA);
+    } else {
+      const n = new Date();
+      setEstado(nespEstado, "Guardado ✓ " + dos(n.getHours()) + ":" + dos(n.getMinutes()), "ok");
+    }
+    return true;
+  } catch (err) {
+    setEstado(nespEstado, "No se pudo guardar: " + err.message + " (se reintenta)", "error");
+    nespTemporizador = setTimeout(nespGuardar, 8000);
+    return false;
+  } finally {
+    nespGuardando = null;
+    nespBtnGuardar.disabled = false;
+  }
+}
+
+function nespAbrir() {
+  const d = hojaEmpresa || emDetActual;
+  if (!d) return;
+  hojaCerrarVideo();
+  nespProyecto = d;
+  const previa = nespBuscar(d);
+  nespValores = previa ? nespParsear(previa.texto) : {};
+  nespCambios = 0;
+  nespGuardado = 0;
+  const nom = String(d.nombre || "");
+  nespTitulo.textContent = "\u2B50 Nota especial" + (nom ? " · " + (nom.length > 22 ? nom.slice(0, 21) + "…" : nom) : "");
+  nespTitulo.title = nom;
+  nespConstruir();
+  setEstado(nespEstado, "");
+  emNesp.hidden = false;
+  nespCuerpo.scrollTop = 0;
+}
+
+async function nespCerrar() {
+  if (nespSucio()) {
+    const ok = await nespGuardar();
+    if (!ok) {
+      if (!window.confirm("No se pudo guardar la nota especial. ¿Cerrar de todos modos y perder los últimos cambios?")) return;
+      clearTimeout(nespTemporizador);
+      nespTemporizador = null;
+    }
+  }
+  emNesp.hidden = true;
+}
+
+emEl("em-hoja-nota-esp").addEventListener("click", nespAbrir);
+emEl("em-nesp-volver").addEventListener("click", nespCerrar);
+nespBtnGuardar.addEventListener("click", () => {
+  if (nespSucio()) nespGuardar();
+  else setEstado(nespEstado, "Todo guardado ✓", "ok");
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !emNesp.hidden) {
+    e.stopPropagation();
+    nespCerrar();
+  }
+}, true);
 
 // ----- Mini notas cuadradas -----
 function dibujarChipsEm() {

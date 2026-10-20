@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=59" />
+  <link rel="stylesheet" href="styles.css?v=61" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1147,6 +1147,7 @@
             <button type="button" class="em-hoja-sel-btn" data-hoja="1" aria-pressed="true" title="Hoja 1 (principal)">1</button>
             <button type="button" class="em-hoja-sel-btn" data-hoja="2" aria-pressed="false" title="Hoja 2 (secundaria)">2</button>
           </div>
+          <button id="em-hoja-nota-esp" class="em-hoja-nota-btn" type="button" aria-label="Nota especial: redes, descripciones y hashtags" title="Nota especial: redes, descripciones y hashtags">&#11088;<span> Nota especial</span></button>
           <span id="em-hoja-estado" class="notas-estado em-hoja-estado" role="status"></span>
           <button id="em-hoja-recargar" class="em-hoja-icono" type="button" aria-label="Volver a leer la hoja" title="Volver a leer la hoja">&#8635;</button>
           <button id="em-hoja-guardar" class="em-hoja-guardar" type="button">Guardar</button>
@@ -1161,6 +1162,17 @@
         <div id="em-hoja-scroll" class="em-hoja-scroll">
           <table id="em-hoja-tabla" class="em-hoja-tabla"></table>
         </div>
+      </div>
+
+      <!-- Nota especial del proyecto: sus redes sociales + descripción y hashtags para YouTube, Facebook, Instagram y TikTok (se guarda como una nota del proyecto) -->
+      <div id="em-nesp" class="em-hoja em-nesp" hidden role="dialog" aria-modal="true" aria-labelledby="em-nesp-titulo">
+        <div class="em-hoja-barra">
+          <button id="em-nesp-volver" class="em-hoja-icono" type="button" aria-label="Volver a la hoja" title="Volver">&#8592;</button>
+          <h3 id="em-nesp-titulo" class="em-hoja-titulo">&#11088; Nota especial</h3>
+          <span id="em-nesp-estado" class="notas-estado em-hoja-estado" role="status"></span>
+          <button id="em-nesp-guardar" class="em-hoja-guardar" type="button">Guardar</button>
+        </div>
+        <div id="em-nesp-cuerpo" class="em-nesp-cuerpo"></div>
       </div>
 
       <!-- Ventana de ajustes: agregar o editar una empresa o proyecto -->
@@ -1288,9 +1300,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=60"></script>
-  <script src="app.js?v=60"></script>
-  <script src="voz.js?v=60"></script>
-  <script type="module" src="firebase.js?v=60"></script>
+  <script src="config.js?v=61"></script>
+  <script src="app.js?v=61"></script>
+  <script src="voz.js?v=61"></script>
+  <script type="module" src="firebase.js?v=61"></script>
 </body>
 </html>
