@@ -5038,6 +5038,9 @@ const HOJA_ANCHO_MIN = 60;
 const HOJA_ANCHO_MAX = 1200;
 const HOJA_COL_YOUTUBE = 2; // columna C «Youtube»: ahí se muestra la miniatura del video
 const HOJA_CLAVE_ANCHOS = "polo-hoja-redes-anchos"; // los anchos que eliges se recuerdan en este dispositivo
+const HOJA_COL_MAX = 60; // igual a MAX_COL_REDES del Apps Script
+const HOJA_NOMBRE_COL_MAX = 60; // igual a MAX_NOMBRE_COL_REDES del Apps Script
+const HOJA_ANCHO_NUEVA = 260; // ancho de una columna nueva (px)
 const HOJA_FILAS_MIN = 25;
 const HOJA_FILAS_MAX = 2000; // igual a MAX_FILAS_REDES del Apps Script
 const HOJA_CELDA_MAX = 5000; // igual a MAX_CELDA_REDES del Apps Script
@@ -5046,7 +5049,9 @@ const emHoja = emEl("em-hoja");
 const emHojaEstado = emEl("em-hoja-estado");
 const emHojaTabla = emEl("em-hoja-tabla");
 const emHojaGuardar = emEl("em-hoja-guardar");
-let hojaFilas = []; // [[texto × 15], …]
+let hojaColumnas = HOJA_COLUMNAS.slice(); // nombres de las columnas en el orden actual (se pueden agregar y mover)
+let hojaDinamico = false; // true si el Apps Script publicado sabe guardar columnas nuevas o movidas
+let hojaFilas = []; // [[texto × número de columnas], …]
 let hojaCargada = false; // sin una lectura buena no se guarda nada (así nunca se borra la hoja por error)
 let hojaCambios = 0; // número de ediciones hechas
 let hojaGuardado = 0; // número de ediciones ya guardadas
@@ -5055,12 +5060,16 @@ let hojaGuardando = null;
 let hojaFilaActiva = -1;
 const hojaSucia = () => hojaCambios !== hojaGuardado;
 
+// Ancho de origen de la columna i: el de la lista original si sigue siendo la misma columna; si no, el de una columna nueva
+function hojaAnchoDefecto(i) {
+  return i < HOJA_ANCHOS.length && HOJA_COLUMNAS[i] === hojaColumnas[i] ? HOJA_ANCHOS[i] : HOJA_ANCHO_NUEVA;
+}
 function hojaLeerAnchos() {
   try {
     const a = JSON.parse(localStorage.getItem(HOJA_CLAVE_ANCHOS));
-    if (Array.isArray(a) && a.length === HOJA_ANCHOS.length && a.every((w) => typeof w === "number" && w >= HOJA_ANCHO_MIN && w <= HOJA_ANCHO_MAX)) return a;
+    if (Array.isArray(a) && a.length === hojaColumnas.length && a.every((w) => typeof w === "number" && w >= HOJA_ANCHO_MIN && w <= HOJA_ANCHO_MAX)) return a;
   } catch (e) {}
-  return HOJA_ANCHOS.slice();
+  return hojaColumnas.map((_, i) => hojaAnchoDefecto(i));
 }
 let hojaAnchos = hojaLeerAnchos(); // ancho actual de cada columna (px)
 function hojaGuardarAnchos() {
@@ -5102,15 +5111,24 @@ function hojaAgregarAsa(th, c) {
     asa.addEventListener("pointercancel", soltar);
   });
   asa.addEventListener("dblclick", () => {
-    hojaAnchos[c] = HOJA_ANCHOS[c];
+    hojaAnchos[c] = hojaAnchoDefecto(c);
     hojaAplicarAnchos();
     hojaGuardarAnchos();
   });
   th.appendChild(asa);
 }
-const hojaFilaVacia = () => HOJA_COLUMNAS.map(() => "");
+const hojaFilaVacia = () => hojaColumnas.map(() => "");
+
+// Letra de la columna: A, B, … Z, AA, AB, …
+function hojaLetra(i) {
+  let s = "";
+  for (let n = i + 1; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s;
+  return s;
+}
 
 function hojaDibujar() {
+  if (hojaSel && (hojaSel.r2 >= hojaFilas.length || hojaSel.c2 >= hojaColumnas.length)) hojaSel = null;
+  hojaSelPintadas = [];
   emHojaTabla.innerHTML = "";
   const grupo = document.createElement("colgroup");
   [46].concat(hojaAnchos).forEach((w) => {
@@ -5122,18 +5140,18 @@ function hojaDibujar() {
   const letras = document.createElement("tr");
   letras.className = "em-hoja-letras";
   letras.appendChild(document.createElement("th"));
-  HOJA_COLUMNAS.forEach((_, i) => {
+  hojaColumnas.forEach((_, i) => {
     const th = document.createElement("th");
-    th.textContent = String.fromCharCode(65 + i);
+    th.textContent = hojaLetra(i);
     hojaAgregarAsa(th, i);
     letras.appendChild(th);
   });
   const nombres = document.createElement("tr");
   nombres.className = "em-hoja-nombres";
   const uno = document.createElement("th");
-  uno.textContent = "1";
+  uno.textContent = "0"; // la fila 0 son los nombres de las columnas; los datos empiezan en la fila 1
   nombres.appendChild(uno);
-  HOJA_COLUMNAS.forEach((t, i) => {
+  hojaColumnas.forEach((t, i) => {
     const th = document.createElement("th");
     th.textContent = t;
     th.title = t;
@@ -5146,6 +5164,7 @@ function hojaDibujar() {
   emHojaTabla.append(grupo, cabeza, cuerpo);
   hojaAplicarAnchos();
   hojaFilaActiva = -1;
+  if (hojaSel) hojaSelPintar();
 }
 
 // Link pulsable: si el texto de la celda es una dirección web, aparece un botón ↗ que la abre en otra pestaña
@@ -5236,14 +5255,14 @@ function hojaCrearFila(r) {
   const tr = document.createElement("tr");
   const num = document.createElement("th");
   num.className = "em-hoja-num";
-  num.textContent = String(r + 2); // la fila 1 es el encabezado, igual que en la hoja de Google
+  num.textContent = String(r + 1); // la fila 0 es el encabezado (nombres de las columnas)
   num.title = "Seleccionar esta fila";
   num.addEventListener("click", () => {
     hojaActivarFila(r);
     hojaEnfocar(r, 0);
   });
   tr.appendChild(num);
-  HOJA_COLUMNAS.forEach((nombre, c) => {
+  hojaColumnas.forEach((nombre, c) => {
     const td = document.createElement("td");
     const inp = document.createElement("input");
     inp.type = "text";
@@ -5254,7 +5273,7 @@ function hojaCrearFila(r) {
     inp.dataset.c = String(c);
     inp.autocomplete = "off";
     inp.spellcheck = false;
-    inp.setAttribute("aria-label", nombre + ", fila " + (r + 2));
+    inp.setAttribute("aria-label", nombre + ", fila " + (r + 1));
     td.appendChild(inp);
     hojaActualizarLink(td, inp.value);
     tr.appendChild(td);
@@ -5312,7 +5331,7 @@ async function guardarHoja() {
   while (filas.length && filas[filas.length - 1].every((x) => !String(x).trim())) filas.pop(); // sin filas vacías al final
   setEstado(emHojaEstado, "Guardando…");
   emHojaGuardar.disabled = true;
-  hojaGuardando = llamarNotas("hoja_redes_guardar", { filas });
+  hojaGuardando = llamarNotas("hoja_redes_guardar", { filas, columnas: hojaColumnas.slice() });
   try {
     await hojaGuardando;
     hojaGuardado = marca;
@@ -5337,6 +5356,8 @@ async function guardarHoja() {
 
 async function cargarHoja() {
   hojaCargada = false;
+  hojaSel = null;
+  hojaSelAncla = null;
   clearTimeout(hojaTemporizador);
   hojaTemporizador = null;
   emHojaGuardar.disabled = true;
@@ -5344,8 +5365,12 @@ async function cargarHoja() {
   setEstado(emHojaEstado, "Cargando…");
   try {
     const j = await llamarNotas("hoja_redes_listar");
+    hojaDinamico = j.dinamico === true;
+    const nombres = Array.isArray(j.columnas) ? j.columnas.map((x) => (x === undefined || x === null ? "" : String(x))) : [];
+    hojaColumnas = nombres.length ? nombres : HOJA_COLUMNAS.slice();
+    hojaAnchos = hojaLeerAnchos();
     const filas = Array.isArray(j.filas) ? j.filas : [];
-    hojaFilas = filas.map((f) => HOJA_COLUMNAS.map((_, c) => (f && f[c] !== undefined && f[c] !== null ? String(f[c]) : "")));
+    hojaFilas = filas.map((f) => hojaColumnas.map((_, c) => (f && f[c] !== undefined && f[c] !== null ? String(f[c]) : "")));
     while (hojaFilas.length < HOJA_FILAS_MIN) hojaFilas.push(hojaFilaVacia());
     hojaCargada = true;
     hojaCambios = 0;
@@ -5396,7 +5421,8 @@ emEl("em-hoja-fila-quitar").addEventListener("click", () => {
     return;
   }
   const r = hojaFilaActiva;
-  if (hojaFilas[r].some((x) => String(x).trim()) && !window.confirm("¿Quitar la fila " + (r + 2) + " con todo lo que tiene escrito?")) return;
+  if (hojaFilas[r].some((x) => String(x).trim()) && !window.confirm("¿Quitar la fila " + (r + 1) + " con todo lo que tiene escrito?")) return;
+  hojaSel = null;
   hojaFilas.splice(r, 1);
   while (hojaFilas.length < HOJA_FILAS_MIN) hojaFilas.push(hojaFilaVacia());
   hojaDibujar();
@@ -5413,7 +5439,11 @@ emHojaTabla.addEventListener("input", (e) => {
 });
 emHojaTabla.addEventListener("focusin", (e) => {
   const t = e.target;
-  if (t.classList && t.classList.contains("em-hoja-celda")) hojaActivarFila(+t.dataset.r);
+  if (t.classList && t.classList.contains("em-hoja-celda")) {
+    hojaActivarFila(+t.dataset.r);
+    if (hojaSel) hojaSelLimpiar();
+    hojaSelAncla = { r: +t.dataset.r, c: +t.dataset.c };
+  }
 });
 
 // Moverse con el teclado como en una hoja de cálculo: Enter baja, Shift+Enter sube, flechas arriba/abajo,
@@ -5423,7 +5453,7 @@ emHojaTabla.addEventListener("keydown", (e) => {
   if (!t.classList || !t.classList.contains("em-hoja-celda") || e.isComposing) return;
   const r = +t.dataset.r;
   const c = +t.dataset.c;
-  const ultimaCol = HOJA_COLUMNAS.length - 1;
+  const ultimaCol = hojaColumnas.length - 1;
   const alInicio = t.selectionStart === 0 && t.selectionEnd === 0;
   const alFinal = t.selectionStart === t.value.length && t.selectionEnd === t.value.length;
   if (e.key === "Enter" || e.key === "ArrowDown") {
@@ -5463,13 +5493,395 @@ emHojaTabla.addEventListener("paste", (e) => {
   while (hojaFilas.length < r0 + bloque.length) hojaFilas.push(hojaFilaVacia());
   bloque.forEach((fila, i) =>
     fila.forEach((v, j) => {
-      if (c0 + j < HOJA_COLUMNAS.length) hojaFilas[r0 + i][c0 + j] = v.slice(0, HOJA_CELDA_MAX);
+      if (c0 + j < hojaColumnas.length) hojaFilas[r0 + i][c0 + j] = v.slice(0, HOJA_CELDA_MAX);
     })
   );
   hojaDibujar();
   hojaEnfocar(r0, c0);
   hojaMarcarCambio();
 });
+
+// ----- Seleccionar celdas con el mouse, copiar/pegar, mover y agregar columnas -----
+// · Arrastra sobre las celdas (o Shift+clic) para seleccionar un rango; toca la letra de una columna para seleccionarla entera
+//   (arrastra sobre las letras para varias, Shift+clic para extender; la esquina de la izquierda selecciona todo).
+// · Ctrl+C copia el rango como celdas (con tabulaciones, igual que Google Sheets), Ctrl+X corta, Supr borra y Ctrl+V pega con la
+//   esquina de arriba a la izquierda del texto copiado en la primera celda seleccionada.
+// · Arrastra el nombre de una columna (o su letra, si ya está seleccionada) para moverla; si hay varias seleccionadas, se mueven juntas.
+// · «+ Columna» agrega una columna al final con el nombre que escribas.
+let hojaSel = null; // { r1, c1, r2, c2, cols } rango seleccionado (cols = columnas enteras)
+let hojaSelAncla = null; // { r, c } celda donde empezó la selección
+let hojaSelPintadas = [];
+const emHojaScroll = emEl("em-hoja-scroll");
+// Cuadro de texto escondido: con varias celdas seleccionadas recibe el foco para que Ctrl+C, Ctrl+X y Ctrl+V funcionen
+const emHojaPortapapeles = document.createElement("textarea");
+emHojaPortapapeles.className = "em-hoja-portapapeles";
+emHojaPortapapeles.tabIndex = -1;
+emHojaPortapapeles.setAttribute("inputmode", "none");
+emHojaPortapapeles.setAttribute("aria-label", "Celdas seleccionadas");
+emHoja.appendChild(emHojaPortapapeles);
+
+function hojaSelPintar() {
+  hojaSelPintadas.forEach((el) => el.classList.remove("em-hoja-sel"));
+  hojaSelPintadas = [];
+  emHojaTabla.querySelectorAll(".em-hoja-th-sel").forEach((el) => el.classList.remove("em-hoja-th-sel"));
+  if (!hojaSel || !emHojaTabla.tBodies[0]) return;
+  const filas = emHojaTabla.tBodies[0].rows;
+  for (let r = hojaSel.r1; r <= hojaSel.r2; r++) {
+    const tr = filas[r];
+    if (!tr) continue;
+    for (let c = hojaSel.c1; c <= hojaSel.c2; c++) {
+      const td = tr.cells[c + 1];
+      if (td) {
+        td.classList.add("em-hoja-sel");
+        hojaSelPintadas.push(td);
+      }
+    }
+  }
+  if (emHojaTabla.tHead) {
+    Array.prototype.forEach.call(emHojaTabla.tHead.rows, (tr) => {
+      for (let c = hojaSel.c1; c <= hojaSel.c2; c++) if (tr.cells[c + 1]) tr.cells[c + 1].classList.add("em-hoja-th-sel");
+    });
+  }
+}
+
+// a y b son { r, c }: dos esquinas del rango (en cualquier orden)
+function hojaSelMarcar(a, b, cols) {
+  const nuevo = { r1: Math.min(a.r, b.r), c1: Math.min(a.c, b.c), r2: Math.max(a.r, b.r), c2: Math.max(a.c, b.c), cols: !!cols };
+  if (hojaSel && Object.keys(nuevo).every((k) => hojaSel[k] === nuevo[k])) return;
+  hojaSel = nuevo;
+  hojaSelPintar();
+}
+
+function hojaSelLimpiar() {
+  hojaSel = null;
+  hojaSelPintar();
+  emHojaPortapapeles.value = "";
+}
+
+// Texto del rango, con tabulaciones entre columnas y saltos de línea entre filas (así lo entiende Google Sheets)
+function hojaSelTexto() {
+  if (!hojaSel) return "";
+  const { r1, c1, c2, cols } = hojaSel;
+  let r2 = hojaSel.r2;
+  if (cols) while (r2 > r1 && hojaFilas[r2].slice(c1, c2 + 1).every((x) => !String(x).trim())) r2--; // sin filas vacías al final
+  const lineas = [];
+  for (let r = r1; r <= r2; r++) {
+    lineas.push(hojaFilas[r].slice(c1, c2 + 1).map((v) => String(v).replace(/[\t\r\n]+/g, " ")).join("\t"));
+  }
+  return lineas.join("\n");
+}
+
+// Termina la selección: el cuadro escondido se llena con las celdas y toma el foco
+function hojaSelTerminar() {
+  if (!hojaSel) return;
+  emHojaPortapapeles.value = hojaSelTexto();
+  emHojaPortapapeles.focus({ preventScroll: true });
+  emHojaPortapapeles.select();
+}
+
+function hojaSelBorrar() {
+  if (!hojaSel) return;
+  for (let r = hojaSel.r1; r <= hojaSel.r2; r++) {
+    for (let c = hojaSel.c1; c <= hojaSel.c2; c++) hojaFilas[r][c] = "";
+  }
+  hojaDibujar();
+  hojaMarcarCambio();
+  hojaSelTerminar();
+}
+
+emHojaPortapapeles.addEventListener("copy", (e) => {
+  if (!hojaSel) return;
+  e.preventDefault();
+  e.clipboardData.setData("text/plain", hojaSelTexto());
+});
+emHojaPortapapeles.addEventListener("cut", (e) => {
+  if (!hojaSel) return;
+  e.preventDefault();
+  e.clipboardData.setData("text/plain", hojaSelTexto());
+  hojaSelBorrar();
+});
+// Pegar con varias celdas seleccionadas: el texto copiado entra desde la primera celda del rango (un solo valor llena todo el rango)
+emHojaPortapapeles.addEventListener("paste", (e) => {
+  if (!hojaSel) return;
+  e.preventDefault();
+  const texto = String((e.clipboardData || window.clipboardData).getData("text") || "").replace(/\r\n?/g, "\n").replace(/\n$/, "");
+  let bloque = texto.split("\n").map((l) => l.split("\t"));
+  const { r1, c1, r2, c2 } = hojaSel;
+  if (bloque.length === 1 && bloque[0].length === 1 && (r2 > r1 || c2 > c1)) {
+    bloque = Array.from({ length: r2 - r1 + 1 }, () => Array(c2 - c1 + 1).fill(bloque[0][0]));
+  }
+  if (r1 + bloque.length > HOJA_FILAS_MAX) {
+    setEstado(emHojaEstado, "No cabe: el máximo es " + HOJA_FILAS_MAX + " filas", "error");
+    return;
+  }
+  while (hojaFilas.length < r1 + bloque.length) hojaFilas.push(hojaFilaVacia());
+  let anchoMax = 1;
+  bloque.forEach((fila, i) => {
+    anchoMax = Math.max(anchoMax, fila.length);
+    fila.forEach((v, j) => {
+      if (c1 + j < hojaColumnas.length) hojaFilas[r1 + i][c1 + j] = v.slice(0, HOJA_CELDA_MAX);
+    });
+  });
+  hojaDibujar();
+  hojaMarcarCambio();
+  hojaSelAncla = { r: r1, c: c1 };
+  hojaSelMarcar({ r: r1, c: c1 }, { r: r1 + bloque.length - 1, c: Math.min(c1 + anchoMax - 1, hojaColumnas.length - 1) }, false);
+  hojaSelTerminar();
+});
+emHojaPortapapeles.addEventListener("keydown", (e) => {
+  if (!hojaSel || e.isComposing) return;
+  if (e.key === "Escape") {
+    e.preventDefault();
+    hojaSelLimpiar();
+  } else if (e.key === "Delete" || e.key === "Backspace") {
+    e.preventDefault();
+    hojaSelBorrar();
+  } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    // Empezar a escribir: la letra cae en la primera celda del rango
+    const el = emHojaTabla.querySelector('input[data-r="' + hojaSel.r1 + '"][data-c="' + hojaSel.c1 + '"]');
+    hojaSelLimpiar();
+    if (el) {
+      el.focus();
+      el.select();
+    }
+  }
+});
+emHojaTabla.addEventListener("selectstart", (e) => {
+  if (emHojaTabla.classList.contains("em-hoja-seleccionando") || emHojaTabla.classList.contains("em-hoja-moviendo")) e.preventDefault();
+});
+
+// Celda que está bajo el puntero (o null)
+function hojaCeldaBajo(e) {
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const td = el && el.closest ? el.closest("td") : null;
+  const inp = td && emHojaTabla.contains(td) ? td.querySelector(".em-hoja-celda") : null;
+  return inp ? { r: +inp.dataset.r, c: +inp.dataset.c } : null;
+}
+
+// Columna sobre la que está el puntero, según su posición horizontal
+function hojaColumnaEnX(clientX) {
+  let x = clientX - emHojaScroll.getBoundingClientRect().left + emHojaScroll.scrollLeft - 46;
+  for (let i = 0; i < hojaAnchos.length; i++) {
+    if (x < hojaAnchos[i]) return i;
+    x -= hojaAnchos[i];
+  }
+  return hojaAnchos.length - 1;
+}
+
+// Borde entre columnas más cercano al puntero: 0 = antes de la primera, n = después de la última
+function hojaBordeEnX(clientX) {
+  let x = clientX - emHojaScroll.getBoundingClientRect().left + emHojaScroll.scrollLeft - 46;
+  for (let i = 0; i < hojaAnchos.length; i++) {
+    if (x < hojaAnchos[i] / 2) return i;
+    x -= hojaAnchos[i];
+  }
+  return hojaAnchos.length;
+}
+
+// Si arrastras cerca de un borde de la hoja, se desplaza sola
+function hojaAutoDesplazar(e) {
+  const rc = emHojaScroll.getBoundingClientRect();
+  if (e.clientX > rc.right - 30) emHojaScroll.scrollLeft += 20;
+  else if (e.clientX < rc.left + 76) emHojaScroll.scrollLeft -= 20;
+  if (e.clientY > rc.bottom - 30) emHojaScroll.scrollTop += 20;
+  else if (e.clientY < rc.top + 82) emHojaScroll.scrollTop -= 20;
+}
+
+// Selecciona un rango arrastrando el mouse desde la celda ini
+function hojaArrastrarCeldas(ini) {
+  let activo = false;
+  const mover = (e) => {
+    const p = hojaCeldaBajo(e);
+    if (!p) return;
+    if (!activo) {
+      if (p.r === ini.r && p.c === ini.c) return; // sigue dentro de la misma celda: es texto normal
+      activo = true;
+      emHojaTabla.classList.add("em-hoja-seleccionando");
+      const f = document.activeElement;
+      if (f && f.blur) f.blur();
+      const sel = window.getSelection && window.getSelection();
+      if (sel) sel.removeAllRanges();
+    }
+    hojaAutoDesplazar(e);
+    hojaSelMarcar(ini, p, false);
+  };
+  const fin = () => {
+    document.removeEventListener("pointermove", mover);
+    document.removeEventListener("pointerup", fin);
+    document.removeEventListener("pointercancel", fin);
+    emHojaTabla.classList.remove("em-hoja-seleccionando");
+    if (activo) hojaSelTerminar();
+  };
+  document.addEventListener("pointermove", mover);
+  document.addEventListener("pointerup", fin);
+  document.addEventListener("pointercancel", fin);
+}
+
+// Selecciona columnas enteras arrastrando sobre sus letras
+function hojaArrastrarSeleccionColumnas(ancla) {
+  const u = hojaFilas.length - 1;
+  hojaSelAncla = { r: 0, c: ancla };
+  hojaSelMarcar({ r: 0, c: ancla }, { r: u, c: ancla }, true);
+  const mover = (e) => {
+    hojaAutoDesplazar(e);
+    hojaSelMarcar({ r: 0, c: ancla }, { r: u, c: hojaColumnaEnX(e.clientX) }, true);
+  };
+  const fin = () => {
+    document.removeEventListener("pointermove", mover);
+    document.removeEventListener("pointerup", fin);
+    document.removeEventListener("pointercancel", fin);
+    hojaSelTerminar();
+  };
+  document.addEventListener("pointermove", mover);
+  document.addEventListener("pointerup", fin);
+  document.addEventListener("pointercancel", fin);
+}
+
+// Mueve las columnas a..b (con sus datos y su ancho) para que queden antes de la columna «destino» (0..n, contando como estaban antes).
+// Devuelve la posición nueva de la primera columna, o -1 si quedaría igual.
+function hojaMoverColumnas(a, b, destino) {
+  if (destino >= a && destino <= b + 1) return -1;
+  const n = b - a + 1;
+  const nuevo = destino > b ? destino - n : destino;
+  const mover = (arr) => {
+    const bloque = arr.splice(a, n);
+    arr.splice(nuevo, 0, ...bloque);
+  };
+  mover(hojaColumnas);
+  mover(hojaAnchos);
+  hojaFilas.forEach(mover);
+  hojaGuardarAnchos();
+  hojaDibujar();
+  hojaMarcarCambio();
+  return nuevo;
+}
+
+// Arrastra una columna (o el grupo seleccionado) para cambiarla de lugar; un toque sin arrastrar solo la selecciona
+function hojaArrastrarColumnas(e0, idx, bloque) {
+  const x0 = e0.clientX;
+  const y0 = e0.clientY;
+  const u = hojaFilas.length - 1;
+  let activo = false;
+  let bloqueado = false;
+  let destino = -1;
+  const guia = document.createElement("div");
+  guia.className = "em-hoja-guia";
+  const mover = (e) => {
+    if (!activo) {
+      if (Math.abs(e.clientX - x0) < 6 && Math.abs(e.clientY - y0) < 6) return;
+      activo = true;
+      if (!hojaDinamico) {
+        bloqueado = true;
+        setEstado(emHojaEstado, "Para mover columnas hay que publicar la nueva versión del Apps Script", "error");
+        return;
+      }
+      hojaSelAncla = { r: 0, c: bloque[0] };
+      hojaSelMarcar({ r: 0, c: bloque[0] }, { r: u, c: bloque[1] }, true);
+      emHojaScroll.appendChild(guia);
+      emHojaTabla.classList.add("em-hoja-moviendo");
+    }
+    if (bloqueado) return;
+    hojaAutoDesplazar(e);
+    destino = hojaBordeEnX(e.clientX);
+    let x = 46;
+    for (let i = 0; i < destino; i++) x += hojaAnchos[i];
+    guia.style.left = x + "px";
+    guia.style.height = emHojaTabla.offsetHeight + "px";
+  };
+  const fin = (e) => {
+    document.removeEventListener("pointermove", mover);
+    document.removeEventListener("pointerup", fin);
+    document.removeEventListener("pointercancel", fin);
+    guia.remove();
+    emHojaTabla.classList.remove("em-hoja-moviendo");
+    if (!activo) {
+      hojaSelAncla = { r: 0, c: idx };
+      hojaSelMarcar({ r: 0, c: idx }, { r: u, c: idx }, true);
+      hojaSelTerminar();
+      return;
+    }
+    if (bloqueado || destino < 0 || e.type === "pointercancel") return;
+    const nuevo = hojaMoverColumnas(bloque[0], bloque[1], destino);
+    if (nuevo >= 0) {
+      hojaSelAncla = { r: 0, c: nuevo };
+      hojaSelMarcar({ r: 0, c: nuevo }, { r: u, c: nuevo + bloque[1] - bloque[0] }, true);
+    }
+    hojaSelTerminar();
+  };
+  document.addEventListener("pointermove", mover);
+  document.addEventListener("pointerup", fin);
+  document.addEventListener("pointercancel", fin);
+}
+
+// Clic en las filas de encabezado: letras = seleccionar columnas; nombres = arrastrar para mover
+function hojaCabeceraAbajo(e, th) {
+  e.preventDefault();
+  const enLetras = th.parentElement.classList.contains("em-hoja-letras");
+  const idx = th.cellIndex - 1; // -1 = la esquina de la izquierda
+  const u = hojaFilas.length - 1;
+  if (idx < 0) {
+    if (enLetras) {
+      hojaSelAncla = { r: 0, c: 0 };
+      hojaSelMarcar({ r: 0, c: 0 }, { r: u, c: hojaColumnas.length - 1 }, true);
+      hojaSelTerminar();
+    }
+    return;
+  }
+  if (e.shiftKey && hojaSelAncla) {
+    hojaSelMarcar({ r: 0, c: hojaSelAncla.c }, { r: u, c: idx }, true);
+    hojaSelTerminar();
+    return;
+  }
+  const dentro = !!hojaSel && hojaSel.cols && idx >= hojaSel.c1 && idx <= hojaSel.c2;
+  if (enLetras && !dentro) hojaArrastrarSeleccionColumnas(idx);
+  else hojaArrastrarColumnas(e, idx, dentro ? [hojaSel.c1, hojaSel.c2] : [idx, idx]);
+}
+
+emHojaTabla.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0 || !e.target.closest) return;
+  const th = e.target.closest("thead th");
+  if (th) {
+    hojaCabeceraAbajo(e, th);
+    return;
+  }
+  // Seleccionar celdas con el mouse (con el dedo la hoja se desplaza como siempre)
+  if (e.pointerType !== "mouse" || !e.target.classList.contains("em-hoja-celda")) return;
+  const r = +e.target.dataset.r;
+  const c = +e.target.dataset.c;
+  if (e.shiftKey && hojaSelAncla) {
+    e.preventDefault();
+    hojaSelMarcar(hojaSelAncla, { r, c }, false);
+    hojaSelTerminar();
+    return;
+  }
+  hojaSelAncla = { r, c };
+  hojaArrastrarCeldas({ r, c });
+});
+
+const emHojaColMas = emEl("em-hoja-col-mas");
+if (emHojaColMas) {
+  emHojaColMas.addEventListener("click", () => {
+    if (!hojaCargada) return;
+    if (!hojaDinamico) {
+      setEstado(emHojaEstado, "Para agregar columnas hay que publicar la nueva versión del Apps Script", "error");
+      return;
+    }
+    if (hojaColumnas.length >= HOJA_COL_MAX) {
+      setEstado(emHojaEstado, "Máximo " + HOJA_COL_MAX + " columnas", "error");
+      return;
+    }
+    const nombre = String(window.prompt("Nombre de la nueva columna:") || "").trim().slice(0, HOJA_NOMBRE_COL_MAX);
+    if (!nombre) return;
+    hojaColumnas.push(nombre);
+    hojaAnchos.push(HOJA_ANCHO_NUEVA);
+    hojaFilas.forEach((f) => f.push(""));
+    hojaGuardarAnchos();
+    hojaDibujar();
+    hojaMarcarCambio();
+    emHojaScroll.scrollLeft = emHojaScroll.scrollWidth;
+    hojaEnfocar(0, hojaColumnas.length - 1);
+  });
+}
 
 // Cerrar o recargar la pestaña con cambios sin guardar
 window.addEventListener("beforeunload", (e) => {

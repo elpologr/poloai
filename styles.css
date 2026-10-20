@@ -2367,6 +2367,19 @@ span.em-red { --red-fondo: #262b3d; border-style: dashed; }
   background: #1a73e8; border-radius: 50%;
 }
 .em-hoja-link:hover { background: #1558b0; }
+.em-hoja-scroll { position: relative; }
+.em-hoja-tabla thead th { touch-action: none; }
+.em-hoja-nombres th { cursor: grab; }
+.em-hoja-letras th { cursor: pointer; }
+.em-hoja-moviendo, .em-hoja-moviendo * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
+.em-hoja-seleccionando, .em-hoja-seleccionando * { user-select: none; -webkit-user-select: none; }
+.em-hoja-tabla td.em-hoja-sel { background: #e8f0fe; }
+.em-hoja-tabla th.em-hoja-th-sel { background: #d2e3fc; color: #174ea6; }
+.em-hoja-guia { position: absolute; top: 0; z-index: 6; width: 3px; margin-left: -1px; background: #1a73e8; pointer-events: none; }
+.em-hoja-portapapeles {
+  position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; margin: 0; padding: 0; border: 0;
+  opacity: 0; resize: none; pointer-events: none;
+}
 .em-hoja-fila-activa td { background: #f3f8ff; }
 .em-hoja-fila-activa td:focus-within { background: #fff; }
 .em-hoja-vacia { padding: 24px; text-align: center; color: #5f6368; }
