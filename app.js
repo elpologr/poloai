@@ -5034,6 +5034,10 @@ emEl("em-det-ajustes").addEventListener("click", () => {
 // Se lee completa al abrirla y se guarda completa (sola, un momento después de escribir, y al cerrar).
 const HOJA_COLUMNAS = ["Nombre", "Fecha", "Youtube", "Aviso", "Facebook", "Aviso", "Instagram", "Aviso", "TikTok", "Aviso", "Threads", "Aviso", "X", "Aviso", "Whatsapp Community"];
 const HOJA_ANCHOS = [400, 240, 360, 260, 360, 260, 360, 260, 360, 260, 360, 260, 320, 260, 400];
+const HOJA_ANCHO_MIN = 60;
+const HOJA_ANCHO_MAX = 1200;
+const HOJA_COL_YOUTUBE = 2; // columna C «Youtube»: ahí se muestra la miniatura del video
+const HOJA_CLAVE_ANCHOS = "polo-hoja-redes-anchos"; // los anchos que eliges se recuerdan en este dispositivo
 const HOJA_FILAS_MIN = 25;
 const HOJA_FILAS_MAX = 2000; // igual a MAX_FILAS_REDES del Apps Script
 const HOJA_CELDA_MAX = 5000; // igual a MAX_CELDA_REDES del Apps Script
@@ -5050,12 +5054,66 @@ let hojaTemporizador = null;
 let hojaGuardando = null;
 let hojaFilaActiva = -1;
 const hojaSucia = () => hojaCambios !== hojaGuardado;
+
+function hojaLeerAnchos() {
+  try {
+    const a = JSON.parse(localStorage.getItem(HOJA_CLAVE_ANCHOS));
+    if (Array.isArray(a) && a.length === HOJA_ANCHOS.length && a.every((w) => typeof w === "number" && w >= HOJA_ANCHO_MIN && w <= HOJA_ANCHO_MAX)) return a;
+  } catch (e) {}
+  return HOJA_ANCHOS.slice();
+}
+let hojaAnchos = hojaLeerAnchos(); // ancho actual de cada columna (px)
+function hojaGuardarAnchos() {
+  try { localStorage.setItem(HOJA_CLAVE_ANCHOS, JSON.stringify(hojaAnchos)); } catch (e) {}
+}
+
+// Aplica los anchos a la tabla (la tabla tiene el ancho exacto de la suma, así cada columna mide lo que decidas)
+function hojaAplicarAnchos() {
+  const cols = emHojaTabla.querySelectorAll("colgroup col");
+  hojaAnchos.forEach((w, i) => { if (cols[i + 1]) cols[i + 1].style.width = w + "px"; });
+  emHojaTabla.style.width = 46 + hojaAnchos.reduce((a, b) => a + b, 0) + "px";
+}
+
+// Asa para estirar o encoger una columna: arrastra el borde derecho de su encabezado (doble toque = tamaño original)
+function hojaAgregarAsa(th, c) {
+  const asa = document.createElement("span");
+  asa.className = "em-hoja-resize";
+  asa.title = "Arrastra para cambiar el ancho · doble toque: tamaño original";
+  asa.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    asa.setPointerCapture(e.pointerId);
+    asa.classList.add("activo");
+    const x0 = e.clientX;
+    const w0 = hojaAnchos[c];
+    const mover = (ev) => {
+      hojaAnchos[c] = Math.max(HOJA_ANCHO_MIN, Math.min(HOJA_ANCHO_MAX, Math.round(w0 + ev.clientX - x0)));
+      hojaAplicarAnchos();
+    };
+    const soltar = () => {
+      asa.classList.remove("activo");
+      asa.removeEventListener("pointermove", mover);
+      asa.removeEventListener("pointerup", soltar);
+      asa.removeEventListener("pointercancel", soltar);
+      hojaGuardarAnchos();
+    };
+    asa.addEventListener("pointermove", mover);
+    asa.addEventListener("pointerup", soltar);
+    asa.addEventListener("pointercancel", soltar);
+  });
+  asa.addEventListener("dblclick", () => {
+    hojaAnchos[c] = HOJA_ANCHOS[c];
+    hojaAplicarAnchos();
+    hojaGuardarAnchos();
+  });
+  th.appendChild(asa);
+}
 const hojaFilaVacia = () => HOJA_COLUMNAS.map(() => "");
 
 function hojaDibujar() {
   emHojaTabla.innerHTML = "";
   const grupo = document.createElement("colgroup");
-  [46].concat(HOJA_ANCHOS).forEach((w) => {
+  [46].concat(hojaAnchos).forEach((w) => {
     const col = document.createElement("col");
     col.style.width = w + "px";
     grupo.appendChild(col);
@@ -5067,6 +5125,7 @@ function hojaDibujar() {
   HOJA_COLUMNAS.forEach((_, i) => {
     const th = document.createElement("th");
     th.textContent = String.fromCharCode(65 + i);
+    hojaAgregarAsa(th, i);
     letras.appendChild(th);
   });
   const nombres = document.createElement("tr");
@@ -5074,16 +5133,18 @@ function hojaDibujar() {
   const uno = document.createElement("th");
   uno.textContent = "1";
   nombres.appendChild(uno);
-  HOJA_COLUMNAS.forEach((t) => {
+  HOJA_COLUMNAS.forEach((t, i) => {
     const th = document.createElement("th");
     th.textContent = t;
     th.title = t;
+    hojaAgregarAsa(th, i);
     nombres.appendChild(th);
   });
   cabeza.append(letras, nombres);
   const cuerpo = document.createElement("tbody");
   hojaFilas.forEach((_, r) => cuerpo.appendChild(hojaCrearFila(r)));
   emHojaTabla.append(grupo, cabeza, cuerpo);
+  hojaAplicarAnchos();
   hojaFilaActiva = -1;
 }
 
@@ -5096,11 +5157,64 @@ function hojaLinkDe(texto) {
   return "";
 }
 
+// Id del video si el link es de YouTube (watch, youtu.be, shorts, embed, live); si es de canal o lista, no hay miniatura
+function hojaIdYoutube(texto) {
+  const url = hojaLinkDe(texto);
+  if (!url) return "";
+  let u;
+  try { u = new URL(url); } catch (e) { return ""; }
+  const host = u.hostname.toLowerCase().replace(/^(www|m|music)\./, "");
+  let id = "";
+  if (host === "youtu.be") id = u.pathname.slice(1).split("/")[0];
+  else if (host === "youtube.com" || host === "youtube-nocookie.com") {
+    if (u.pathname === "/watch") id = u.searchParams.get("v") || "";
+    else {
+      const m = u.pathname.match(/^\/(?:shorts|embed|live|v)\/([^/?#]+)/);
+      if (m) id = m[1];
+    }
+  }
+  return /^[\w-]{11}$/.test(id) ? id : "";
+}
+
+// Miniatura del video dentro de la celda de Youtube (al tocarla abre el video)
+function hojaActualizarMiniatura(td, inp, texto) {
+  let m = td.querySelector(".em-hoja-mini");
+  const id = +inp.dataset.c === HOJA_COL_YOUTUBE ? hojaIdYoutube(texto) : "";
+  inp.classList.toggle("em-hoja-celda-mini", !!id);
+  if (!id) {
+    if (m) m.remove();
+    return;
+  }
+  if (!m) {
+    m = document.createElement("a");
+    m.className = "em-hoja-mini";
+    m.target = "_blank";
+    m.rel = "noopener noreferrer";
+    m.title = "Abrir el video";
+    const img = document.createElement("img");
+    img.alt = "Miniatura del video";
+    img.loading = "lazy";
+    img.addEventListener("error", () => {
+      m.remove();
+      inp.classList.remove("em-hoja-celda-mini");
+    });
+    m.appendChild(img);
+    td.appendChild(m);
+  }
+  m.href = hojaLinkDe(texto);
+  const img = m.firstChild;
+  const src = "https://i.ytimg.com/vi/" + id + "/mqdefault.jpg";
+  if (img.getAttribute("src") !== src) img.src = src;
+}
+
 function hojaActualizarLink(td, texto) {
   const inp = td.querySelector(".em-hoja-celda");
   let a = td.querySelector(".em-hoja-link");
   const url = hojaLinkDe(texto);
-  if (inp) inp.classList.toggle("em-hoja-celda-link", !!url);
+  if (inp) {
+    inp.classList.toggle("em-hoja-celda-link", !!url);
+    hojaActualizarMiniatura(td, inp, texto);
+  }
   if (!url) {
     if (a) a.remove();
     return;
