@@ -410,6 +410,8 @@ const calForm = document.getElementById("cal-form");
 const calFormTitulo = document.getElementById("cal-form-titulo");
 const calTipoCampo = document.getElementById("cal-tipo-campo");
 const calTipo = document.getElementById("cal-tipo");
+const calTambienCampo = document.getElementById("cal-tambien-campo");
+const calTambien = document.getElementById("cal-tambien");
 const calTextoEtiqueta = document.getElementById("cal-texto-etiqueta");
 const calTexto = document.getElementById("cal-texto");
 const calGuardar = document.getElementById("cal-guardar");
@@ -511,6 +513,8 @@ function abrirFormCal(campo, indice) {
   let texto = "";
   let hayGuardado = false;
   calTipoCampo.hidden = campo !== "nuevo";
+  calTambienCampo.hidden = campo !== "nuevo"; // «Anotar también en» solo al crear
+  calTambien.value = "";
   if (campo === "descripcion") {
     texto = textoDescripcionDia(fecha);
     hayGuardado = !!texto;
@@ -575,11 +579,27 @@ async function guardarFormCal() {
   setEstado(calFormEstado, "Guardando…");
   try {
     await guardarCampo(fecha, campo, serializarElementos(elementos));
+    // Si se pidió, además se crea como Actividad o Trabajo (en la hoja «Notas», con la fecha de este día)
+    let avisoAct = "";
+    const tambien = edit.campo === "nuevo" ? calTambien.value : "";
+    if (tambien) {
+      try {
+        await crearActividadDeRecuerdo({
+          idRecuerdo: String(Date.now() * 1000 + Math.floor(Math.random() * 1000)),
+          nombre: nombreCortoDeTexto(texto),
+          dia: fecha,
+          texto,
+          tipo: tambien,
+        });
+      } catch (err2) {
+        avisoAct = "Se guardó en el calendario, pero no se pudo crear en " + (tambien === "trabajo" ? "Trabajo" : "Actividades") + ": " + err2.message;
+      }
+    }
     if (seleccion === fecha) {
       cerrarFormCal();
       dibujarDescDia(fecha);
       dibujarChipsCal(fecha);
-      setEstado(calDiaEstado, "Guardado ✓", "ok");
+      setEstado(calDiaEstado, avisoAct || "Guardado ✓", avisoAct ? "error" : "ok");
     }
     actualizarMarca(fecha);
   } catch (e) {
@@ -793,6 +813,7 @@ async function llamarSesion(accion, credencial, extra) {
 
 // Nombre corto del dispositivo, para reconocerlo en la lista («Chrome en Android»…)
 function nombreDispositivo() {
+  if (esAppNativa()) return "App Polo AI en Android";
   const ua = navigator.userAgent || "";
   const nav = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Firefox\//.test(ua) ? "Firefox"
     : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "Navegador";
@@ -890,6 +911,7 @@ async function respuestaGoogle(resp) {
 function cerrarSesion() {
   clearTimeout(temporizadorSesion);
   ofBorrarDatos(); // las listas guardadas para usar sin internet se borran del dispositivo
+  nativoAlCerrarSesion(); // app de Android: se cancelan las alarmas del sistema y se sale de Google
   // Se cierra también en el Apps Script el pase de este dispositivo (si lo hay)
   if (usuario && usuario.tipo === "dispositivo" && usuario.credencial && configurado()) {
     llamarSesion("sesion_cerrar", usuario.credencial).catch(() => {});
@@ -983,6 +1005,17 @@ function iniciarGoogle() {
     googleAviso.textContent =
       "Falta configurar GOOGLE_CLIENT_ID en config.js (revisa el README).";
     googleAviso.hidden = false;
+    return;
+  }
+  // App de Android (Capacitor): el botón de Google de la web no funciona dentro de la app; se usa el inicio de sesión nativo
+  if (esAppNativa()) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = "Iniciar sesión con Google";
+    b.style.cssText = "padding:12px 20px;font:inherit;font-weight:700;color:#fff;background:#1a1a1a;border:1px solid #5f6368;border-radius:999px;cursor:pointer";
+    b.addEventListener("click", loginGoogleNativo);
+    googleBoton.innerHTML = "";
+    googleBoton.appendChild(b);
     return;
   }
   const s = document.createElement("script");
@@ -2589,6 +2622,42 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// ---------- Actividad o trabajo creado desde el Diario o el Calendario ----------
+// El recuerdo se queda en su zona, en su día. Además se crea una nota en la hoja «Notas» con la etiqueta
+// «Actividades» o «Trabajo» y la fecha de ese día, para que aparezca en esas zonas (con su botón de
+// finalizar). Su Id es el del recuerdo MÁS OFFSET_ID_ACTIVIDAD (el mismo número está en el Apps Script):
+// así, al finalizar, el Apps Script encuentra el recuerdo del Diario y le agrega la fecha de término.
+const OFFSET_ID_ACTIVIDAD = 7000000007;
+const ETIQUETA_DE_TIPO = { actividad: "Actividades", trabajo: "Trabajo" };
+function nombreCortoDeTexto(t) {
+  const linea = String(t || "").split(/\r?\n/).map((x) => x.trim()).find((x) => x) || "";
+  return linea.slice(0, 60) || "Sin nombre";
+}
+async function crearActividadDeRecuerdo({ idRecuerdo, nombre, dia, texto, tipo }) {
+  const etiqueta = ETIQUETA_DE_TIPO[tipo];
+  if (!etiqueta) return;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dia || "");
+  const ahora = new Date();
+  const fecha = m
+    ? `${m[3]}/${m[2]}/${m[1]} ${dos(ahora.getHours())}:${dos(ahora.getMinutes())}`
+    : selloFechaHora();
+  const nota = {
+    id: String(Number(idRecuerdo) + OFFSET_ID_ACTIVIDAD),
+    nombre: String(nombre || "").trim().slice(0, 80) || "Sin nombre",
+    fecha,
+    etiqueta,
+    texto,
+    color: "Blanco",
+    identificador: "",
+    destino: "drive",
+  };
+  await llamarNotas("nota_agregar", nota);
+  if (notasCargadas) {
+    notas.push(nota);
+    dibujarNotas();
+  }
+}
+
 // ---------- Actividades y Trabajo (hoja «Notas» con una etiqueta fija) ----------
 // Cada zona vive dentro de su sección del menú superior y tiene su propio botón de crear, con el
 // mismo formulario de las notas, pero la etiqueta ya viene fija (Actividades o Trabajo).
@@ -2602,6 +2671,8 @@ const ZONAS_ETIQUETA = [
     guardar: "Guardar actividad", marcador: "Escribe una actividad nueva…",
     vacio: "Aún no hay actividades. ¡Crea la primera! ✨", borrar: "¿Eliminar esta actividad?",
     cuadritos: true, // las tarjetas se ven como cuadritos (igual que en Ejercicio, Diario, etc.)
+    finalizar: true, // cada tarjeta lleva el botón de finalizar (pasa al Diario y le agrega la fecha de término al recuerdo)
+    elegirEtiqueta: true, // al crear se elige entre Nota, Actividad o Trabajo
   },
   {
     seccion: "trabajo", etiqueta: "Trabajo", datos: "tus trabajos",
@@ -2610,6 +2681,7 @@ const ZONAS_ETIQUETA = [
     vacio: "Aún no hay trabajos. ¡Crea el primero! ✨", borrar: "¿Eliminar este trabajo?",
     vista: true, // al tocar una tarjeta se abre primero una nota sencilla (la tuerca abre la edición)
     finalizar: true, // cada tarjeta lleva el botón «Marcar tarea como finalizada» (pasa al Diario)
+    elegirEtiqueta: true, // al crear se elige entre Nota, Actividad o Trabajo
     cuadritos: true, // las tarjetas se ven como cuadritos (igual que en Ejercicio, Diario, etc.)
   },
   {
@@ -2624,6 +2696,7 @@ const ZONAS_ETIQUETA = [
 // Arma una zona: formulario (igual al de Notas), botón de crear y lista de tarjetas de su etiqueta
 function crearZonaEtiqueta(cfg) {
   const cont = document.getElementById("zona-" + cfg.seccion);
+  const textoFin = cfg.etiqueta === "Actividades" ? "actividad" : "tarea"; // «Marcar … como finalizada»
   cont.innerHTML = `
     <div class="zona-sin-sesion notas-aviso-sesion" hidden>
       <p>Inicia sesión con tu cuenta de Google para ver y guardar ${cfg.datos}.</p>
@@ -2648,7 +2721,13 @@ function crearZonaEtiqueta(cfg) {
         <div class="notas-superior">
           <label class="notas-campo notas-campo-etiqueta">
             <span>Etiqueta</span>
-            <input class="zona-etiqueta-fija" type="text" value="${cfg.etiqueta}" readonly tabindex="-1" />
+            ${cfg.elegirEtiqueta
+              ? `<select class="zona-etiqueta-sel" aria-label="Etiqueta">
+              <option value="General">📝 Nota</option>
+              <option value="Actividades">🎯 Actividad</option>
+              <option value="Trabajo">💼 Trabajo</option>
+            </select>`
+              : `<input class="zona-etiqueta-fija" type="text" value="${cfg.etiqueta}" readonly tabindex="-1" />`}
           </label>
           <div class="notas-campo notas-campo-color">
             <span>Color</span>
@@ -2714,6 +2793,7 @@ function crearZonaEtiqueta(cfg) {
     colorPersonal: q(".zona-color-personal"),
     fecha: q(".zona-fecha"),
     ident: q(".zona-ident"),
+    etiquetaSel: q(".zona-etiqueta-sel"), // solo en las zonas con etiqueta elegible
     destino: q(".zona-destino"),
     tipo: q(".zona-tipo"),
     campoTipo: q(".zona-campo-tipo"),
@@ -2860,6 +2940,10 @@ function crearZonaEtiqueta(cfg) {
     z.ident.value = "";
     z.destino.value = "drive";
     z.tipo.value = "nota";
+    if (z.etiquetaSel) {
+      z.etiquetaSel.value = cfg.etiqueta;
+      z.etiquetaSel.disabled = false;
+    }
     aplicarTipoZona();
     elegirColorZona("Blanco");
     z.fecha.value = fechaActualInput();
@@ -2873,6 +2957,10 @@ function crearZonaEtiqueta(cfg) {
     z.nuevoBtn.hidden = mostrar;
     z.campoTipo.hidden = false;
     z.tipo.value = "nota";
+    if (z.etiquetaSel) {
+      z.etiquetaSel.value = cfg.etiqueta;
+      z.etiquetaSel.disabled = false;
+    }
     aplicarTipoZona();
     if (mostrar) {
       z.fecha.value = fechaActualInput();
@@ -2901,6 +2989,10 @@ function crearZonaEtiqueta(cfg) {
     z.titulo.textContent = cfg.editar;
     z.tipo.value = "nota";
     z.campoTipo.hidden = true; // al editar no se cambia el tipo
+    if (z.etiquetaSel) {
+      z.etiquetaSel.value = cfg.etiqueta; // al editar tampoco se cambia la etiqueta
+      z.etiquetaSel.disabled = true;
+    }
     aplicarTipoZona();
     z.guardarBtn.textContent = "Guardar cambios";
     setEstado(z.estado, "");
@@ -2933,7 +3025,7 @@ function crearZonaEtiqueta(cfg) {
     const datos = {
       nombre: z.nombre.value.trim() || "Sin nombre",
       fecha: inputAFecha(z.fecha.value) || (n && n.fecha) || selloFechaHora(),
-      etiqueta: cfg.etiqueta, // siempre la de la zona
+      etiqueta: n || !z.etiquetaSel ? cfg.etiqueta : z.etiquetaSel.value, // la de la zona (o la que se eligió al crear)
       texto,
       color: z.color,
       identificador: z.ident.value.trim(),
@@ -2953,7 +3045,11 @@ function crearZonaEtiqueta(cfg) {
       limpiarForm();
       mostrarForm(false);
       dibujarNotas(); // redibuja el panel de Notas y todas las zonas
-      setEstado(z.estadoLista, n ? "Cambios guardados ✓" : "Guardada ✓", "ok");
+      const destinoEtiqueta = datos.etiqueta === cfg.etiqueta ? ""
+        : datos.etiqueta === "Trabajo" ? " (quedó en Trabajo)"
+        : datos.etiqueta === "Actividades" ? " (quedó en Actividades)"
+        : " (quedó en Notas)";
+      setEstado(z.estadoLista, (n ? "Cambios guardados ✓" : "Guardada ✓") + destinoEtiqueta, "ok");
     } catch (e) {
       setEstado(z.estado, "Error: " + e.message, "error");
     } finally {
@@ -2982,18 +3078,21 @@ function crearZonaEtiqueta(cfg) {
     botonSi.disabled = true;
     setEstado(z.estadoLista, "Finalizando…");
     try {
-      await llamarNotas("trabajo_finalizar", { id: n.id, fecha });
+      const j = await llamarNotas("actividad_finalizar", { id: n.id, fecha });
       notas = notas.filter((x) => x.id !== n.id);
       if (z.editando && z.editando.id === n.id) cancelar();
-      dibujarNotas(); // el trabajo desaparece de Trabajo y de la lista de Notas
-      registrarTerminadoEnDiario({
-        id: n.id,
-        nombre: n.nombre || "Sin nombre",
-        fecha,
-        descripcion: n.texto || "",
-        terminado: true,
-      });
-      setEstado(z.estadoLista, "Trabajo finalizado ✓ (ya está en el Diario)", "ok");
+      dibujarNotas(); // desaparece de su zona y de la lista de Notas
+      // Si la actividad nació en el Diario, a ese recuerdo se le agregó la fecha de término
+      if (diCargados && j && j.memoria) {
+        diarios = diarios.map((x) => (x.id === j.memoria.id ? Object.assign({}, x, { descripcion: j.memoria.descripcion }) : x));
+      }
+      // La copia del día de hoy (con la fecha de inicio y la de término en su descripción)
+      registrarTerminadoEnDiario(Object.assign(
+        { id: n.id, nombre: n.nombre || "Sin nombre", fecha, descripcion: n.texto || "" },
+        (j && j.copia) || {},
+        { terminado: true }
+      ));
+      setEstado(z.estadoLista, (cfg.etiqueta === "Actividades" ? "Actividad finalizada" : "Trabajo finalizado") + " ✓ (ya está en el Diario)", "ok");
     } catch (e) {
       botonSi.disabled = false;
       setEstado(z.estadoLista, "Error: " + e.message, "error");
@@ -3039,12 +3138,12 @@ function crearZonaEtiqueta(cfg) {
       const fin = document.createElement("button");
       fin.type = "button";
       fin.className = "zona-cuadrito-fin";
-      fin.setAttribute("aria-label", "Marcar tarea como finalizada");
-      fin.title = "Marcar tarea como finalizada";
+      fin.setAttribute("aria-label", "Marcar " + textoFin + " como finalizada");
+      fin.title = "Marcar " + textoFin + " como finalizada";
       fin.textContent = "✔";
       fin.addEventListener("click", (e) => {
         e.stopPropagation();
-        if (window.confirm("¿Marcar como finalizada? Se quitará de Trabajo y pasará al Diario con la fecha de hoy.")) {
+        if (window.confirm("¿Marcar como finalizada? Se quitará de " + cfg.etiqueta + " y pasará al Diario con la fecha de hoy.")) {
           finalizar(n, fin);
         }
       });
@@ -3113,13 +3212,13 @@ function crearZonaEtiqueta(cfg) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "tarjeta-fin-btn";
-      btn.textContent = "✔ Marcar tarea como finalizada";
+      btn.textContent = "✔ Marcar " + textoFin + " como finalizada";
       const conf = document.createElement("div");
       conf.className = "tarjeta-fin-conf";
       conf.hidden = true;
       const aviso = document.createElement("p");
       aviso.className = "tarjeta-fin-aviso";
-      aviso.textContent = "¿Seguro? Se quitará de Trabajo y pasará al Diario con la fecha de hoy.";
+      aviso.textContent = "¿Seguro? Se quitará de " + cfg.etiqueta + " y pasará al Diario con la fecha de hoy.";
       const si = document.createElement("button");
       si.type = "button";
       si.className = "tarjeta-fin-si";
@@ -3690,6 +3789,8 @@ const diFormTitulo = diEl("di-form-titulo");
 const diNombre = diEl("di-nombre");
 const diDescripcion = diEl("di-descripcion");
 const diDestino = diEl("di-destino");
+const diTipoCampo = diEl("di-tipo-campo");
+const diTipo = diEl("di-tipo");
 const diGuardar = diEl("di-guardar");
 const diBorrar = diEl("di-borrar");
 const diFormEstado = diEl("di-form-estado");
@@ -3821,7 +3922,7 @@ function dibujarChipsDi() {
     b.setAttribute("aria-label", "Ver o editar la anotación " + e.nombre);
     b.innerHTML = '<span class="ej-chip-icono" aria-hidden="true"></span><span class="ej-chip-nombre"></span>';
     b.querySelector(".ej-chip-icono").textContent = e.terminado ? "✅" : "📓";
-    if (e.terminado) b.title = e.nombre + " (trabajo terminado)";
+    if (e.terminado) b.title = e.nombre + (e.marca === "Actividad finalizada" ? " (actividad terminada)" : " (trabajo terminado)");
     if (e.marca === "Tarea finalizada") {
       b.classList.add("ej-chip-finalizada");
       b.title = e.nombre + " (Anotación de Tarea Finalizada)";
@@ -3915,6 +4016,8 @@ function abrirFormDi(e) {
   diFormTitulo.textContent = e
     ? e.marca === "Tarea finalizada"
       ? "Anotación de Tarea Finalizada ✅"
+      : e.marca === "Actividad finalizada"
+      ? "Editar actividad terminada ✅"
       : e.terminado
       ? "Editar trabajo terminado ✅"
       : "Editar anotación"
@@ -3924,6 +4027,8 @@ function abrirFormDi(e) {
   diDestino.value = (e && e.destino !== "drive") ? "sheets" : "drive";
   migDi.actualizar(e);
   diBorrar.hidden = !e;
+  diTipoCampo.hidden = !!e; // «Guardar como» solo al crear
+  diTipo.value = "nota";
   setEstado(diFormEstado, "");
   diForm.hidden = false;
   diNombre.focus();
@@ -3949,15 +4054,32 @@ async function guardarDi() {
     destino: diDestino.value,
     terminado: editando ? !!editando.terminado : false, // solo informativo: el Apps Script no toca la columna D
   };
+  const tipo = editando ? "nota" : diTipo.value; // nota | actividad | trabajo
+  if (tipo !== "nota" && !e.descripcion) {
+    setEstado(diFormEstado, "Escribe la descripción para guardarla como " + (tipo === "trabajo" ? "trabajo" : "actividad"), "error");
+    return;
+  }
   diGuardar.disabled = true;
   setEstado(diFormEstado, "Guardando…");
   try {
     await llamarNotas(editando ? "diario_editar" : "diario_agregar", e);
     if (editando) diarios = diarios.map((x) => (x.id === id ? e : x));
     else diarios.push(e);
+    // Actividad o trabajo: el recuerdo se queda en este día y además se crea en Actividades / Trabajo
+    let aviso = "";
+    if (tipo !== "nota") {
+      try {
+        await crearActividadDeRecuerdo({ idRecuerdo: id, nombre, dia: e.fecha, texto: e.descripcion, tipo });
+      } catch (err2) {
+        aviso = "El recuerdo se guardó, pero no se pudo crear en " + (tipo === "trabajo" ? "Trabajo" : "Actividades") + ": " + err2.message;
+      }
+    }
     cerrarFormDi();
     dibujarChipsDi();
     dibujarCalendarioDi();
+    if (tipo !== "nota") {
+      setEstado(diDiaEstado, aviso || "Guardado ✓ (también está en " + (tipo === "trabajo" ? "Trabajo" : "Actividades") + ")", aviso ? "error" : "ok");
+    }
   } catch (err) {
     setEstado(diFormEstado, "Error: " + err.message, "error");
   } finally {
@@ -7021,7 +7143,7 @@ function hyArmar(clave, f) {
         hora: "",
         marca: d.marca === "Tarea finalizada" ? "✅ Tarea finalizada" : d.terminado ? "✅ Terminado" : "",
         texto: d.descripcion,
-        extra: d.marca === "Tarea finalizada" ? "Anotación de Tarea Finalizada" : d.terminado ? "Trabajo terminado" : "",
+        extra: d.marca === "Tarea finalizada" ? "Anotación de Tarea Finalizada" : d.marca === "Actividad finalizada" ? "Actividad terminada" : d.terminado ? "Trabajo terminado" : "",
         finalizada: d.marca === "Tarea finalizada",
       });
     }
@@ -7309,6 +7431,105 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || hyDetalle.hidden) return;
   cerrarDetalleHy();
 });
+
+// ---------- App de Android (Capacitor): inicio de sesión nativo y alarmas reales del sistema ----------
+// La página se abre dentro de la app «Polo AI» (carpeta android del proyecto). Allí existe window.Capacitor y se pueden
+// llamar los plugins nativos directamente. En un navegador normal nada de esto se activa (esAppNativa() es false).
+function esAppNativa() {
+  try { return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform() && Capacitor.nativePromise); } catch (e) { return false; }
+}
+function nativo(plugin, metodo, opciones) {
+  return Capacitor.nativePromise(plugin, metodo, opciones || {});
+}
+function nativoMensaje(e) {
+  return (e && (e.message || e.errorMessage || e.code)) || String(e);
+}
+
+// Inicio de sesión con Google del sistema (el token tiene como audiencia el mismo GOOGLE_CLIENT_ID de config.js,
+// así que el Apps Script lo valida igual que el de la web)
+async function loginGoogleNativo() {
+  googleAviso.hidden = true;
+  try {
+    await nativo("SocialLogin", "initialize", { google: { webClientId: CONFIG.GOOGLE_CLIENT_ID } });
+    const r = await nativo("SocialLogin", "login", { provider: "google", options: { scopes: ["email", "profile"] } });
+    const idToken = r && r.result && r.result.idToken;
+    if (!idToken) throw new Error("Google no entregó el token de sesión");
+    await respuestaGoogle({ credential: idToken });
+  } catch (e) {
+    googleAviso.textContent = "No se pudo iniciar sesión con Google: " + nativoMensaje(e);
+    googleAviso.hidden = false;
+  }
+}
+
+// Alarmas de las tareas diarias como notificaciones programadas del sistema: suenan con la app cerrada y con la
+// pantalla apagada, todos los días a su hora, y se vuelven a programar solas al reiniciar el celular.
+const NATIVO_CANAL = "polo-alarmas-v1"; // el sonido de un canal no se puede cambiar después: si lo cambias, usa otro nombre
+const NATIVO_CLAVE_FIRMA = "polo-nativo-firma"; // resumen de lo último que se programó (evita reprogramar sin necesidad)
+function nativoIdNumerico(idTexto) {
+  let h = 7;
+  const t = String(idTexto);
+  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) % 2147483000;
+  return h + 1;
+}
+let nativoOcupado = false;
+async function nativoPermisoNotif() {
+  let p = await nativo("LocalNotifications", "checkPermissions");
+  if (p.display !== "granted" && p.display !== "denied") p = await nativo("LocalNotifications", "requestPermissions");
+  return p.display;
+}
+async function nativoCancelarPendientes() {
+  const p = await nativo("LocalNotifications", "getPending");
+  if (p && p.notifications && p.notifications.length) {
+    await nativo("LocalNotifications", "cancel", { notifications: p.notifications.map((n) => ({ id: n.id })) });
+  }
+}
+async function tdNativasSync(forzar) {
+  if (!esAppNativa() || nativoOcupado || !tdCargadas || !sesionVigente()) return;
+  const deseadas = tareasDiarias.filter((t) => TD_HORA_OK.test(t.hora || "") && (t.alarma === "celular" || t.alarma === "ambos"));
+  const firma = JSON.stringify(deseadas.map((t) => [t.id, t.hora, t.texto]).sort());
+  let guardada = "";
+  try { guardada = localStorage.getItem(NATIVO_CLAVE_FIRMA) || ""; } catch (e) {}
+  if (!forzar && firma === guardada) return;
+  nativoOcupado = true;
+  try {
+    if ((await nativoPermisoNotif()) !== "granted") return; // sin permiso no se programa nada (se reintenta después)
+    await nativo("LocalNotifications", "createChannel", {
+      id: NATIVO_CANAL, name: "Alarmas de tareas", description: "Alarmas diarias de Polo AI",
+      importance: 5, visibility: 1, sound: "alarma.wav", vibration: true, lights: true, lightColor: "#7A44D6",
+    });
+    await nativoCancelarPendientes();
+    if (deseadas.length) {
+      await nativo("LocalNotifications", "schedule", {
+        notifications: deseadas.map((t) => {
+          const p = t.hora.split(":").map(Number);
+          return {
+            id: nativoIdNumerico(t.id),
+            title: "⏰ " + t.hora + " · Polo AI",
+            body: t.texto.slice(0, 200),
+            channelId: NATIVO_CANAL,
+            sound: "alarma.wav",
+            smallIcon: "ic_stat_polo",
+            iconColor: "#4A2685",
+            autoCancel: true,
+            schedule: { on: { hour: p[0], minute: p[1] }, allowWhileIdle: true },
+            extra: { tarea: t.id },
+          };
+        }),
+      });
+    }
+    try { localStorage.setItem(NATIVO_CLAVE_FIRMA, firma); } catch (e) {}
+  } catch (e) {
+    console.warn("No se pudieron programar las alarmas del sistema:", nativoMensaje(e));
+  } finally {
+    nativoOcupado = false;
+  }
+}
+function nativoAlCerrarSesion() {
+  if (!esAppNativa()) return;
+  try { localStorage.removeItem(NATIVO_CLAVE_FIRMA); } catch (e) {}
+  nativoCancelarPendientes().catch(() => {});
+  nativo("SocialLogin", "logout", { provider: "google" }).catch(() => {});
+}
 
 // ---------- Tareas Obligatorias Diarias ----------
 // Mini notas cuadradas que se quedan para siempre (hoja «Tareas Diarias»). Cada una puede tener un horario y una
@@ -7662,6 +7883,7 @@ async function tdNotificar(t) {
   } catch (e) {}
 }
 async function tdQuitarNotificaciones() {
+  if (esAppNativa()) nativo("LocalNotifications", "removeAllDeliveredNotifications").catch(() => {});
   try {
     const reg = await navigator.serviceWorker.getRegistration();
     if (!reg) return;
@@ -7752,6 +7974,7 @@ function tdPosponer() {
 
 // Revisa si toca alguna alarma: la de hoy que no haya sonado ni esté completada (se acepta hasta 15 minutos de retraso)
 function tdRevisarAlarmas() {
+  tdNativasSync(); // app de Android: mantiene las alarmas del sistema al día con la lista de tareas
   if (!sesionVigente() || tdSonando) return;
   const ahora = new Date();
   const hoy = tdHoyClave();
@@ -7801,7 +8024,15 @@ document.getElementById("td-activar").addEventListener("click", async () => {
   tdVibrar();
   let permiso = "no disponible";
   try { if ("Notification" in window) permiso = await Notification.requestPermission(); } catch (e) {}
-  tdInfo.textContent =
+  if (esAppNativa()) {
+    try { permiso = await nativoPermisoNotif(); } catch (e) {}
+    await tdNativasSync(true);
+  }
+  tdInfo.textContent = esAppNativa()
+    ? (permiso === "granted"
+      ? "🔔 Alarmas programadas en el sistema: suenan todos los días a su hora aunque la app esté cerrada o la pantalla apagada. Si alguna no suena, en Ajustes del celular → Apps → Polo AI → Batería, elige «Sin restricciones»."
+      : "⚠️ Falta el permiso de notificaciones: actívalo en Ajustes del celular → Apps → Polo AI → Notificaciones.")
+    :
     "🔔 Alarmas listas en este " + (TD_ES_ANDROID ? "celular Android" : "dispositivo") + ". Avisos en segundo plano: " +
     (permiso === "granted" ? "permitidos" : "no permitidos (" + permiso + ")") +
     ". Deja la app abierta: con la pantalla apagada o la app cerrada el celular no la deja sonar.";

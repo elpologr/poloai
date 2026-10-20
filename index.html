@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="58" />
+  <meta name="app-version" content="59" />
   <meta name="theme-color" content="#4a2685" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Polo AI" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest-principal.json" />
-  <link rel="icon" href="imagenes/perfil.webp?v=58" type="image/webp" sizes="any" />
-  <link rel="shortcut icon" href="imagenes/perfil.webp?v=58" type="image/webp" />
-  <link rel="apple-touch-icon" href="imagenes/perfil.webp?v=58" />
+  <link rel="icon" href="imagenes/perfil.webp?v=59" type="image/webp" sizes="any" />
+  <link rel="shortcut icon" href="imagenes/perfil.webp?v=59" type="image/webp" />
+  <link rel="apple-touch-icon" href="imagenes/perfil.webp?v=59" />
   <link rel="preconnect" href="https://accounts.google.com" />
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=58" />
+  <link rel="stylesheet" href="styles.css?v=59" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -394,6 +394,14 @@
               <option value="anotaciones">Anotación</option>
             </select>
           </label>
+          <label id="cal-tambien-campo" class="notas-campo" hidden>
+            <span>Anotar también en</span>
+            <select id="cal-tambien">
+              <option value="">Solo en el calendario</option>
+              <option value="actividad">🎯 Actividades (con botón de finalizar)</option>
+              <option value="trabajo">💼 Trabajo (con botón de finalizar)</option>
+            </select>
+          </label>
           <label class="notas-campo">
             <span id="cal-texto-etiqueta">Texto</span>
             <textarea id="cal-texto" rows="4" maxlength="5000" placeholder="Escribe aquí…"></textarea>
@@ -693,6 +701,14 @@
         <label class="notas-campo">
           <span>Nombre</span>
           <input id="di-nombre" type="text" maxlength="80" placeholder="Ej. Idea del día" autocomplete="off" />
+        </label>
+        <label id="di-tipo-campo" class="notas-campo">
+          <span>Guardar como</span>
+          <select id="di-tipo">
+            <option value="nota">📓 Nota (solo recuerdo de este día)</option>
+            <option value="actividad">🎯 Actividad (también aparece en Actividades)</option>
+            <option value="trabajo">💼 Trabajo (también aparece en Trabajo)</option>
+          </select>
         </label>
         <label class="notas-campo" hidden>
           <span>Guardar en</span>
@@ -1272,9 +1288,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=58"></script>
-  <script src="app.js?v=58"></script>
-  <script src="voz.js?v=58"></script>
-  <script type="module" src="firebase.js?v=58"></script>
+  <script src="config.js?v=60"></script>
+  <script src="app.js?v=60"></script>
+  <script src="voz.js?v=60"></script>
+  <script type="module" src="firebase.js?v=60"></script>
 </body>
 </html>
