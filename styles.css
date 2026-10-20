@@ -1,5 +1,5 @@
 :root {
-  --app-version: "49"; /* debe coincidir con VERSION en app.js */
+  --app-version: "50"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -2387,3 +2387,30 @@ span.em-red { --red-fondo: #262b3d; border-style: dashed; }
   .em-hoja-ayuda { display: none; }
   .em-hoja-titulo { font-size: 0.95rem; }
 }
+
+/* ---------- Hoja de redes: aviso visible y cuadro para nombrar columnas ---------- */
+.em-hoja-aviso {
+  position: absolute; left: 12px; right: 12px; bottom: 16px; z-index: 5; padding: 10px 14px;
+  font-size: 0.88rem; font-weight: 600; color: #174ea6; background: #e8f0fe; border: 1px solid #aecbfa;
+  border-radius: 10px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+.em-hoja-aviso.error { color: #a50e0e; background: #fce8e6; border-color: #f5b5b0; }
+.em-hoja-aviso[hidden] { display: none; }
+.em-hoja-dialogo {
+  position: absolute; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: rgba(0, 0, 0, 0.45);
+}
+.em-hoja-dialogo-caja {
+  display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 360px; padding: 18px;
+  background: #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+.em-hoja-dialogo-caja input {
+  width: 100%; padding: 10px; font: inherit; font-size: 1rem; color: #202124; border: 1px solid #dadce0; border-radius: 8px;
+}
+.em-hoja-dialogo-botones { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ---------- Instalar en la pantalla de inicio ---------- */
+.btn-lateral-instalar { margin-top: 10px; background: linear-gradient(135deg, #e3d7ff, #c3a9f7); border-color: #d9cbfb; color: #2b1a57; }
+.btn-lateral-instalar[hidden] { display: none; }
+.lateral-instalar-ayuda { margin: 8px 2px 0; font-size: 0.85rem; line-height: 1.4; color: #d9d2ee; }
+.lateral-instalar-ayuda[hidden] { display: none; }

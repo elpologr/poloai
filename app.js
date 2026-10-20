@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "49";
+const VERSION = "50";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -5772,7 +5772,7 @@ function hojaArrastrarColumnas(e0, idx, bloque) {
       activo = true;
       if (!hojaDinamico) {
         bloqueado = true;
-        setEstado(emHojaEstado, "Para mover columnas hay que publicar la nueva versión del Apps Script", "error");
+        hojaAviso("Para mover columnas hay que publicar la nueva versión del Apps Script", "error");
         return;
       }
       hojaSelAncla = { r: 0, c: bloque[0] };
@@ -5858,19 +5858,76 @@ emHojaTabla.addEventListener("pointerdown", (e) => {
   hojaArrastrarCeldas({ r, c });
 });
 
+// Aviso visible dentro de la hoja (la barra de estado de arriba se queda sin espacio en el celular)
+let hojaAvisoTimer = null;
+function hojaAviso(texto, tipo) {
+  setEstado(emHojaEstado, texto, tipo);
+  let el = emHoja.querySelector(".em-hoja-aviso");
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "em-hoja-aviso";
+    el.setAttribute("role", "alert");
+    emHoja.appendChild(el);
+  }
+  el.textContent = texto;
+  el.classList.toggle("error", tipo === "error");
+  el.hidden = false;
+  clearTimeout(hojaAvisoTimer);
+  hojaAvisoTimer = setTimeout(() => { el.hidden = true; }, 6000);
+}
+
+// Pide un nombre con un cuadro propio (window.prompt no funciona en la app instalada ni en varios navegadores del celular)
+function hojaPedirNombre(titulo, ayuda) {
+  return new Promise((resolve) => {
+    const fondo = document.createElement("div");
+    fondo.className = "em-hoja-dialogo";
+    const caja = document.createElement("form");
+    caja.className = "em-hoja-dialogo-caja";
+    const h = document.createElement("strong");
+    h.textContent = titulo;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = HOJA_NOMBRE_COL_MAX;
+    input.autocomplete = "off";
+    input.placeholder = ayuda || "";
+    const fila = document.createElement("div");
+    fila.className = "em-hoja-dialogo-botones";
+    const cancelar = document.createElement("button");
+    cancelar.type = "button";
+    cancelar.className = "em-hoja-herr-btn";
+    cancelar.textContent = "Cancelar";
+    const ok = document.createElement("button");
+    ok.type = "submit";
+    ok.className = "em-hoja-guardar";
+    ok.textContent = "Agregar";
+    fila.append(cancelar, ok);
+    caja.append(h, input, fila);
+    fondo.appendChild(caja);
+    emHoja.appendChild(fondo);
+    const cerrar = (valor) => { fondo.remove(); resolve(valor); };
+    caja.addEventListener("submit", (e) => { e.preventDefault(); cerrar(input.value.trim().slice(0, HOJA_NOMBRE_COL_MAX)); });
+    cancelar.addEventListener("click", () => cerrar(""));
+    fondo.addEventListener("pointerdown", (e) => { if (e.target === fondo) cerrar(""); });
+    setTimeout(() => input.focus(), 30);
+  });
+}
+
 const emHojaColMas = emEl("em-hoja-col-mas");
 if (emHojaColMas) {
-  emHojaColMas.addEventListener("click", () => {
-    if (!hojaCargada) return;
+  emHojaColMas.addEventListener("click", async () => {
+    if (!hojaCargada) {
+      hojaAviso("La hoja todavía no carga: espera a que termine o usa ↻", "error");
+      return;
+    }
     if (!hojaDinamico) {
-      setEstado(emHojaEstado, "Para agregar columnas hay que publicar la nueva versión del Apps Script", "error");
+      hojaAviso("Para agregar columnas hay que publicar la nueva versión del Apps Script (Implementar → Administrar implementaciones → Nueva versión)", "error");
       return;
     }
     if (hojaColumnas.length >= HOJA_COL_MAX) {
-      setEstado(emHojaEstado, "Máximo " + HOJA_COL_MAX + " columnas", "error");
+      hojaAviso("Máximo " + HOJA_COL_MAX + " columnas", "error");
       return;
     }
-    const nombre = String(window.prompt("Nombre de la nueva columna:") || "").trim().slice(0, HOJA_NOMBRE_COL_MAX);
+    const nombre = await hojaPedirNombre("Nombre de la nueva columna", "Ej. Pinterest");
     if (!nombre) return;
     hojaColumnas.push(nombre);
     hojaAnchos.push(HOJA_ANCHO_NUEVA);
@@ -7407,3 +7464,50 @@ renovarSesionDispositivo(); // al abrir la página se renueva el pase de este di
 // Al abrir o recargar la página (F5) el calendario ya aparece en la fecha actual
 mostrarSeccion("calendario");
 cargarDatos();
+
+
+// ---------- Instalar en la pantalla de inicio (PWA) ----------
+// Chrome/Edge/Android avisan con «beforeinstallprompt»; en iPhone (Safari) no existe ese aviso y se instala a mano desde «Compartir».
+(function instalarApp() {
+  const boton = document.getElementById("btn-instalar");
+  const ayuda = document.getElementById("instalar-ayuda");
+  if (!boton || !ayuda) return;
+
+  const yaInstalada = () =>
+    window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  if (yaInstalada()) return; // dentro de la app instalada el botón no hace falta
+
+  let evento = null;
+  const esIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  boton.hidden = false;
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    evento = e;
+  });
+  window.addEventListener("appinstalled", () => {
+    evento = null;
+    boton.hidden = true;
+    ayuda.hidden = true;
+  });
+
+  boton.addEventListener("click", async () => {
+    if (evento) {
+      evento.prompt();
+      try { await evento.userChoice; } catch (e) {}
+      evento = null;
+      return;
+    }
+    ayuda.textContent = esIOS
+      ? "En iPhone/iPad: abre esta página en Safari, toca el botón Compartir (el cuadro con la flecha hacia arriba) y elige «Añadir a pantalla de inicio»."
+      : "Abre el menú del navegador (⋮ o ⋯) y elige «Instalar app» o «Añadir a pantalla de inicio». Si no aparece, recarga la página una vez y vuelve a intentarlo.";
+    ayuda.hidden = !ayuda.hidden;
+  });
+
+  // El service worker es lo que permite que el navegador ofrezca instalar la app
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
+})();

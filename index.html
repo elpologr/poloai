@@ -3,9 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="49" />
+  <meta name="app-version" content="50" />
+  <meta name="theme-color" content="#4a2685" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Polo AI" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest-principal.json" />
+  <link rel="icon" href="icon-app.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=49" />
+  <link rel="stylesheet" href="styles.css?v=50" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -75,6 +83,12 @@
       <span class="btn-lateral-icono" aria-hidden="true">&#128244;</span>
       <span>Sin internet</span>
     </a>
+    <!-- Instalar la app en la pantalla de inicio del celular -->
+    <button id="btn-instalar" class="btn-lateral-notas btn-lateral-instalar" type="button" hidden>
+      <span class="btn-lateral-icono" aria-hidden="true">&#128242;</span>
+      <span>Añadir a pantalla de inicio</span>
+    </button>
+    <p id="instalar-ayuda" class="lateral-instalar-ayuda" hidden></p>
   </aside>
 
   <!-- Panel grande de Proyectos. Los proyectos viven en la hoja «Proyectos» de Google Sheets
@@ -1182,9 +1196,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=49"></script>
-  <script src="app.js?v=49"></script>
-  <script src="voz.js?v=49"></script>
-  <script type="module" src="firebase.js?v=49"></script>
+  <script src="config.js?v=50"></script>
+  <script src="app.js?v=50"></script>
+  <script src="voz.js?v=50"></script>
+  <script type="module" src="firebase.js?v=50"></script>
 </body>
 </html>
