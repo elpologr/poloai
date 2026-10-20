@@ -388,6 +388,14 @@
             <!-- Opciones para crear una nota (ocultas hasta pulsar "Nueva nota") -->
             <div id="notas-form" class="notas-nueva" hidden>
               <h3 id="notas-form-titulo" class="notas-form-titulo">Nueva nota</h3>
+              <!-- ¿Es una nota normal o un notario (zona de notas dentro de una nota)? Solo al crear -->
+              <label id="notas-campo-tipo" class="notas-campo">
+                <span>Tipo</span>
+                <select id="notas-tipo">
+                  <option value="nota">📝 Nota</option>
+                  <option value="notario">📒 Notario (varias notas dentro)</option>
+                </select>
+              </label>
               <!-- Arriba: etiqueta (esquina superior izquierda) y, a su derecha, los colores -->
               <div class="notas-superior">
                 <label class="notas-campo notas-campo-etiqueta">
@@ -985,6 +993,17 @@
         <div id="em-det-links-zona" class="em-det-links-zona" hidden>
           <h4 class="em-det-subtitulo">Enlaces</h4>
           <div id="em-det-links" class="em-det-links"></div>
+        </div>
+        <!-- Notas personales de esta empresa o proyecto (columna H «Notas» de la hoja) -->
+        <div id="em-det-notas-zona" class="em-det-notas-zona">
+          <h4 id="em-notas-titulo" class="em-det-subtitulo">📝 Mis notas</h4>
+          <textarea id="em-nota-texto" class="em-nota-texto" rows="3" maxlength="1000000"
+                    placeholder="Escribe una nota personal sobre esta empresa o proyecto…" aria-label="Nueva nota personal"></textarea>
+          <div class="em-nota-fila">
+            <button id="em-nota-agregar" class="em-nota-btn-agregar" type="button">Agregar nota</button>
+            <span id="em-nota-estado" class="notas-estado em-nota-estado"></span>
+          </div>
+          <div id="em-notas-lista" class="em-notas-lista"></div>
         </div>
       </div>
 

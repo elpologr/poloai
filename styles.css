@@ -2177,3 +2177,70 @@ span.em-red { --red-fondo: #262b3d; border-style: dashed; }
   cursor: pointer;
 }
 .disp-cerrar:disabled { opacity: 0.5; cursor: default; }
+
+/* ---------- Tipo Nota / Notario: lo que un notario no usa se oculta ---------- */
+.notas-superior[hidden],
+.notas-campos-par[hidden],
+.notas-campo[hidden],
+.nt-campo[hidden] { display: none !important; }
+
+/* ---------- Notas personales dentro de cada empresa / proyecto (columna H «Notas») ---------- */
+.em-det-notas-zona { flex: none; margin: 4px 22px 30px; }
+.em-nota-texto {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font: inherit;
+  line-height: 1.5;
+  color: #f2f4fa;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(159, 180, 222, 0.35);
+  border-radius: 12px;
+  resize: vertical;
+}
+.em-nota-texto::placeholder { color: #8b96b5; }
+.em-nota-texto:focus { outline: 2px solid rgba(130, 175, 235, 0.7); outline-offset: 1px; }
+.em-nota-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 10px 0 14px; }
+.em-nota-btn-agregar,
+.em-nota-btn-sec {
+  padding: 8px 16px;
+  font: inherit;
+  font-weight: 700;
+  color: #07080c;
+  background: #9fc0ff;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.em-nota-btn-sec { color: #dfe5f5; background: rgba(255, 255, 255, 0.12); }
+.em-nota-btn-agregar:disabled { opacity: 0.55; cursor: default; }
+.em-nota-estado { color: #b9c6e6; }
+.em-notas-lista { display: flex; flex-direction: column; gap: 10px; }
+.em-nota {
+  position: relative;
+  padding: 10px 76px 12px 14px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(159, 180, 222, 0.28);
+  border-radius: 12px;
+}
+.em-nota:has(.em-nota-edit) { padding-right: 14px; }
+.em-nota-fecha { margin-bottom: 4px; font-size: 0.78rem; color: #9fb4de; }
+.em-nota-cuerpo { margin: 0; line-height: 1.5; color: #dfe5f5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.em-nota-botones { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; }
+.em-nota-btn {
+  width: 30px;
+  height: 30px;
+  font-size: 1rem;
+  line-height: 1;
+  color: #dfe5f5;
+  background: rgba(255, 255, 255, 0.1);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.em-nota-btn:hover { background: rgba(255, 255, 255, 0.2); }
+.em-nota-vacia { margin: 0; font-style: italic; color: #7d88a6; }
+@media (max-width: 600px) {
+  .em-det-notas-zona { margin-left: 14px; margin-right: 14px; }
+}
