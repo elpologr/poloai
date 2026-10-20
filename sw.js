@@ -1,72 +1,98 @@
 // Service worker de Polo AI.
-// 1) Guarda la versión «Sin internet» para que abra aunque no haya conexión.
-// 2) Si abres la app (index.html) sin internet, o con una conexión tan mala que no responde,
-//    muestra automáticamente la versión «Sin internet» en lugar de la pantalla de error del navegador.
-const CACHE = "polo-offline-v3";
+// 1) Guarda la app completa (index.html, app.js, styles.css...) para que abra SIN internet con la misma pantalla principal.
+// 2) Con internet siempre se usa la versión nueva de los archivos (y se actualiza la copia guardada).
+//    Si la red no responde en ESPERA_RED ms, se muestra la copia guardada mientras la red sigue intentando en segundo plano.
+// 3) «sin-internet.html» queda solo como último recurso (si nunca se abrió la app con internet en este dispositivo).
+const CACHE = "polo-app-v1";
 const PAGINA_OFFLINE = "sin-internet.html";
-// Imprescindibles: si no se pueden guardar, la instalación del service worker se reintenta después
-const CRITICOS = [PAGINA_OFFLINE, "config.js", "manifest.json", "icon.svg"];
-const OPCIONALES = ["manifest-principal.json", "icon-app.svg", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"];
+const ESPERA_RED = 4000; // ms que se espera a la red antes de usar la copia guardada
+
+// Imprescindibles: si no se pueden guardar, la instalación se reintenta después
+const CRITICOS = ["index.html", "styles.css", "app.js", "voz.js", "config.js", PAGINA_OFFLINE];
+const OPCIONALES = [
+  "firebase.js", "manifest-principal.json", "manifest.json", "icon.svg",
+  "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png",
+  "imagenes/perfil.webp",
+];
 const ARCHIVOS = CRITICOS.concat(OPCIONALES);
-const ESPERA_RED = 7000; // ms que se espera a la red antes de pasar a la versión sin internet
+
+// Carpeta donde vive la app (en GitHub Pages: https://usuario.github.io/repositorio/)
+const BASE = new URL("./", self.registration.scope).href;
+
+// Nombre del archivo dentro de la app («app.js?v=59» -> «app.js»); null si no es de la app
+function claveDe(urlTexto) {
+  const u = new URL(urlTexto);
+  if (u.origin !== location.origin) return null;
+  const raiz = new URL(BASE).pathname;
+  if (!u.pathname.startsWith(raiz)) return null;
+  let ruta = u.pathname.slice(raiz.length);
+  if (ruta === "") ruta = "index.html";
+  return ARCHIVOS.includes(ruta) ? ruta : null;
+}
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE).then(async (c) => {
-      await Promise.all(CRITICOS.map((a) => c.add(new Request(a, { cache: "reload" }))));
-      await Promise.all(OPCIONALES.map((a) => c.add(new Request(a, { cache: "reload" })).catch(() => {})));
+      await Promise.all(CRITICOS.map((a) => c.add(new Request(BASE + a, { cache: "reload" }))));
+      await Promise.all(OPCIONALES.map((a) => c.add(new Request(BASE + a, { cache: "reload" })).catch(() => {})));
     }).then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(
-    caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())
+    caches.keys()
+      .then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
-// Navegaciones (abrir la app o una página): con internet, la página normal; sin internet o sin respuesta a tiempo, la versión sin internet
-async function navegar(req) {
-  const control = new AbortController();
-  const reloj = setTimeout(() => control.abort(), ESPERA_RED);
-  try {
-    const r = await fetch(req, { signal: control.signal });
-    clearTimeout(reloj);
-    if (r.ok && new URL(req.url).pathname.split("/").pop() === PAGINA_OFFLINE) {
+// Red primero (con límite de espera); si no hay red o tarda demasiado, la copia guardada
+async function responder(e, clave) {
+  const req = e.request;
+  const llave = BASE + clave;
+  const red = fetch(req).then(async (r) => {
+    if (r.ok) {
       const copia = r.clone();
-      caches.open(CACHE).then((c) => c.put(PAGINA_OFFLINE, copia));
+      const c = await caches.open(CACHE);
+      await c.put(llave, copia);
     }
     return r;
+  });
+  e.waitUntil(red.catch(() => {})); // aunque se muestre la copia, la actualización sigue en segundo plano
+
+  const espera = new Promise((res) => setTimeout(() => res(null), ESPERA_RED));
+  const r = await Promise.race([red.catch(() => null), espera]);
+  if (r && r.ok) return r;
+
+  const guardada = await caches.match(llave);
+  if (guardada) return guardada;
+  if (r) return r; // la red respondió con error y no hay copia: se deja ese error
+  try {
+    return await red; // tardó mucho pero no hay copia: se espera a la red
   } catch (err) {
-    clearTimeout(reloj);
-    const guardada = await caches.match(PAGINA_OFFLINE, { ignoreSearch: true });
-    return guardada || Response.error();
+    if (req.mode === "navigate") {
+      const offline = await caches.match(BASE + PAGINA_OFFLINE);
+      if (offline) return offline;
+    }
+    return Response.error();
   }
 }
 
-// Archivos de la versión sin internet: con internet se usa la versión nueva (y se actualiza la copia); sin internet, la copia guardada
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
-  const url = new URL(req.url);
-  if (url.origin !== location.origin) return;
-  if (req.mode === "navigate") {
-    e.respondWith(navegar(req));
+  const clave = claveDe(req.url);
+  if (clave) {
+    e.respondWith(responder(e, clave));
     return;
   }
-  const nombre = url.pathname.split("/").pop() || "";
-  if (!ARCHIVOS.includes(nombre)) return;
-  e.respondWith(
-    fetch(req)
-      .then((r) => {
-        if (r.ok) {
-          const copia = r.clone();
-          caches.open(CACHE).then((c) => c.put(nombre, copia));
-        }
-        return r;
-      })
-      .catch(() => caches.match(nombre, { ignoreSearch: true }))
-  );
+  // Una página de la app que no está en la lista (o una dirección rara) sin internet: la pantalla principal guardada
+  if (req.mode === "navigate" && new URL(req.url).origin === location.origin) {
+    e.respondWith(
+      fetch(req).catch(async () => (await caches.match(BASE + "index.html")) || (await caches.match(BASE + PAGINA_OFFLINE)) || Response.error())
+    );
+  }
 });
 
 // Al tocar un aviso de alarma se abre (o se enfoca) la app
