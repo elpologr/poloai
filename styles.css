@@ -1,5 +1,5 @@
 :root {
-  --app-version: "57"; /* debe coincidir con VERSION en app.js */
+  --app-version: "58"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -2537,11 +2537,11 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
 
 /* ---------- Tareas Obligatorias Diarias: mini notas cuadradas permanentes ---------- */
 .td-nueva { display: flex; gap: 8px; flex-wrap: wrap; }
-.td-nueva input { flex: 1 1 200px; min-width: 0; padding: 10px 12px; font: inherit; color: #2b2140; background: #fff; border: 1px solid #e3d8f6; border-radius: 10px; }
-.td-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 14px; }
+.td-nueva input[type="text"], .td-nueva select, .td-nueva .td-hora-campo { flex: 1 1 200px; min-width: 0; padding: 10px 12px; font: inherit; color: #2b2140; background: #fff; border: 1px solid #e3d8f6; border-radius: 10px; }
+.td-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 14px; }
 .td-tile { position: relative; aspect-ratio: 1 / 1; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; padding: 12px; border-radius: 16px; background: #fff8c9; color: #3b2d00; box-shadow: 0 6px 14px rgba(60, 30, 100, 0.22); overflow: hidden; }
 .td-tile.td-hecha { background: #d3f9d8; color: #1e5b2e; }
-.td-texto { margin: 0; font-weight: 600; font-size: 0.95rem; line-height: 1.25; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; }
+.td-texto { margin: 0; font-weight: 600; font-size: 0.95rem; line-height: 1.25; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .td-hora { font-size: 0.75rem; font-weight: 700; min-height: 1em; }
 .td-acciones { display: flex; gap: 6px; align-items: center; }
 .td-acciones button { padding: 6px 8px; font: inherit; font-size: 0.85rem; font-weight: 700; line-height: 1; color: #fff; background: #7a44d6; border: 0; border-radius: 9px; cursor: pointer; }
@@ -2549,3 +2549,28 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
 .td-acciones .td-sec { color: #6234b8; background: rgba(255, 255, 255, 0.85); }
 .td-acciones button:disabled { opacity: 0.6; cursor: default; }
 .td-vacio { grid-column: 1 / -1; margin: 6px 0; color: #6f6585; font-weight: 600; }
+
+.td-nueva select, .td-nueva .td-hora-campo { padding: 10px; font: inherit; color: #2b2140; background: #fff; border: 1px solid #e3d8f6; border-radius: 10px; }
+.td-alarmas-barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px; }
+.td-btn-sec { color: #6234b8; background: #efe6ff; }
+.td-pantalla { font-size: 0.85rem; font-weight: 600; color: #6f6585; display: flex; gap: 6px; align-items: center; }
+.td-info { margin: 8px 0 0; font-size: 0.8rem; color: #6f6585; }
+.td-horario { font-size: 0.78rem; font-weight: 700; min-height: 1em; }
+.td-tile .td-ok { width: 100%; padding: 7px 8px; font: inherit; font-size: 0.85rem; font-weight: 700; color: #fff; background: #2f9e5a; border: 0; border-radius: 9px; cursor: pointer; white-space: nowrap; }
+.td-tile .td-ok:disabled { opacity: 0.6; cursor: default; }
+.td-dialogo { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(30, 10, 60, 0.6); }
+.td-dialogo-caja { width: min(420px, 100%); background: #fff; color: #2b2140; border-radius: 16px; padding: 18px; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4); }
+.td-dialogo-caja h3 { margin: 0 0 10px; }
+.td-dialogo-caja label { display: block; margin-bottom: 10px; font-size: 0.85rem; font-weight: 600; color: #6f6585; }
+.td-dialogo-caja input, .td-dialogo-caja select { display: block; width: 100%; margin-top: 4px; padding: 10px; font: inherit; font-weight: 400; color: #2b2140; background: #fff; border: 1px solid #e3d8f6; border-radius: 10px; }
+.td-dialogo-botones { display: flex; gap: 8px; justify-content: flex-end; }
+.td-alarma { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(74, 38, 133, 0.96); animation: td-parpadeo 1s steps(2, start) infinite; }
+.td-alarma[hidden] { display: none; }
+@keyframes td-parpadeo { 50% { background: rgba(122, 68, 214, 0.96); } }
+.td-alarma-caja { width: min(420px, 100%); display: flex; flex-direction: column; gap: 10px; text-align: center; color: #fff; }
+.td-alarma-icono { font-size: 4rem; }
+.td-alarma-caja h3 { margin: 0; font-size: 2.4rem; }
+.td-alarma-caja p { margin: 0; font-size: 1.2rem; font-weight: 700; overflow-wrap: anywhere; }
+.td-alarma-aviso { font-size: 0.9rem !important; color: #ffe3a3; }
+.td-alarma-caja button { padding: 16px; font: inherit; font-size: 1.1rem; font-weight: 800; color: #4a2685; background: #fff; border: 0; border-radius: 14px; cursor: pointer; }
+.td-alarma-caja .td-alarma-parar { color: #fff; background: #d6336c; }

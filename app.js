@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "57";
+const VERSION = "58";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -7176,31 +7176,70 @@ document.addEventListener("keydown", (e) => {
 });
 
 // ---------- Tareas Obligatorias Diarias ----------
-// Mini notas cuadradas que se quedan para siempre (hoja «Tareas Diarias»). «Completar» agrega una «Tarea finalizada»
-// al Diario con el día de hoy y la hora; la tarea NO se quita (mañana se puede completar otra vez).
+// Mini notas cuadradas que se quedan para siempre (hoja «Tareas Diarias»). Cada una puede tener un horario y una
+// alarma. «Completar» agrega una «Tarea finalizada» al Diario con el día de hoy y la hora; la tarea NO se quita.
+// ALARMAS: suenan solo mientras la app está abierta en el dispositivo (una página web no puede despertar al celular
+// con la pantalla apagada). Cada tarea elige dónde suena: celular Android, PC o ambos.
 const panelTd = document.getElementById("panel-tareas");
 const tdSinSesion = document.getElementById("td-sin-sesion");
 const tdContenido = document.getElementById("td-contenido");
 const tdEstado = document.getElementById("td-estado");
 const tdGrid = document.getElementById("td-grid");
 const tdNuevo = document.getElementById("td-nuevo");
+const tdHoraNueva = document.getElementById("td-hora-nueva");
+const tdAlarmaNueva = document.getElementById("td-alarma-nueva");
 const tdAgregar = document.getElementById("td-agregar");
+const tdInfo = document.getElementById("td-alarmas-info");
 const CLAVE_TD_HECHAS = "polo-tareas-diarias-hechas"; // { idTarea: "AAAA-MM-DD HH:MM" } solo para mostrar «✓ Hoy»
+const CLAVE_TD_SONADAS = "polo-tareas-diarias-sonadas"; // { idTarea: "AAAA-MM-DD" } ya sonó hoy en este dispositivo
+const CLAVE_TD_PANTALLA = "polo-tareas-diarias-pantalla"; // "1" si se quiere mantener la pantalla encendida
+const TD_ES_ANDROID = /Android/i.test(navigator.userAgent);
+const TD_HORA_OK = /^([01]\d|2[0-3]):[0-5]\d$/;
+const TD_ALARMAS = [
+  ["", "🔕 Sin alarma"],
+  ["celular", "📱 Alarma en el celular (Android)"],
+  ["pc", "💻 Alarma en la PC"],
+  ["ambos", "📱💻 En celular y PC"],
+];
 let tareasDiarias = [];
 let tdCargadas = false;
 let tdCargando = false;
 
-function tdLeerHechas() {
-  try { return JSON.parse(localStorage.getItem(CLAVE_TD_HECHAS)) || {}; } catch (e) { return {}; }
+function tdLeer(clave) {
+  try { return JSON.parse(localStorage.getItem(clave)) || {}; } catch (e) { return {}; }
 }
-function tdGuardarHecha(id, marca) {
+function tdEscribir(clave, id, valor) {
   try {
-    const h = tdLeerHechas();
-    h[id] = marca;
-    localStorage.setItem(CLAVE_TD_HECHAS, JSON.stringify(h));
+    const h = tdLeer(clave);
+    h[id] = valor;
+    localStorage.setItem(clave, JSON.stringify(h));
   } catch (e) {}
 }
+const tdLeerHechas = () => tdLeer(CLAVE_TD_HECHAS);
+const tdGuardarHecha = (id, marca) => tdEscribir(CLAVE_TD_HECHAS, id, marca);
 const tdNuevoId = () => String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
+const tdHoyClave = () => { const n = new Date(); return claveFecha(n.getFullYear(), n.getMonth(), n.getDate()); };
+
+function tdLlenarSelectAlarma(sel, valor) {
+  sel.innerHTML = "";
+  TD_ALARMAS.forEach((o) => sel.add(new Option(o[1], o[0])));
+  sel.value = valor;
+}
+tdLlenarSelectAlarma(tdAlarmaNueva, "celular");
+
+// ¿Esta alarma debe sonar en ESTE dispositivo? («celular» = solo Android; «pc» = cualquier otro)
+function tdSuenaAqui(t) {
+  if (!t.hora || !TD_HORA_OK.test(t.hora)) return false;
+  return t.alarma === "ambos" || (t.alarma === "celular" && TD_ES_ANDROID) || (t.alarma === "pc" && !TD_ES_ANDROID);
+}
+
+function tdOrdenadas() {
+  return tareasDiarias.slice().sort((a, b) => {
+    const ha = TD_HORA_OK.test(a.hora || "") ? a.hora : "99:99";
+    const hb = TD_HORA_OK.test(b.hora || "") ? b.hora : "99:99";
+    return ha < hb ? -1 : ha > hb ? 1 : 0;
+  });
+}
 
 function dibujarTareasDiarias() {
   tdGrid.innerHTML = "";
@@ -7212,10 +7251,9 @@ function dibujarTareasDiarias() {
     tdGrid.appendChild(p);
     return;
   }
-  const hoy = new Date();
-  const hoyClave = claveFecha(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  const hoyClave = tdHoyClave();
   const hechas = tdLeerHechas();
-  tareasDiarias.forEach((t) => {
+  tdOrdenadas().forEach((t) => {
     const marca = hechas[t.id] && hechas[t.id].slice(0, 10) === hoyClave ? hechas[t.id] : "";
     const d = document.createElement("div");
     d.className = "td-tile" + (marca ? " td-hecha" : "");
@@ -7223,6 +7261,11 @@ function dibujarTareasDiarias() {
     txt.className = "td-texto";
     txt.textContent = t.texto;
     txt.title = t.texto;
+    const horario = document.createElement("div");
+    horario.className = "td-horario";
+    const conHora = TD_HORA_OK.test(t.hora || "");
+    const icono = t.alarma === "ambos" ? "📱💻" : t.alarma === "celular" ? "📱" : t.alarma === "pc" ? "💻" : "";
+    horario.textContent = conHora ? "🕗 " + t.hora + (icono ? " · 🔔 " + icono : "") : "";
     const hora = document.createElement("div");
     hora.className = "td-hora";
     hora.textContent = marca ? "✓ Hoy a las " + marca.slice(11, 16) : "";
@@ -7233,13 +7276,15 @@ function dibujarTareasDiarias() {
     ok.className = "td-ok";
     ok.textContent = "✅ Completar";
     ok.addEventListener("click", () => completarTareaDiaria(t, ok));
+    const sec = document.createElement("div");
+    sec.className = "td-acciones";
     const ed = document.createElement("button");
     ed.type = "button";
     ed.className = "td-sec";
     ed.textContent = "✏️";
     ed.title = "Editar";
     ed.setAttribute("aria-label", "Editar tarea");
-    ed.addEventListener("click", () => editarTareaDiaria(t));
+    ed.addEventListener("click", () => tdAbrirEdicion(t));
     const bo = document.createElement("button");
     bo.type = "button";
     bo.className = "td-sec";
@@ -7247,8 +7292,18 @@ function dibujarTareasDiarias() {
     bo.title = "Eliminar";
     bo.setAttribute("aria-label", "Eliminar tarea");
     bo.addEventListener("click", () => borrarTareaDiaria(t));
-    acc.append(ok, ed, bo);
-    d.append(txt, hora, acc);
+    sec.append(ed, bo);
+    if (TD_ES_ANDROID && conHora) {
+      const rl = document.createElement("button");
+      rl.type = "button";
+      rl.className = "td-sec";
+      rl.textContent = "⏰";
+      rl.title = "Poner una alarma real en el Reloj del celular (una sola vez)";
+      rl.setAttribute("aria-label", "Poner alarma en el Reloj del celular");
+      rl.addEventListener("click", () => tdPonerEnReloj(t));
+      sec.appendChild(rl);
+    }
+    d.append(txt, horario, hora, ok, sec);
     tdGrid.appendChild(d);
   });
 }
@@ -7256,29 +7311,38 @@ function dibujarTareasDiarias() {
 async function cargarTareasDiarias() {
   if (tdCargando) return;
   tdCargando = true;
-  setEstado(tdEstado, "Cargando tareas…");
   try {
     const j = await llamarNotas("tarea_diaria_listar");
-    tareasDiarias = j.tareas || [];
+    tareasDiarias = (j.tareas || []).map((t) => ({
+      id: t.id,
+      texto: t.texto,
+      hora: TD_HORA_OK.test(t.hora || "") ? t.hora : "",
+      alarma: ["celular", "pc", "ambos"].indexOf(t.alarma) !== -1 ? t.alarma : "",
+    }));
     tdCargadas = true;
-    setEstado(tdEstado, "");
+    if (!panelTd.hidden) setEstado(tdEstado, "");
   } catch (e) {
-    setEstado(tdEstado, "No se pudieron cargar las tareas: " + e.message, "error");
+    if (!panelTd.hidden) setEstado(tdEstado, "No se pudieron cargar las tareas: " + e.message, "error");
   }
   tdCargando = false;
-  dibujarTareasDiarias();
+  if (!panelTd.hidden) dibujarTareasDiarias();
+  tdRevisarAlarmas();
 }
 
 async function agregarTareaDiaria() {
   const texto = tdNuevo.value.trim().slice(0, 300);
   if (!texto) { setEstado(tdEstado, "Escribe la tarea primero", "error"); return; }
+  const hora = tdHoraNueva.value || "";
+  if (hora && !TD_HORA_OK.test(hora)) { setEstado(tdEstado, "El horario no es válido", "error"); return; }
+  const alarma = hora ? tdAlarmaNueva.value : "";
   const id = tdNuevoId();
   tdAgregar.disabled = true;
   setEstado(tdEstado, "Guardando…");
   try {
-    await llamarNotas("tarea_diaria_agregar", { id, texto });
-    tareasDiarias.push({ id, texto, creada: "" });
+    await llamarNotas("tarea_diaria_agregar", { id, texto, hora, alarma });
+    tareasDiarias.push({ id, texto, hora, alarma });
     tdNuevo.value = "";
+    tdHoraNueva.value = "";
     setEstado(tdEstado, "Tarea agregada ✓", "ok");
     dibujarTareasDiarias();
   } catch (e) {
@@ -7287,20 +7351,75 @@ async function agregarTareaDiaria() {
   tdAgregar.disabled = false;
 }
 
-async function editarTareaDiaria(t) {
-  const nuevo = window.prompt("Editar tarea:", t.texto);
-  if (nuevo === null) return;
-  const texto = nuevo.trim().slice(0, 300);
-  if (!texto || texto === t.texto) return;
-  setEstado(tdEstado, "Guardando…");
-  try {
-    await llamarNotas("tarea_diaria_editar", { id: t.id, texto });
-    t.texto = texto;
-    setEstado(tdEstado, "Tarea actualizada ✓", "ok");
-    dibujarTareasDiarias();
-  } catch (e) {
-    setEstado(tdEstado, "Error: " + e.message, "error");
-  }
+// Ventana para editar una tarea (texto, horario y alarma)
+function tdAbrirEdicion(t) {
+  const fondo = document.createElement("div");
+  fondo.className = "td-dialogo";
+  const caja = document.createElement("div");
+  caja.className = "td-dialogo-caja";
+  caja.setAttribute("role", "dialog");
+  caja.setAttribute("aria-modal", "true");
+  const titulo = document.createElement("h3");
+  titulo.textContent = "Editar tarea";
+  const campo = (rotulo, el) => {
+    const l = document.createElement("label");
+    l.textContent = rotulo;
+    l.appendChild(el);
+    return l;
+  };
+  const iTexto = document.createElement("input");
+  iTexto.type = "text";
+  iTexto.maxLength = 300;
+  iTexto.value = t.texto;
+  const iHora = document.createElement("input");
+  iHora.type = "time";
+  iHora.value = t.hora || "";
+  const iAlarma = document.createElement("select");
+  tdLlenarSelectAlarma(iAlarma, t.alarma || "");
+  const msg = document.createElement("p");
+  msg.className = "notas-estado";
+  const fila = document.createElement("div");
+  fila.className = "td-dialogo-botones";
+  const cancelar = document.createElement("button");
+  cancelar.type = "button";
+  cancelar.className = "notas-btn td-btn-sec";
+  cancelar.textContent = "Cancelar";
+  const guardar = document.createElement("button");
+  guardar.type = "button";
+  guardar.className = "notas-btn";
+  guardar.textContent = "Guardar";
+  fila.append(cancelar, guardar);
+  caja.append(titulo, campo("Tarea", iTexto), campo("Horario (opcional)", iHora), campo("Alarma", iAlarma), msg, fila);
+  fondo.appendChild(caja);
+  document.body.appendChild(fondo);
+  iTexto.focus();
+  const cerrar = () => fondo.remove();
+  cancelar.addEventListener("click", cerrar);
+  fondo.addEventListener("click", (e) => { if (e.target === fondo) cerrar(); });
+  guardar.addEventListener("click", async () => {
+    const texto = iTexto.value.trim().slice(0, 300);
+    const hora = iHora.value || "";
+    if (!texto) { setEstado(msg, "Escribe la tarea", "error"); return; }
+    if (hora && !TD_HORA_OK.test(hora)) { setEstado(msg, "El horario no es válido", "error"); return; }
+    const alarma = hora ? iAlarma.value : "";
+    guardar.disabled = true;
+    setEstado(msg, "Guardando…");
+    try {
+      await llamarNotas("tarea_diaria_editar", { id: t.id, texto, hora, alarma });
+      t.texto = texto;
+      t.hora = hora;
+      t.alarma = alarma;
+      // Si cambió el horario, la alarma de hoy puede volver a sonar
+      tdEscribir(CLAVE_TD_SONADAS, t.id, "");
+      cerrar();
+      setEstado(tdEstado, "Tarea actualizada ✓", "ok");
+      dibujarTareasDiarias();
+      tdRevisarAlarmas();
+    } catch (e) {
+      guardar.disabled = false;
+      setEstado(msg, "Error: " + e.message, "error");
+    }
+  });
 }
 
 async function borrarTareaDiaria(t) {
@@ -7332,6 +7451,7 @@ async function completarTareaDiaria(t, boton) {
     await llamarNotas("diario_agregar", { id: tdNuevoId(), nombre, fecha, descripcion, terminado: "Tarea finalizada" });
     tdGuardarHecha(t.id, fecha + " " + hora);
     diCargados = false; // el Diario se vuelve a leer al entrar y ya trae la nueva anotación
+    if (tdSonando && tdSonando.id === t.id) tdParar();
     setEstado(tdEstado, "Completada ✓ (ya está en el Diario, hoy a las " + hora + ")", "ok");
     dibujarTareasDiarias();
   } catch (e) {
@@ -7340,18 +7460,237 @@ async function completarTareaDiaria(t, boton) {
   }
 }
 
+// ----- Alarma real del Reloj de Android (solo se puede crear de una vez; no se repite sola cada día) -----
+function tdPonerEnReloj(t) {
+  const p = t.hora.split(":").map(Number);
+  window.location.href =
+    "intent:#Intent;action=android.intent.action.SET_ALARM;i.android.intent.extra.alarm.HOUR=" + p[0] +
+    ";i.android.intent.extra.alarm.MINUTES=" + p[1] +
+    ";S.android.intent.extra.alarm.MESSAGE=" + encodeURIComponent(t.texto.slice(0, 60)) +
+    ";B.android.intent.extra.alarm.SKIP_UI=true;end";
+  setEstado(tdEstado, "Se pidió la alarma al Reloj del celular. Revisa en la app Reloj que haya quedado (suena solo una vez).", "ok");
+}
+
+// ----- Alarma dentro de la app (suena mientras la app esté abierta) -----
+let tdAudio = null;
+let tdSonando = null; // la tarea que está sonando
+let tdTimerSonido = null;
+let tdTimerAviso = null;
+let tdPospuestas = {}; // idTarea -> momento (ms) en que vuelve a sonar
+let tdWake = null;
+
+// Los navegadores solo dejan sonar después de que la persona toca la pantalla al menos una vez
+function tdDesbloquearAudio() {
+  try {
+    if (!tdAudio) tdAudio = new (window.AudioContext || window.webkitAudioContext)();
+    if (tdAudio.state === "suspended") tdAudio.resume();
+  } catch (e) {}
+}
+["pointerdown", "touchstart", "keydown"].forEach((ev) => document.addEventListener(ev, tdDesbloquearAudio, { passive: true }));
+
+function tdPitido() {
+  if (!tdAudio || tdAudio.state !== "running") return;
+  const t0 = tdAudio.currentTime;
+  for (let i = 0; i < 3; i++) {
+    const o = tdAudio.createOscillator();
+    const g = tdAudio.createGain();
+    const ini = t0 + i * 0.22;
+    o.type = "square";
+    o.frequency.value = i % 2 ? 988 : 880;
+    g.gain.setValueAtTime(0.0001, ini);
+    g.gain.exponentialRampToValueAtTime(0.6, ini + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, ini + 0.18);
+    o.connect(g);
+    g.connect(tdAudio.destination);
+    o.start(ini);
+    o.stop(ini + 0.2);
+  }
+}
+
+function tdVibrar() {
+  try { if (navigator.vibrate) navigator.vibrate([300, 120, 300, 120, 300]); } catch (e) {}
+}
+
+// Aviso del sistema (cuando la app está en segundo plano). En Android hay que mostrarlo desde el service worker.
+async function tdNotificar(t) {
+  try {
+    if (!("Notification" in window) || Notification.permission !== "granted" || !navigator.serviceWorker) return;
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return;
+    await reg.showNotification("⏰ " + t.hora + " · " + t.texto, {
+      body: "Toca para abrir la app y desactivar la alarma",
+      tag: "polo-alarma-" + t.id,
+      renotify: true,
+      requireInteraction: true,
+      vibrate: [500, 200, 500, 200, 500],
+    });
+  } catch (e) {}
+}
+async function tdQuitarNotificaciones() {
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return;
+    (await reg.getNotifications()).forEach((n) => { if (n.tag && n.tag.indexOf("polo-alarma-") === 0) n.close(); });
+  } catch (e) {}
+}
+
+function tdVentanaAlarma() {
+  let v = document.getElementById("td-alarma");
+  if (v) return v;
+  v = document.createElement("div");
+  v.id = "td-alarma";
+  v.className = "td-alarma";
+  v.setAttribute("role", "alertdialog");
+  v.setAttribute("aria-modal", "true");
+  const caja = document.createElement("div");
+  caja.className = "td-alarma-caja";
+  const ic = document.createElement("div");
+  ic.className = "td-alarma-icono";
+  ic.textContent = "⏰";
+  const h = document.createElement("h3");
+  h.id = "td-alarma-hora";
+  const p = document.createElement("p");
+  p.id = "td-alarma-texto";
+  const aviso = document.createElement("p");
+  aviso.id = "td-alarma-aviso";
+  aviso.className = "td-alarma-aviso";
+  aviso.textContent = "🔇 El navegador bloqueó el sonido: toca cualquier parte de la pantalla para activarlo.";
+  aviso.hidden = true;
+  const parar = document.createElement("button");
+  parar.type = "button";
+  parar.className = "td-alarma-parar";
+  parar.textContent = "⏹ Desactivar";
+  parar.addEventListener("click", tdParar);
+  const pos = document.createElement("button");
+  pos.type = "button";
+  pos.textContent = "💤 Posponer 5 min";
+  pos.addEventListener("click", tdPosponer);
+  const ok = document.createElement("button");
+  ok.type = "button";
+  ok.id = "td-alarma-ok";
+  ok.textContent = "✅ Completar";
+  ok.addEventListener("click", () => { if (tdSonando) completarTareaDiaria(tdSonando, ok); });
+  caja.append(ic, h, p, aviso, parar, pos, ok);
+  v.appendChild(caja);
+  document.body.appendChild(v);
+  return v;
+}
+
+function tdSonar(t) {
+  if (tdSonando) return;
+  tdSonando = t;
+  tdEscribir(CLAVE_TD_SONADAS, t.id, tdHoyClave());
+  const v = tdVentanaAlarma();
+  document.getElementById("td-alarma-hora").textContent = t.hora;
+  document.getElementById("td-alarma-texto").textContent = t.texto;
+  document.getElementById("td-alarma-ok").disabled = false;
+  v.hidden = false;
+  const ciclo = () => {
+    tdPitido();
+    tdVibrar();
+    document.getElementById("td-alarma-aviso").hidden = !!tdAudio && tdAudio.state === "running";
+  };
+  ciclo();
+  tdTimerSonido = setInterval(ciclo, 1100);
+  tdNotificar(t);
+  tdTimerAviso = setInterval(() => { if (document.hidden) tdNotificar(t); }, 20000); // si sigue sin atenderse, se vuelve a avisar
+}
+
+function tdParar() {
+  clearInterval(tdTimerSonido);
+  clearInterval(tdTimerAviso);
+  tdTimerSonido = tdTimerAviso = null;
+  try { if (navigator.vibrate) navigator.vibrate(0); } catch (e) {}
+  const v = document.getElementById("td-alarma");
+  if (v) v.hidden = true;
+  tdSonando = null;
+  tdQuitarNotificaciones();
+}
+function tdPosponer() {
+  if (!tdSonando) return;
+  tdPospuestas[tdSonando.id] = Date.now() + 5 * 60 * 1000;
+  tdParar();
+  setEstado(tdEstado, "Alarma pospuesta 5 minutos 💤", "ok");
+}
+
+// Revisa si toca alguna alarma: la de hoy que no haya sonado ni esté completada (se acepta hasta 15 minutos de retraso)
+function tdRevisarAlarmas() {
+  if (!sesionVigente() || tdSonando) return;
+  const ahora = new Date();
+  const hoy = tdHoyClave();
+  const min = ahora.getHours() * 60 + ahora.getMinutes();
+  const sonadas = tdLeer(CLAVE_TD_SONADAS);
+  const hechas = tdLeerHechas();
+  const ordenadas = tdOrdenadas();
+  for (let i = 0; i < ordenadas.length; i++) {
+    const t = ordenadas[i];
+    if (!tdSuenaAqui(t)) continue;
+    if (hechas[t.id] && hechas[t.id].slice(0, 10) === hoy) continue;
+    if (tdPospuestas[t.id]) {
+      if (Date.now() >= tdPospuestas[t.id]) { delete tdPospuestas[t.id]; tdSonar(t); return; }
+      continue;
+    }
+    if (sonadas[t.id] === hoy) continue;
+    const p = t.hora.split(":").map(Number);
+    const tmin = p[0] * 60 + p[1];
+    if (min >= tmin && min <= tmin + 15) { tdSonar(t); return; }
+  }
+}
+setInterval(tdRevisarAlarmas, 15000);
+
+// Mantener la pantalla encendida mientras la app está abierta (opcional; gasta batería)
+async function tdAplicarPantalla() {
+  try {
+    if (!("wakeLock" in navigator)) return;
+    const quiere = localStorage.getItem(CLAVE_TD_PANTALLA) === "1";
+    if (quiere && !tdWake && document.visibilityState === "visible") {
+      tdWake = await navigator.wakeLock.request("screen");
+      tdWake.addEventListener("release", () => { tdWake = null; });
+    } else if (!quiere && tdWake) {
+      await tdWake.release();
+      tdWake = null;
+    }
+  } catch (e) {}
+}
+document.addEventListener("visibilitychange", () => {
+  tdAplicarPantalla();
+  if (document.visibilityState === "visible") tdRevisarAlarmas();
+});
+
+// Botón «Activar alarmas en este dispositivo»: desbloquea el sonido y pide permiso para avisos
+document.getElementById("td-activar").addEventListener("click", async () => {
+  tdDesbloquearAudio();
+  tdPitido();
+  tdVibrar();
+  let permiso = "no disponible";
+  try { if ("Notification" in window) permiso = await Notification.requestPermission(); } catch (e) {}
+  tdInfo.textContent =
+    "🔔 Alarmas listas en este " + (TD_ES_ANDROID ? "celular Android" : "dispositivo") + ". Avisos en segundo plano: " +
+    (permiso === "granted" ? "permitidos" : "no permitidos (" + permiso + ")") +
+    ". Deja la app abierta: con la pantalla apagada o la app cerrada el celular no la deja sonar.";
+});
+const tdPantalla = document.getElementById("td-pantalla");
+tdPantalla.checked = localStorage.getItem(CLAVE_TD_PANTALLA) === "1";
+tdPantalla.addEventListener("change", () => {
+  try { localStorage.setItem(CLAVE_TD_PANTALLA, tdPantalla.checked ? "1" : "0"); } catch (e) {}
+  tdAplicarPantalla();
+});
+tdAplicarPantalla();
+
 function actualizarPanelTareas() {
   if (!sesionVigente()) {
     // Sin sesión no se guardan datos en pantalla
     tdCargadas = false;
     tareasDiarias = [];
+    if (tdSonando) tdParar();
+  } else if (!tdCargadas && !tdCargando) {
+    cargarTareasDiarias(); // también en segundo plano, para que las alarmas funcionen sin abrir esta página
   }
   if (panelTd.hidden) return;
   const dentro = sesionVigente();
   tdSinSesion.hidden = dentro;
   tdContenido.hidden = !dentro;
-  if (dentro && !tdCargadas) cargarTareasDiarias();
-  else dibujarTareasDiarias();
+  dibujarTareasDiarias();
 }
 
 // Se llama al entrar a la página (desde mostrarSeccion); siempre vuelve a leer por si cambió en otro dispositivo
@@ -7360,12 +7699,16 @@ function entrarTareas() {
   tdCargadas = false;
   dibujarTareasDiarias();
   actualizarPanelTareas();
+  if (sesionVigente() && !tdCargando) cargarTareasDiarias();
 }
+
+// Las tareas se vuelven a leer cada 10 minutos (por si se cambiaron desde otro dispositivo)
+setInterval(() => { if (sesionVigente() && !tdCargando && !tdSonando) cargarTareasDiarias(); }, 10 * 60 * 1000);
 
 tdAgregar.addEventListener("click", agregarTareaDiaria);
 tdNuevo.addEventListener("keydown", (e) => { if (e.key === "Enter") agregarTareaDiaria(); });
 document.getElementById("td-actualizar").addEventListener("click", () => {
-  if (sesionVigente()) cargarTareasDiarias();
+  if (sesionVigente()) cargarTareasDiarias().then(() => dibujarTareasDiarias());
   else actualizarPanelTareas();
 });
 document.getElementById("td-ir-login").addEventListener("click", abrirLateral);

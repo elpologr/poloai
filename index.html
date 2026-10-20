@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="57" />
+  <meta name="app-version" content="58" />
   <meta name="theme-color" content="#4a2685" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Polo AI" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest-principal.json" />
-  <link rel="icon" href="imagenes/perfil.webp?v=57" type="image/webp" sizes="any" />
-  <link rel="shortcut icon" href="imagenes/perfil.webp?v=57" type="image/webp" />
-  <link rel="apple-touch-icon" href="imagenes/perfil.webp?v=57" />
+  <link rel="icon" href="imagenes/perfil.webp?v=58" type="image/webp" sizes="any" />
+  <link rel="shortcut icon" href="imagenes/perfil.webp?v=58" type="image/webp" />
+  <link rel="apple-touch-icon" href="imagenes/perfil.webp?v=58" />
   <link rel="preconnect" href="https://accounts.google.com" />
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=57" />
+  <link rel="stylesheet" href="styles.css?v=58" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -315,8 +315,15 @@
         <div id="td-contenido">
           <div class="td-nueva">
             <input id="td-nuevo" type="text" maxlength="300" autocomplete="off" placeholder="Escribe una tarea obligatoria…" aria-label="Nueva tarea obligatoria diaria" />
+            <input id="td-hora-nueva" class="td-hora-campo" type="time" aria-label="Horario (opcional)" title="Horario (opcional)" />
+            <select id="td-alarma-nueva" aria-label="Alarma" title="Dónde suena la alarma (solo si pones horario)"></select>
             <button id="td-agregar" class="notas-btn" type="button">+ Agregar</button>
           </div>
+          <div class="td-alarmas-barra">
+            <button id="td-activar" class="notas-btn td-btn-sec" type="button">🔔 Activar alarmas en este dispositivo</button>
+            <label class="td-pantalla"><input id="td-pantalla" type="checkbox" /> Mantener la pantalla encendida</label>
+          </div>
+          <p id="td-alarmas-info" class="td-info">Las alarmas suenan mientras la app esté abierta. Toca «Activar alarmas» una vez en cada dispositivo.</p>
           <p id="td-estado" class="notas-estado proy-estado-lista"></p>
           <div id="td-grid" class="td-grid"></div>
         </div>
@@ -1265,9 +1272,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=57"></script>
-  <script src="app.js?v=57"></script>
-  <script src="voz.js?v=57"></script>
-  <script type="module" src="firebase.js?v=57"></script>
+  <script src="config.js?v=58"></script>
+  <script src="app.js?v=58"></script>
+  <script src="voz.js?v=58"></script>
+  <script type="module" src="firebase.js?v=58"></script>
 </body>
 </html>

@@ -68,3 +68,14 @@ self.addEventListener("fetch", (e) => {
       .catch(() => caches.match(nombre, { ignoreSearch: true }))
   );
 });
+
+// Al tocar un aviso de alarma se abre (o se enfoca) la app
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
+      for (const c of cs) { if ("focus" in c) return c.focus(); }
+      return self.clients.openWindow("index.html");
+    })
+  );
+});
