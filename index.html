@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="53" />
+  <meta name="app-version" content="54" />
   <meta name="theme-color" content="#4a2685" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -13,7 +13,7 @@
   <link rel="icon" href="icon-app.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=53" />
+  <link rel="stylesheet" href="styles.css?v=54" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1003,7 +1003,11 @@
         <div class="em-det-hoja-fila">
           <button id="em-hoja-abrir" class="em-hoja-abrir" type="button">
             <span class="em-hoja-abrir-ico" aria-hidden="true">&#128202;</span>
-            <span>Hoja de redes</span>
+            <span>Hoja principal</span>
+          </button>
+          <button id="em-hoja-abrir-2" class="em-hoja-abrir em-hoja-abrir-2" type="button">
+            <span class="em-hoja-abrir-ico" aria-hidden="true">&#128203;</span>
+            <span>Hoja secundaria</span>
           </button>
         </div>
         <div class="em-det-titulo-fila">
@@ -1055,6 +1059,10 @@
         <div class="em-hoja-barra">
           <button id="em-hoja-volver" class="em-hoja-icono" type="button" aria-label="Volver" title="Volver">&#8592;</button>
           <h3 id="em-hoja-titulo" class="em-hoja-titulo">&#128202; Hoja de redes</h3>
+          <div class="em-hoja-selector" role="group" aria-label="Elegir hoja">
+            <button type="button" class="em-hoja-sel-btn" data-hoja="1" aria-pressed="true" title="Hoja 1 (principal)">1</button>
+            <button type="button" class="em-hoja-sel-btn" data-hoja="2" aria-pressed="false" title="Hoja 2 (secundaria)">2</button>
+          </div>
           <span id="em-hoja-estado" class="notas-estado em-hoja-estado" role="status"></span>
           <button id="em-hoja-recargar" class="em-hoja-icono" type="button" aria-label="Volver a leer la hoja" title="Volver a leer la hoja">&#8635;</button>
           <button id="em-hoja-guardar" class="em-hoja-guardar" type="button">Guardar</button>
@@ -1196,9 +1204,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=53"></script>
-  <script src="app.js?v=53"></script>
-  <script src="voz.js?v=53"></script>
-  <script type="module" src="firebase.js?v=53"></script>
+  <script src="config.js?v=54"></script>
+  <script src="app.js?v=54"></script>
+  <script src="voz.js?v=54"></script>
+  <script type="module" src="firebase.js?v=54"></script>
 </body>
 </html>

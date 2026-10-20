@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "53";
+const VERSION = "54";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -25,7 +25,7 @@ const VERSION = "53";
     "cuenta-nota", "cuenta-dispositivos", "disp-panel", "disp-estado", "disp-lista", "disp-todas",
     "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
-    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir",
+    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
   ];
   const problemas = [];
@@ -5036,7 +5036,9 @@ const HOJA_COLUMNAS = ["Nombre", "Fecha", "Youtube", "Aviso", "Facebook", "Aviso
 const HOJA_ANCHOS = [400, 240, 360, 260, 360, 260, 360, 260, 360, 260, 360, 260, 320, 260, 400];
 const HOJA_ANCHO_MIN = 60;
 const HOJA_ANCHO_MAX = 1200;
-const HOJA_CLAVE_ANCHOS = "polo-hoja-redes-anchos"; // los anchos que eliges se recuerdan en este dispositivo
+const HOJA_CLAVE_ANCHOS = "polo-hoja-redes-anchos"; // los anchos que eliges se recuerdan en este dispositivo (la hoja 2 usa su propia clave)
+let hojaNumero = 1; // 1 = hoja principal, 2 = hoja secundaria (misma estructura)
+const hojaClaveAnchos = () => HOJA_CLAVE_ANCHOS + (hojaNumero === 2 ? "-2" : "");
 const HOJA_COL_MAX = 60; // igual a MAX_COL_REDES del Apps Script
 const HOJA_NOMBRE_COL_MAX = 60; // igual a MAX_NOMBRE_COL_REDES del Apps Script
 const HOJA_ANCHO_NUEVA = 260; // ancho de una columna nueva (px)
@@ -5048,6 +5050,7 @@ const emHoja = emEl("em-hoja");
 const emHojaEstado = emEl("em-hoja-estado");
 const emHojaTabla = emEl("em-hoja-tabla");
 const emHojaGuardar = emEl("em-hoja-guardar");
+const emHojaTitulo = emEl("em-hoja-titulo");
 let hojaColumnas = HOJA_COLUMNAS.slice(); // nombres de las columnas en el orden actual (se pueden agregar y mover)
 let hojaDinamico = false; // true si el Apps Script publicado sabe guardar columnas nuevas o movidas
 let hojaFilas = []; // [[texto × número de columnas], …]
@@ -5065,14 +5068,14 @@ function hojaAnchoDefecto(i) {
 }
 function hojaLeerAnchos() {
   try {
-    const a = JSON.parse(localStorage.getItem(HOJA_CLAVE_ANCHOS));
+    const a = JSON.parse(localStorage.getItem(hojaClaveAnchos()));
     if (Array.isArray(a) && a.length === hojaColumnas.length && a.every((w) => typeof w === "number" && w >= HOJA_ANCHO_MIN && w <= HOJA_ANCHO_MAX)) return a;
   } catch (e) {}
   return hojaColumnas.map((_, i) => hojaAnchoDefecto(i));
 }
 let hojaAnchos = hojaLeerAnchos(); // ancho actual de cada columna (px)
 function hojaGuardarAnchos() {
-  try { localStorage.setItem(HOJA_CLAVE_ANCHOS, JSON.stringify(hojaAnchos)); } catch (e) {}
+  try { localStorage.setItem(hojaClaveAnchos(), JSON.stringify(hojaAnchos)); } catch (e) {}
 }
 
 // Aplica los anchos a la tabla (la tabla tiene el ancho exacto de la suma, así cada columna mide lo que decidas)
@@ -5330,7 +5333,7 @@ async function guardarHoja() {
   while (filas.length && filas[filas.length - 1].every((x) => !String(x).trim())) filas.pop(); // sin filas vacías al final
   setEstado(emHojaEstado, "Guardando…");
   emHojaGuardar.disabled = true;
-  hojaGuardando = llamarNotas("hoja_redes_guardar", { filas, columnas: hojaColumnas.slice() });
+  hojaGuardando = llamarNotas("hoja_redes_guardar", { hoja: hojaNumero, filas, columnas: hojaColumnas.slice() });
   try {
     await hojaGuardando;
     hojaGuardado = marca;
@@ -5363,7 +5366,9 @@ async function cargarHoja() {
   emHojaTabla.innerHTML = "";
   setEstado(emHojaEstado, "Cargando…");
   try {
-    const j = await llamarNotas("hoja_redes_listar");
+    const j = await llamarNotas("hoja_redes_listar", { hoja: hojaNumero });
+    // Un Apps Script viejo no sabe de la hoja 2 y devolvería la hoja 1: se rechaza para no mezclarlas ni guardar encima
+    if (hojaNumero === 2 && j.hoja !== 2) throw new Error("para usar la hoja secundaria hay que publicar la nueva versión del Apps Script");
     hojaDinamico = j.dinamico === true;
     const nombres = Array.isArray(j.columnas) ? j.columnas.map((x) => (x === undefined || x === null ? "" : String(x))) : [];
     hojaColumnas = nombres.length ? nombres : HOJA_COLUMNAS.slice();
@@ -5379,14 +5384,45 @@ async function cargarHoja() {
     setEstado(emHojaEstado, "");
     return true;
   } catch (err) {
-    setEstado(emHojaEstado, "Error: " + err.message + " · usa ↻ para reintentar", "error");
+    hojaAviso("Error: " + err.message + " · usa ↻ para reintentar", "error");
     return false;
   }
 }
 
-async function abrirHoja() {
+// Marca en el selector 1 / 2 cuál hoja está abierta
+function hojaPintarSelector() {
+  emHoja.querySelectorAll(".em-hoja-sel-btn").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.hoja === hojaNumero)));
+  emHojaTitulo.textContent = "\u{1F4CA} Hoja de redes";
+}
+
+async function abrirHoja(n) {
+  hojaNumero = n === 2 ? 2 : 1;
+  hojaPintarSelector();
   emHoja.hidden = false;
   await cargarHoja();
+}
+
+// Cambia entre la hoja 1 y la 2 (antes guarda la que estaba abierta)
+let hojaCambiando = false;
+async function hojaCambiar(n) {
+  if (n === hojaNumero || hojaCambiando) return;
+  hojaCambiando = true;
+  emHoja.querySelectorAll(".em-hoja-sel-btn").forEach((b) => { b.disabled = true; });
+  try {
+    hojaCerrarVideo();
+    if (hojaCargada && hojaSucia()) {
+      const ok = await guardarHoja();
+      if (!ok && !window.confirm("No se pudo guardar esta hoja. ¿Cambiar de todos modos y perder los últimos cambios?")) return;
+    }
+    clearTimeout(hojaTemporizador);
+    hojaTemporizador = null;
+    hojaNumero = n;
+    hojaPintarSelector();
+    await cargarHoja();
+  } finally {
+    hojaCambiando = false;
+    emHoja.querySelectorAll(".em-hoja-sel-btn").forEach((b) => { b.disabled = false; });
+  }
 }
 
 // Al cerrar se guarda antes; si no se puede, se pregunta
@@ -5399,7 +5435,9 @@ async function cerrarHoja() {
   emHoja.hidden = true;
 }
 
-emEl("em-hoja-abrir").addEventListener("click", abrirHoja);
+emEl("em-hoja-abrir").addEventListener("click", () => abrirHoja(1));
+emEl("em-hoja-abrir-2").addEventListener("click", () => abrirHoja(2));
+emHoja.querySelectorAll(".em-hoja-sel-btn").forEach((b) => b.addEventListener("click", () => hojaCambiar(+b.dataset.hoja)));
 emEl("em-hoja-volver").addEventListener("click", cerrarHoja);
 emHojaGuardar.addEventListener("click", guardarHoja);
 emEl("em-hoja-recargar").addEventListener("click", async () => {
