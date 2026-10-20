@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "52";
+const VERSION = "53";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -5395,6 +5395,7 @@ async function cerrarHoja() {
     const ok = await guardarHoja();
     if (!ok && !window.confirm("No se pudo guardar la hoja. ¿Cerrar de todos modos y perder los últimos cambios?")) return;
   }
+  hojaCerrarVideo();
   emHoja.hidden = true;
 }
 
@@ -5938,6 +5939,67 @@ if (emHojaColMas) {
     hojaEnfocar(0, hojaColumnas.length - 1);
   });
 }
+
+// ----- Reproductor de YouTube dentro de la hoja -----
+// Al tocar una miniatura (o el botón ↗) de un link de YouTube se abre un cuadro con el video PAUSADO:
+// hay que darle play. Al cerrarlo se quita el reproductor, así el video se detiene.
+function hojaAbrirVideo(id, enlace) {
+  hojaCerrarVideo();
+  const fondo = document.createElement("div");
+  fondo.className = "em-hoja-dialogo em-hoja-video-fondo";
+  const caja = document.createElement("div");
+  caja.className = "em-hoja-video-caja";
+  caja.setAttribute("role", "dialog");
+  caja.setAttribute("aria-modal", "true");
+  caja.setAttribute("aria-label", "Reproductor de video");
+  const barra = document.createElement("div");
+  barra.className = "em-hoja-video-barra";
+  const abrir = document.createElement("a");
+  abrir.href = enlace;
+  abrir.target = "_blank";
+  abrir.rel = "noopener noreferrer";
+  abrir.textContent = "Abrir en YouTube ↗";
+  const cerrar = document.createElement("button");
+  cerrar.type = "button";
+  cerrar.className = "em-hoja-icono";
+  cerrar.setAttribute("aria-label", "Cerrar el video");
+  cerrar.textContent = "×";
+  barra.append(abrir, cerrar);
+  const marco = document.createElement("div");
+  marco.className = "em-hoja-video-marco";
+  const iframe = document.createElement("iframe");
+  // Sin autoplay: el video aparece pausado y se inicia con el botón de play
+  iframe.src = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(id) + "?autoplay=0&rel=0&playsinline=1";
+  iframe.title = "Video de YouTube";
+  iframe.allow = "accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen";
+  iframe.allowFullscreen = true;
+  iframe.referrerPolicy = "strict-origin-when-cross-origin";
+  marco.appendChild(iframe);
+  caja.append(barra, marco);
+  fondo.appendChild(caja);
+  emHoja.appendChild(fondo);
+  cerrar.addEventListener("click", hojaCerrarVideo);
+  fondo.addEventListener("pointerdown", (e) => { if (e.target === fondo) hojaCerrarVideo(); });
+  cerrar.focus();
+}
+function hojaCerrarVideo() {
+  const f = emHoja.querySelector(".em-hoja-video-fondo");
+  if (f) f.remove();
+}
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && emHoja.querySelector(".em-hoja-video-fondo")) {
+    e.stopPropagation();
+    hojaCerrarVideo();
+  }
+}, true);
+emHojaTabla.addEventListener("click", (e) => {
+  const a = e.target.closest ? e.target.closest(".em-hoja-mini, .em-hoja-link") : null;
+  if (!a) return;
+  const id = hojaIdYoutube(a.getAttribute("href"));
+  if (!id) return; // otros links se abren como siempre
+  e.preventDefault();
+  hojaAbrirVideo(id, a.getAttribute("href"));
+});
 
 // Cerrar o recargar la pestaña con cambios sin guardar
 window.addEventListener("beforeunload", (e) => {
