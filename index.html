@@ -225,7 +225,7 @@
 
   <header class="encabezado">
     <h1>Polo AI</h1>
-    <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Ejercicio, Actividades, Trabajo, Diario, Deudas, Información Primordial, Comandos, Bazar. Arriba de todos va el botón grande «Día de Hoy».
+    <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Deudas, Bazar, Ejercicio, Diario, Actividades, Trabajo, Información Primordial, Comandos. Arriba de todos va el botón grande «Día de Hoy».
          Cada botón abre su propia sección (Ejercicio y Diario con su propio calendario). -->
     <nav class="menu" aria-label="Secciones">
       <button id="btn-menu-hoy" class="btn-menu btn-menu-hoy" type="button" data-seccion="seccion-hoy">
@@ -241,8 +241,17 @@
       <button id="btn-menu-notas" class="btn-menu" type="button" data-seccion="seccion-notas">
         <span class="btn-menu-icono" aria-hidden="true">&#128221;</span><span class="btn-menu-texto">Notas</span>
       </button>
+      <button id="btn-menu-deudas" class="btn-menu" type="button" data-seccion="seccion-deudas">
+        <span class="btn-menu-icono" aria-hidden="true">&#128176;</span><span class="btn-menu-texto">Deudas</span>
+      </button>
+      <button id="btn-menu-bazar" class="btn-menu" type="button" data-seccion="seccion-bazar">
+        <span class="btn-menu-icono" aria-hidden="true">&#128717;&#65039;</span><span class="btn-menu-texto">Bazar</span>
+      </button>
       <button id="btn-menu-ejercicio" class="btn-menu" type="button" data-seccion="seccion-ejercicio">
         <span class="btn-menu-icono" aria-hidden="true">&#128170;</span><span class="btn-menu-texto">Ejercicio</span>
+      </button>
+      <button id="btn-menu-diario" class="btn-menu" type="button" data-seccion="seccion-diario">
+        <span class="btn-menu-icono" aria-hidden="true">&#128211;</span><span class="btn-menu-texto">Diario</span>
       </button>
       <button class="btn-menu" type="button" data-seccion="actividades">
         <span class="btn-menu-icono" aria-hidden="true">&#127919;</span><span class="btn-menu-texto">Actividades</span>
@@ -250,20 +259,11 @@
       <button class="btn-menu" type="button" data-seccion="trabajo">
         <span class="btn-menu-icono" aria-hidden="true">&#128188;</span><span class="btn-menu-texto">Trabajo</span>
       </button>
-      <button id="btn-menu-diario" class="btn-menu" type="button" data-seccion="seccion-diario">
-        <span class="btn-menu-icono" aria-hidden="true">&#128211;</span><span class="btn-menu-texto">Diario</span>
-      </button>
-      <button id="btn-menu-deudas" class="btn-menu" type="button" data-seccion="seccion-deudas">
-        <span class="btn-menu-icono" aria-hidden="true">&#128176;</span><span class="btn-menu-texto">Deudas</span>
-      </button>
       <button id="btn-menu-informacion" class="btn-menu" type="button" data-seccion="seccion-informacion">
         <span class="btn-menu-icono" aria-hidden="true">&#11088;</span><span class="btn-menu-texto">Información Primordial</span>
       </button>
       <button id="btn-menu-comandos" class="btn-menu" type="button" data-seccion="seccion-comandos">
         <span class="btn-menu-icono" aria-hidden="true">&#127897;</span><span class="btn-menu-texto">Comandos</span>
-      </button>
-      <button id="btn-menu-bazar" class="btn-menu" type="button" data-seccion="seccion-bazar">
-        <span class="btn-menu-icono" aria-hidden="true">&#128717;&#65039;</span><span class="btn-menu-texto">Bazar</span>
       </button>
     </nav>
   </header>
