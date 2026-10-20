@@ -1022,7 +1022,11 @@
         <!-- Notas personales de esta empresa o proyecto (columna H «Notas» de la hoja) -->
         <div id="em-det-notas-zona" class="em-det-notas-zona">
           <h4 id="em-notas-titulo" class="em-det-subtitulo">📝 Mis notas</h4>
-          <div id="em-nota-form" class="em-nota-form">
+          <div class="em-nota-barra">
+            <button id="em-nota-nueva" class="em-nota-btn-agregar" type="button">＋ Crear nota</button>
+            <span id="em-nota-estado" class="notas-estado em-nota-estado"></span>
+          </div>
+          <div id="em-nota-form" class="em-nota-form" hidden>
             <h5 id="em-nota-form-titulo" class="em-nota-form-titulo">Nueva nota</h5>
             <div class="em-nota-campos">
               <label class="em-nota-campo">
@@ -1047,7 +1051,6 @@
             <div class="em-nota-fila">
               <button id="em-nota-agregar" class="em-nota-btn-agregar" type="button">Agregar nota</button>
               <button id="em-nota-cancelar" class="em-nota-btn-sec" type="button" hidden>Cancelar</button>
-              <span id="em-nota-estado" class="notas-estado em-nota-estado"></span>
             </div>
           </div>
           <div id="em-notas-lista" class="em-notas-lista"></div>

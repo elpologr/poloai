@@ -5114,7 +5114,10 @@ const HOJA_ANCHO_MIN = 60;
 const HOJA_ANCHO_MAX = 1200;
 const HOJA_CLAVE_ANCHOS = "polo-hoja-redes-anchos"; // los anchos que eliges se recuerdan en este dispositivo (la hoja 2 usa su propia clave)
 let hojaNumero = 1; // 1 = hoja principal, 2 = hoja secundaria (misma estructura)
-const hojaClaveAnchos = () => HOJA_CLAVE_ANCHOS + (hojaNumero === 2 ? "-2" : "");
+let hojaEmpresa = null; // empresa o proyecto dueño de la hoja abierta (cada proyecto tiene sus propias hojas)
+// Los anchos se recuerdan por proyecto; si ese proyecto aún no tiene los suyos se usan los de antes (clave sin proyecto)
+const hojaClaveAnchosViejos = () => HOJA_CLAVE_ANCHOS + (hojaNumero === 2 ? "-2" : "");
+const hojaClaveAnchos = () => HOJA_CLAVE_ANCHOS + (hojaEmpresa ? "-p" + hojaEmpresa.id : "") + (hojaNumero === 2 ? "-2" : "");
 const HOJA_COL_MAX = 60; // igual a MAX_COL_REDES del Apps Script
 const HOJA_NOMBRE_COL_MAX = 60; // igual a MAX_NOMBRE_COL_REDES del Apps Script
 const HOJA_ANCHO_NUEVA = 260; // ancho de una columna nueva (px)
@@ -5144,7 +5147,7 @@ function hojaAnchoDefecto(i) {
 }
 function hojaLeerAnchos() {
   try {
-    const a = JSON.parse(localStorage.getItem(hojaClaveAnchos()));
+    const a = JSON.parse(localStorage.getItem(hojaClaveAnchos()) || localStorage.getItem(hojaClaveAnchosViejos()));
     if (Array.isArray(a) && a.length === hojaColumnas.length && a.every((w) => typeof w === "number" && w >= HOJA_ANCHO_MIN && w <= HOJA_ANCHO_MAX)) return a;
   } catch (e) {}
   return hojaColumnas.map((_, i) => hojaAnchoDefecto(i));
@@ -5523,7 +5526,8 @@ async function guardarHoja() {
   while (filas.length && filas[filas.length - 1].every((x) => !String(x).trim())) filas.pop(); // sin filas vacías al final
   setEstado(emHojaEstado, "Guardando…");
   emHojaGuardar.disabled = true;
-  hojaGuardando = llamarNotas("hoja_redes_guardar", { hoja: hojaNumero, filas, columnas: hojaColumnas.slice() });
+  const emp = hojaEmpresa;
+  hojaGuardando = llamarNotas("hoja_redes_guardar", { hoja: hojaNumero, empresa: emp.id, empresaNombre: emp.nombre, filas, columnas: hojaColumnas.slice() });
   try {
     await hojaGuardando;
     hojaGuardado = marca;
@@ -5556,7 +5560,9 @@ async function cargarHoja() {
   emHojaTabla.innerHTML = "";
   setEstado(emHojaEstado, "Cargando…");
   try {
-    const j = await llamarNotas("hoja_redes_listar", { hoja: hojaNumero });
+    const j = await llamarNotas("hoja_redes_listar", { hoja: hojaNumero, empresa: hojaEmpresa.id, empresaNombre: hojaEmpresa.nombre });
+    // Un Apps Script viejo no sabe de hojas por proyecto y devolvería la hoja de todos: se rechaza para no mezclar ni guardar encima
+    if (j.empresa !== hojaEmpresa.id) throw new Error("hay que publicar la nueva versión del Apps Script (cada proyecto tiene su propia hoja)");
     // Un Apps Script viejo no sabe de la hoja 2 y devolvería la hoja 1: se rechaza para no mezclarlas ni guardar encima
     if (hojaNumero === 2 && j.hoja !== 2) throw new Error("para usar la hoja secundaria hay que publicar la nueva versión del Apps Script");
     hojaDinamico = j.dinamico === true;
@@ -5582,10 +5588,14 @@ async function cargarHoja() {
 // Marca en el selector 1 / 2 cuál hoja está abierta
 function hojaPintarSelector() {
   emHoja.querySelectorAll(".em-hoja-sel-btn").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.hoja === hojaNumero)));
-  emHojaTitulo.textContent = "\u{1F4CA} Hoja de redes";
+  const nom = hojaEmpresa && hojaEmpresa.nombre ? String(hojaEmpresa.nombre) : "";
+  emHojaTitulo.textContent = "\u{1F4CA} Hoja de redes" + (nom ? " · " + (nom.length > 22 ? nom.slice(0, 21) + "…" : nom) : "");
+  emHojaTitulo.title = nom;
 }
 
 async function abrirHoja(n) {
+  if (!emDetActual) return;
+  hojaEmpresa = emDetActual; // la hoja es de ESTE proyecto
   hojaNumero = n === 2 ? 2 : 1;
   hojaPintarSelector();
   emHoja.hidden = false;
@@ -6255,6 +6265,7 @@ const emNotaContador = emEl("em-nota-contador");
 const emNotaAgregar = emEl("em-nota-agregar");
 const emNotaCancelar = emEl("em-nota-cancelar");
 const emNotaEstado = emEl("em-nota-estado");
+const emNotaNueva = emEl("em-nota-nueva"); // botón «Crear nota»: el formulario está escondido hasta que se presiona
 const emNotasLista = emEl("em-notas-lista");
 const emNotasTitulo = emEl("em-notas-titulo");
 let emNotaEditandoId = null; // id de la nota que se está editando (null = nota nueva)
@@ -6294,9 +6305,24 @@ function emNotaReiniciarForm() {
   emNotaFormTitulo.textContent = "Nueva nota";
   emNotaAgregar.textContent = "Agregar nota";
   emNotaCancelar.hidden = true;
+  emNotaForm.hidden = true; // el formulario se esconde; vuelve a salir con «Crear nota» o al editar una nota
+  emNotaNueva.hidden = false;
   emMigrar.actualizar(null);
   emActualizarContador();
 }
+// Muestra el formulario (para una nota nueva o para editar una)
+function emNotaMostrarForm() {
+  emNotaForm.hidden = false;
+  emNotaNueva.hidden = true;
+  emNotaCancelar.hidden = false; // «Cancelar» siempre sale con el formulario: lo vuelve a esconder
+}
+emNotaNueva.addEventListener("click", () => {
+  emNotaReiniciarForm();
+  setEstado(emNotaEstado, "");
+  emNotaMostrarForm();
+  emNotaForm.scrollIntoView({ behavior: "smooth", block: "center" });
+  emNotaNombre.focus();
+});
 
 // Caracteres que aún caben en la celda de Sheets para el texto de una nota (descontando lo ocupado por las demás)
 function emEspacioSheets(d, editando) {
@@ -6432,7 +6458,7 @@ function emNotaEditar(nota) {
   emNotaTexto.value = nota.texto || "";
   emNotaFormTitulo.textContent = "Editar nota";
   emNotaAgregar.textContent = "Guardar cambios";
-  emNotaCancelar.hidden = false;
+  emNotaMostrarForm();
   emMigrar.actualizar(nota);
   setEstado(emNotaEstado, "");
   dibujarNotasEm();
