@@ -151,11 +151,11 @@
     if (z.tipo === "nota") {
       const [a, m, d] = iso.split("-");
       return { id, nombre, fecha: `${d}/${m}/${a} ${fechaInput.slice(11, 16) || "12:00"}`,
-        etiqueta: z.etiqueta || etiqueta || "General", texto, color: "Blanco", identificador: "", destino: "sheets" };
+        etiqueta: z.etiqueta || etiqueta || "General", texto, color: "Blanco", identificador: "", destino: "drive" };
     }
-    if (z.tipo === "bazar") return { id, nombre, informacion: texto, categoria: z.categoria, destino: "sheets" };
-    if (z.tipo === "deuda") return { id, nombre, fecha: iso, descripcion: texto, destino: "sheets" };
-    return { id, nombre, fecha: iso, descripcion: texto, destino: "sheets" };
+    if (z.tipo === "bazar") return { id, nombre, informacion: texto, categoria: z.categoria, destino: "drive" };
+    if (z.tipo === "deuda") return { id, nombre, fecha: iso, descripcion: texto, destino: "drive" };
+    return { id, nombre, fecha: iso, descripcion: texto, destino: "drive" };
   }
 
   $("guardar").addEventListener("click", () => {

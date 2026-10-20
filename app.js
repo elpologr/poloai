@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "48";
+const VERSION = "49";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -25,7 +25,7 @@ const VERSION = "48";
     "cuenta-nota", "cuenta-dispositivos", "disp-panel", "disp-estado", "disp-lista", "disp-todas",
     "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
-    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes",
+    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
   ];
   const problemas = [];
@@ -1026,8 +1026,20 @@ const notasNuevaBtn = document.getElementById("notas-nueva-btn");
 const notasCancelar = document.getElementById("notas-cancelar");
 const notasTipo = document.getElementById("notas-tipo");
 const notasCampoTipo = document.getElementById("notas-campo-tipo");
+const migNotas = montarMigrar(notasDestino, {
+  accion: "migrar_drive",
+  extra: { zona: "nota" },
+  obtener: () => notaEditando,
+  estado: notasEstado,
+  listo: () => {
+    // el formulario ya no cuenta el cambio de lugar como «cambios sin guardar»
+    try { const a = JSON.parse(notasSnap); a[6] = "drive"; notasSnap = JSON.stringify(a); } catch (e) {}
+    dibujarNotas();
+  },
+});
 function aplicarTipoNotas() {
   ntAplicarTipoForm(notasForm, notasTipo, notasDestino, notasNombre, notasTexto, notasGuardar, notaEditando ? "Guardar cambios" : "Guardar nota");
+  migNotas.actualizar(notaEditando && notasTipo.value !== "notario" ? notaEditando : null);
 }
 const notasFecha = document.getElementById("notas-fecha");
 const notasSubmenu = document.getElementById("notas-submenu");
@@ -1194,6 +1206,57 @@ async function llamarNotas(accion, extra) {
   return j;
 }
 
+// ----- Botón «☁ Migrar a Drive» -----
+// Aparece dentro de la edición de una nota cuyo texto todavía vive en Google Sheets. El Apps Script pasa el texto a un
+// archivo .txt de la carpeta notaslargas y lo quita de la celda de la hoja (la fila se queda como índice de la página).
+//  cfg.obtener()  -> el registro que se está editando (o null)
+//  cfg.accion / cfg.extra -> acción del Apps Script (se manda con el id del registro); o cfg.ejecutar(it) si hace falta otra cosa
+//  cfg.estado     -> elemento donde se muestra el resultado; cfg.listo(it) -> se llama al terminar bien
+//  cfg.siempre    -> true si el registro no tiene un texto propio que revisar (notarios)
+function montarMigrar(selDestino, cfg) {
+  const campo = selDestino.closest("label");
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "notas-btn notas-btn-sec btn-migrar-drive";
+  btn.textContent = "☁ Migrar a Drive";
+  btn.title = "Pasa el texto de Google Sheets a un archivo de Google Drive y lo quita de la hoja";
+  btn.hidden = true;
+  campo.insertAdjacentElement("afterend", btn);
+  const aviso = (t, tipo) => {
+    if (cfg.estado) setEstado(cfg.estado, t, tipo);
+    else if (tipo === "error") window.alert(t);
+  };
+  btn.addEventListener("click", async () => {
+    const it = cfg.obtener();
+    if (!it) return;
+    const nombre = String(it.nombre || "").trim() || "este registro";
+    if (!window.confirm("¿Migrar «" + nombre + "» a Google Drive?\n\nSu texto se guardará en un archivo .txt de la carpeta notaslargas y se quitará de la hoja de Google Sheets.")) return;
+    btn.disabled = true;
+    btn.textContent = "Migrando…";
+    try {
+      if (cfg.ejecutar) await cfg.ejecutar(it);
+      else await llamarNotas(cfg.accion, Object.assign({ id: it.id }, cfg.extra || {}));
+      it.destino = "drive";
+      selDestino.value = "drive";
+      btn.hidden = true;
+      if (cfg.listo) cfg.listo(it);
+      aviso("Migrada a Drive ✓", "ok");
+    } catch (err) {
+      aviso("Error al migrar: " + err.message, "error");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "☁ Migrar a Drive";
+    }
+  });
+  return {
+    // Muestra el botón solo si el registro existe, sigue en Sheets y tiene texto
+    actualizar(it) {
+      const hayTexto = cfg.siempre || (it && String(it.texto || it.descripcion || it.informacion || "").trim() !== "");
+      btn.hidden = !(it && it.destino !== "drive" && hayTexto);
+    },
+  };
+}
+
 // ----- Fechas de las notas: se guardan como "dd/mm/aaaa hh:mm" -----
 // "dd/mm/aaaa hh:mm" -> "aaaa-mm-ddThh:mm" (formato del campo de fecha y hora); "" si no se entiende
 function fechaAInput(s) {
@@ -1238,7 +1301,7 @@ function limpiarFormNota() {
   notasNombre.value = "";
   notasIdent.value = "";
   notasEtiqueta.selectedIndex = 0;
-  notasDestino.value = "sheets";
+  notasDestino.value = "drive";
   notasTipo.value = "nota";
   aplicarTipoNotas();
   elegirColor("Blanco");
@@ -1728,7 +1791,7 @@ notasGuardar.addEventListener("click", () => (notaEditando ? editarNota() : agre
 notasNuevaBtn.addEventListener("click", () => mostrarFormNota(true));
 // Al cambiar de Nota a Notario (y al revés) se ajusta el formulario y el lugar sugerido para guardar
 notasTipo.addEventListener("change", () => {
-  notasDestino.value = notasTipo.value === "notario" ? "drive" : "sheets";
+  notasDestino.value = "drive";
   aplicarTipoNotas();
 });
 notasCancelar.addEventListener("click", () => {
@@ -2458,7 +2521,7 @@ function crearZonaEtiqueta(cfg) {
             <input class="zona-ident" type="text" maxlength="40" placeholder="Opcional" autocomplete="off" />
           </label>
         </div>
-        <label class="notas-campo">
+        <label class="notas-campo" hidden>
           <span>Guardar en</span>
           <select class="zona-destino">
             <option value="sheets">Google Sheets (en la hoja Notas)</option>
@@ -2510,6 +2573,16 @@ function crearZonaEtiqueta(cfg) {
     color: "Blanco",
     snap: "", // valores del formulario al abrirlo (para saber si se cambió algo)
   };
+  z.mig = montarMigrar(z.destino, {
+    accion: "migrar_drive",
+    extra: { zona: "nota" },
+    obtener: () => z.editando,
+    estado: z.estado,
+    listo: () => {
+      try { const a = JSON.parse(z.snap); a[5] = "drive"; z.snap = JSON.stringify(a); } catch (e) {}
+      dibujarNotas();
+    },
+  });
 
   // ----- Color (igual que en Notas: pasteles, paleta completa y selector libre) -----
   function elegirColorZona(valor) {
@@ -2623,16 +2696,17 @@ function crearZonaEtiqueta(cfg) {
   // ----- Formulario -----
   function aplicarTipoZona() {
     ntAplicarTipoForm(z.form, z.tipo, z.destino, z.nombre, z.texto, z.guardarBtn, z.editando ? "Guardar cambios" : cfg.guardar);
+    z.mig.actualizar(z.editando && z.tipo.value !== "notario" ? z.editando : null);
   }
   z.tipo.addEventListener("change", () => {
-    z.destino.value = z.tipo.value === "notario" ? "drive" : "sheets";
+    z.destino.value = "drive";
     aplicarTipoZona();
   });
   function limpiarForm() {
     z.texto.value = "";
     z.nombre.value = "";
     z.ident.value = "";
-    z.destino.value = "sheets";
+    z.destino.value = "drive";
     z.tipo.value = "nota";
     aplicarTipoZona();
     elegirColorZona("Blanco");
@@ -3291,12 +3365,19 @@ function cerrarDiaEj() {
 }
 
 // ----- Ventana para añadir / editar -----
+const migEj = montarMigrar(ejDestino, {
+  accion: "migrar_drive",
+  extra: { zona: "ejercicio" },
+  obtener: () => ejEditando,
+  estado: ejFormEstado,
+});
 function abrirFormEj(e) {
   ejEditando = e;
   ejFormTitulo.textContent = e ? "Editar ejercicio" : "Nuevo ejercicio";
   ejNombre.value = e ? e.nombre : "";
   ejDescripcion.value = e ? e.descripcion : "";
-  ejDestino.value = e && e.destino === "drive" ? "drive" : "sheets";
+  ejDestino.value = (e && e.destino !== "drive") ? "sheets" : "drive";
+  migEj.actualizar(e);
   ejBorrar.hidden = !e;
   setEstado(ejFormEstado, "");
   ejForm.hidden = false;
@@ -3671,6 +3752,12 @@ function cerrarDiaDi() {
 }
 
 // ----- Ventana para añadir / editar -----
+const migDi = montarMigrar(diDestino, {
+  accion: "migrar_drive",
+  extra: { zona: "diario" },
+  obtener: () => diEditando,
+  estado: diFormEstado,
+});
 function abrirFormDi(e) {
   diEditando = e;
   diFormTitulo.textContent = e
@@ -3682,7 +3769,8 @@ function abrirFormDi(e) {
     : "Nueva anotación";
   diNombre.value = e ? e.nombre : "";
   diDescripcion.value = e ? e.descripcion : "";
-  diDestino.value = e && e.destino === "drive" ? "drive" : "sheets";
+  diDestino.value = (e && e.destino !== "drive") ? "sheets" : "drive";
+  migDi.actualizar(e);
   diBorrar.hidden = !e;
   setEstado(diFormEstado, "");
   diForm.hidden = false;
@@ -3907,12 +3995,19 @@ function dibujarChipsDe() {
 }
 
 // ----- Ventana para añadir / editar -----
+const migDe = montarMigrar(deDestino, {
+  accion: "migrar_drive",
+  extra: { zona: "deuda" },
+  obtener: () => deEditando,
+  estado: deFormEstado,
+});
 function abrirFormDe(d) {
   deEditando = d;
   deFormTitulo.textContent = d ? "Editar deuda" : "Nueva deuda";
   deNombre.value = d ? d.nombre : "";
   deDescripcion.value = d ? d.descripcion : "";
-  deDestino.value = d && d.destino === "drive" ? "drive" : "sheets";
+  deDestino.value = (d && d.destino !== "drive") ? "sheets" : "drive";
+  migDe.actualizar(d);
   // La fecha de creación se anota sola al guardar una deuda nueva y no se cambia al editarla
   deCreada.hidden = !(d && d.fecha);
   deCreada.textContent = d && d.fecha ? "Creada el " + ipFechaCorta(d.fecha) : "";
@@ -4132,13 +4227,20 @@ function dibujarChipsIp() {
 }
 
 // ----- Ventana para añadir / editar -----
+const migIp = montarMigrar(ipDestino, {
+  accion: "migrar_drive",
+  extra: { zona: "informacion" },
+  obtener: () => ipEditando,
+  estado: ipFormEstado,
+});
 function abrirFormIp(d) {
   ipEditando = d;
   ipFormTitulo.textContent = d ? "Editar información" : "Nueva información";
   ipNombre.value = d ? d.nombre : "";
   ipFecha.value = d && d.fecha ? d.fecha : ipHoy(); // si es nueva, empieza con la fecha de hoy
   ipDescripcion.value = d ? d.descripcion : "";
-  ipDestino.value = d && d.destino === "drive" ? "drive" : "sheets";
+  ipDestino.value = (d && d.destino !== "drive") ? "sheets" : "drive";
+  migIp.actualizar(d);
   ipActualizarContador();
   ipBorrar.hidden = !d;
   setEstado(ipFormEstado, "");
@@ -4319,13 +4421,20 @@ function dibujarChipsCm() {
 }
 
 // ----- Ventana para añadir / editar -----
+const migCm = montarMigrar(cmDestino, {
+  accion: "migrar_drive",
+  extra: { zona: "comando" },
+  obtener: () => cmEditando,
+  estado: cmFormEstado,
+});
 function abrirFormCm(d) {
   cmEditando = d;
   cmFormTitulo.textContent = d ? "Editar comando" : "Nuevo comando";
   cmNombre.value = d ? d.nombre : "";
   cmFecha.value = d && d.fecha ? d.fecha : cmHoy(); // si es nueva, empieza con la fecha de hoy
   cmDescripcion.value = d ? d.descripcion : "";
-  cmDestino.value = d && d.destino === "drive" ? "drive" : "sheets";
+  cmDestino.value = (d && d.destino !== "drive") ? "sheets" : "drive";
+  migCm.actualizar(d);
   cmBorrar.hidden = !d;
   setEstado(cmFormEstado, "");
   cmForm.hidden = false;
@@ -4517,13 +4626,20 @@ function dibujarChipsBz() {
 
 // ----- Ventana para añadir / editar -----
 // categoriaInicial: la categoría que aparece elegida en un registro nuevo (por defecto «Bazar»)
+const migBz = montarMigrar(bzDestino, {
+  accion: "migrar_drive",
+  extra: { zona: "bazar" },
+  obtener: () => bzEditando,
+  estado: bzFormEstado,
+});
 function abrirFormBz(d, categoriaInicial) {
   bzEditando = d;
   bzFormTitulo.textContent = d ? "Editar registro" : "Nuevo registro";
   bzNombre.value = d ? d.nombre : "";
   bzCategoria.value = d ? categoriaBz(d) : BZ_CATEGORIAS.indexOf(categoriaInicial) !== -1 ? categoriaInicial : "Bazar";
   bzInformacion.value = d ? d.informacion : "";
-  bzDestino.value = d && d.destino === "drive" ? "drive" : "sheets";
+  bzDestino.value = (d && d.destino !== "drive") ? "sheets" : "drive";
+  migBz.actualizar(d);
   bzBorrar.hidden = !d;
   setEstado(bzFormEstado, "");
   bzForm.hidden = false;
@@ -4904,12 +5020,316 @@ function abrirDetalleEm(d) {
 }
 function cerrarDetalleEm() {
   emDetalle.hidden = true;
+  emHoja.hidden = true;
   emDetActual = null;
 }
 emEl("em-det-volver").addEventListener("click", cerrarDetalleEm);
 // El engrane abre la zona de ajustes (el formulario de editar) de este proyecto
 emEl("em-det-ajustes").addEventListener("click", () => {
   if (emDetActual) abrirFormEm(emDetActual);
+});
+
+// ----- Hoja de redes: UNA sola hoja con celdas de texto, parecida a Google Sheets -----
+// Vive en la pestaña «Hoja Redes» del libro de Google Sheets (Nombre | Fecha | Youtube | Aviso | Facebook | Aviso | …).
+// Se lee completa al abrirla y se guarda completa (sola, un momento después de escribir, y al cerrar).
+const HOJA_COLUMNAS = ["Nombre", "Fecha", "Youtube", "Aviso", "Facebook", "Aviso", "Instagram", "Aviso", "TikTok", "Aviso", "Threads", "Aviso", "X", "Aviso", "Whatsapp Community"];
+const HOJA_ANCHOS = [200, 120, 180, 130, 180, 130, 180, 130, 180, 130, 180, 130, 160, 130, 200];
+const HOJA_FILAS_MIN = 25;
+const HOJA_FILAS_MAX = 2000; // igual a MAX_FILAS_REDES del Apps Script
+const HOJA_CELDA_MAX = 5000; // igual a MAX_CELDA_REDES del Apps Script
+const HOJA_ESPERA = 1500; // ms sin escribir antes de guardar sola
+const emHoja = emEl("em-hoja");
+const emHojaEstado = emEl("em-hoja-estado");
+const emHojaTabla = emEl("em-hoja-tabla");
+const emHojaGuardar = emEl("em-hoja-guardar");
+let hojaFilas = []; // [[texto × 15], …]
+let hojaCargada = false; // sin una lectura buena no se guarda nada (así nunca se borra la hoja por error)
+let hojaCambios = 0; // número de ediciones hechas
+let hojaGuardado = 0; // número de ediciones ya guardadas
+let hojaTemporizador = null;
+let hojaGuardando = null;
+let hojaFilaActiva = -1;
+const hojaSucia = () => hojaCambios !== hojaGuardado;
+const hojaFilaVacia = () => HOJA_COLUMNAS.map(() => "");
+
+function hojaDibujar() {
+  emHojaTabla.innerHTML = "";
+  const grupo = document.createElement("colgroup");
+  [46].concat(HOJA_ANCHOS).forEach((w) => {
+    const col = document.createElement("col");
+    col.style.width = w + "px";
+    grupo.appendChild(col);
+  });
+  const cabeza = document.createElement("thead");
+  const letras = document.createElement("tr");
+  letras.className = "em-hoja-letras";
+  letras.appendChild(document.createElement("th"));
+  HOJA_COLUMNAS.forEach((_, i) => {
+    const th = document.createElement("th");
+    th.textContent = String.fromCharCode(65 + i);
+    letras.appendChild(th);
+  });
+  const nombres = document.createElement("tr");
+  nombres.className = "em-hoja-nombres";
+  const uno = document.createElement("th");
+  uno.textContent = "1";
+  nombres.appendChild(uno);
+  HOJA_COLUMNAS.forEach((t) => {
+    const th = document.createElement("th");
+    th.textContent = t;
+    th.title = t;
+    nombres.appendChild(th);
+  });
+  cabeza.append(letras, nombres);
+  const cuerpo = document.createElement("tbody");
+  hojaFilas.forEach((_, r) => cuerpo.appendChild(hojaCrearFila(r)));
+  emHojaTabla.append(grupo, cabeza, cuerpo);
+  hojaFilaActiva = -1;
+}
+
+function hojaCrearFila(r) {
+  const tr = document.createElement("tr");
+  const num = document.createElement("th");
+  num.className = "em-hoja-num";
+  num.textContent = String(r + 2); // la fila 1 es el encabezado, igual que en la hoja de Google
+  num.title = "Seleccionar esta fila";
+  num.addEventListener("click", () => {
+    hojaActivarFila(r);
+    hojaEnfocar(r, 0);
+  });
+  tr.appendChild(num);
+  HOJA_COLUMNAS.forEach((nombre, c) => {
+    const td = document.createElement("td");
+    const inp = document.createElement("input");
+    inp.type = "text";
+    inp.className = "em-hoja-celda";
+    inp.maxLength = HOJA_CELDA_MAX;
+    inp.value = hojaFilas[r][c];
+    inp.dataset.r = String(r);
+    inp.dataset.c = String(c);
+    inp.autocomplete = "off";
+    inp.spellcheck = false;
+    inp.setAttribute("aria-label", nombre + ", fila " + (r + 2));
+    td.appendChild(inp);
+    tr.appendChild(td);
+  });
+  return tr;
+}
+
+function hojaActivarFila(r) {
+  if (r === hojaFilaActiva) return;
+  const filas = emHojaTabla.tBodies[0] ? emHojaTabla.tBodies[0].rows : [];
+  if (filas[hojaFilaActiva]) filas[hojaFilaActiva].classList.remove("em-hoja-fila-activa");
+  hojaFilaActiva = r;
+  if (filas[r]) filas[r].classList.add("em-hoja-fila-activa");
+}
+
+function hojaEnfocar(r, c) {
+  const el = emHojaTabla.querySelector('input[data-r="' + r + '"][data-c="' + c + '"]');
+  if (!el) return false;
+  el.focus();
+  el.select();
+  el.scrollIntoView({ block: "nearest", inline: "nearest" });
+  return true;
+}
+
+function hojaAgregarFilas(n) {
+  const cuerpo = emHojaTabla.tBodies[0];
+  if (!cuerpo) return false;
+  if (hojaFilas.length + n > HOJA_FILAS_MAX) {
+    setEstado(emHojaEstado, "Máximo " + HOJA_FILAS_MAX + " filas", "error");
+    return false;
+  }
+  for (let i = 0; i < n; i++) {
+    hojaFilas.push(hojaFilaVacia());
+    cuerpo.appendChild(hojaCrearFila(hojaFilas.length - 1));
+  }
+  return true;
+}
+
+function hojaMarcarCambio() {
+  hojaCambios++;
+  setEstado(emHojaEstado, "Sin guardar…");
+  clearTimeout(hojaTemporizador);
+  hojaTemporizador = setTimeout(guardarHoja, HOJA_ESPERA);
+}
+
+// Guarda la hoja completa. Devuelve true si quedó guardada.
+async function guardarHoja() {
+  clearTimeout(hojaTemporizador);
+  hojaTemporizador = null;
+  if (!hojaCargada) return false;
+  while (hojaGuardando) await hojaGuardando.catch(() => {}); // si ya hay un guardado en curso, se espera
+  if (!hojaSucia()) return true;
+  const marca = hojaCambios;
+  const filas = hojaFilas.map((f) => f.slice());
+  while (filas.length && filas[filas.length - 1].every((x) => !String(x).trim())) filas.pop(); // sin filas vacías al final
+  setEstado(emHojaEstado, "Guardando…");
+  emHojaGuardar.disabled = true;
+  hojaGuardando = llamarNotas("hoja_redes_guardar", { filas });
+  try {
+    await hojaGuardando;
+    hojaGuardado = marca;
+    if (hojaSucia()) {
+      // se siguió escribiendo mientras se guardaba
+      setEstado(emHojaEstado, "Sin guardar…");
+      hojaTemporizador = setTimeout(guardarHoja, HOJA_ESPERA);
+    } else {
+      const n = new Date();
+      setEstado(emHojaEstado, "Guardado ✓ " + dos(n.getHours()) + ":" + dos(n.getMinutes()), "ok");
+    }
+    return true;
+  } catch (err) {
+    setEstado(emHojaEstado, "No se pudo guardar: " + err.message + " (se reintenta)", "error");
+    hojaTemporizador = setTimeout(guardarHoja, 8000);
+    return false;
+  } finally {
+    hojaGuardando = null;
+    emHojaGuardar.disabled = !hojaCargada;
+  }
+}
+
+async function cargarHoja() {
+  hojaCargada = false;
+  clearTimeout(hojaTemporizador);
+  hojaTemporizador = null;
+  emHojaGuardar.disabled = true;
+  emHojaTabla.innerHTML = "";
+  setEstado(emHojaEstado, "Cargando…");
+  try {
+    const j = await llamarNotas("hoja_redes_listar");
+    const filas = Array.isArray(j.filas) ? j.filas : [];
+    hojaFilas = filas.map((f) => HOJA_COLUMNAS.map((_, c) => (f && f[c] !== undefined && f[c] !== null ? String(f[c]) : "")));
+    while (hojaFilas.length < HOJA_FILAS_MIN) hojaFilas.push(hojaFilaVacia());
+    hojaCargada = true;
+    hojaCambios = 0;
+    hojaGuardado = 0;
+    hojaDibujar();
+    emHojaGuardar.disabled = false;
+    setEstado(emHojaEstado, "");
+    return true;
+  } catch (err) {
+    setEstado(emHojaEstado, "Error: " + err.message + " · usa ↻ para reintentar", "error");
+    return false;
+  }
+}
+
+async function abrirHoja() {
+  emHoja.hidden = false;
+  await cargarHoja();
+}
+
+// Al cerrar se guarda antes; si no se puede, se pregunta
+async function cerrarHoja() {
+  if (hojaCargada && hojaSucia()) {
+    const ok = await guardarHoja();
+    if (!ok && !window.confirm("No se pudo guardar la hoja. ¿Cerrar de todos modos y perder los últimos cambios?")) return;
+  }
+  emHoja.hidden = true;
+}
+
+emEl("em-hoja-abrir").addEventListener("click", abrirHoja);
+emEl("em-hoja-volver").addEventListener("click", cerrarHoja);
+emHojaGuardar.addEventListener("click", guardarHoja);
+emEl("em-hoja-recargar").addEventListener("click", async () => {
+  if (hojaCargada && hojaSucia() && !window.confirm("Hay cambios sin guardar que se perderán al volver a leer la hoja. ¿Continuar?")) return;
+  await cargarHoja();
+});
+emEl("em-hoja-fila-mas").addEventListener("click", () => {
+  if (!hojaCargada) return;
+  if (hojaAgregarFilas(1)) hojaEnfocar(hojaFilas.length - 1, 0);
+});
+emEl("em-hoja-filas-mas").addEventListener("click", () => {
+  if (!hojaCargada) return;
+  hojaAgregarFilas(10);
+});
+emEl("em-hoja-fila-quitar").addEventListener("click", () => {
+  if (!hojaCargada) return;
+  if (hojaFilaActiva < 0 || hojaFilaActiva >= hojaFilas.length) {
+    setEstado(emHojaEstado, "Toca una celda de la fila que quieres quitar", "error");
+    return;
+  }
+  const r = hojaFilaActiva;
+  if (hojaFilas[r].some((x) => String(x).trim()) && !window.confirm("¿Quitar la fila " + (r + 2) + " con todo lo que tiene escrito?")) return;
+  hojaFilas.splice(r, 1);
+  while (hojaFilas.length < HOJA_FILAS_MIN) hojaFilas.push(hojaFilaVacia());
+  hojaDibujar();
+  hojaMarcarCambio();
+});
+
+// Escribir en una celda
+emHojaTabla.addEventListener("input", (e) => {
+  const t = e.target;
+  if (!t.classList || !t.classList.contains("em-hoja-celda")) return;
+  hojaFilas[+t.dataset.r][+t.dataset.c] = t.value;
+  hojaMarcarCambio();
+});
+emHojaTabla.addEventListener("focusin", (e) => {
+  const t = e.target;
+  if (t.classList && t.classList.contains("em-hoja-celda")) hojaActivarFila(+t.dataset.r);
+});
+
+// Moverse con el teclado como en una hoja de cálculo: Enter baja, Shift+Enter sube, flechas arriba/abajo,
+// y las flechas izquierda/derecha saltan de celda cuando el cursor está en el borde del texto
+emHojaTabla.addEventListener("keydown", (e) => {
+  const t = e.target;
+  if (!t.classList || !t.classList.contains("em-hoja-celda") || e.isComposing) return;
+  const r = +t.dataset.r;
+  const c = +t.dataset.c;
+  const ultimaCol = HOJA_COLUMNAS.length - 1;
+  const alInicio = t.selectionStart === 0 && t.selectionEnd === 0;
+  const alFinal = t.selectionStart === t.value.length && t.selectionEnd === t.value.length;
+  if (e.key === "Enter" || e.key === "ArrowDown") {
+    e.preventDefault();
+    if (e.shiftKey && e.key === "Enter") {
+      if (r > 0) hojaEnfocar(r - 1, c);
+    } else {
+      if (r + 1 >= hojaFilas.length) hojaAgregarFilas(1);
+      hojaEnfocar(r + 1, c);
+    }
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    if (r > 0) hojaEnfocar(r - 1, c);
+  } else if (e.key === "ArrowLeft" && alInicio && c > 0) {
+    e.preventDefault();
+    hojaEnfocar(r, c - 1);
+  } else if (e.key === "ArrowRight" && alFinal && c < ultimaCol) {
+    e.preventDefault();
+    hojaEnfocar(r, c + 1);
+  }
+});
+
+// Pegar varias celdas copiadas de Google Sheets o Excel (vienen separadas por tabulaciones y saltos de línea)
+emHojaTabla.addEventListener("paste", (e) => {
+  const t = e.target;
+  if (!t.classList || !t.classList.contains("em-hoja-celda")) return;
+  const texto = String((e.clipboardData || window.clipboardData).getData("text") || "").replace(/\r\n?/g, "\n").replace(/\n$/, "");
+  if (texto.indexOf("\t") === -1 && texto.indexOf("\n") === -1) return; // un solo valor: pegado normal
+  e.preventDefault();
+  const bloque = texto.split("\n").map((l) => l.split("\t"));
+  const r0 = +t.dataset.r;
+  const c0 = +t.dataset.c;
+  if (r0 + bloque.length > HOJA_FILAS_MAX) {
+    setEstado(emHojaEstado, "No cabe: el máximo es " + HOJA_FILAS_MAX + " filas", "error");
+    return;
+  }
+  while (hojaFilas.length < r0 + bloque.length) hojaFilas.push(hojaFilaVacia());
+  bloque.forEach((fila, i) =>
+    fila.forEach((v, j) => {
+      if (c0 + j < HOJA_COLUMNAS.length) hojaFilas[r0 + i][c0 + j] = v.slice(0, HOJA_CELDA_MAX);
+    })
+  );
+  hojaDibujar();
+  hojaEnfocar(r0, c0);
+  hojaMarcarCambio();
+});
+
+// Cerrar o recargar la pestaña con cambios sin guardar
+window.addEventListener("beforeunload", (e) => {
+  if (!emHoja.hidden && hojaCargada && hojaSucia()) {
+    e.preventDefault();
+    e.returnValue = "";
+  }
 });
 
 // ----- Notas personales de la empresa o proyecto abierto (columna H «Notas» de la hoja) -----
@@ -4933,17 +5353,43 @@ const emNotaEstado = emEl("em-nota-estado");
 const emNotasLista = emEl("em-notas-lista");
 const emNotasTitulo = emEl("em-notas-titulo");
 let emNotaEditandoId = null; // id de la nota que se está editando (null = nota nueva)
+const emMigrar = montarMigrar(emNotaDestino, {
+  obtener: () => {
+    const d = emDetActual;
+    return d && emNotaEditandoId ? (d.notas || []).find((n) => n.id === emNotaEditandoId) || null : null;
+  },
+  estado: emNotaEstado,
+  ejecutar: async (n) => {
+    const d = emDetActual;
+    const j = await llamarNotas("empresa_nota_guardar", {
+      id: d.id,
+      notaId: n.id,
+      nombre: n.nombre,
+      fecha: n.fecha,
+      modificada: n.modificada || "",
+      destino: "drive",
+      texto: n.texto,
+    });
+    n.largo = typeof j.notaLargo === "number" ? j.notaLargo : n.largo;
+    if (typeof j.largo === "number") d.notasLargo = j.largo;
+  },
+  listo: () => {
+    emActualizarContador();
+    dibujarNotasEm();
+  },
+});
 
 // Deja el formulario como «Nueva nota»
 function emNotaReiniciarForm() {
   emNotaEditandoId = null;
   emNotaNombre.value = "";
   emNotaFecha.value = fechaActualInput();
-  emNotaDestino.value = "sheets";
+  emNotaDestino.value = "drive";
   emNotaTexto.value = "";
   emNotaFormTitulo.textContent = "Nueva nota";
   emNotaAgregar.textContent = "Agregar nota";
   emNotaCancelar.hidden = true;
+  emMigrar.actualizar(null);
   emActualizarContador();
 }
 
@@ -5082,6 +5528,7 @@ function emNotaEditar(nota) {
   emNotaFormTitulo.textContent = "Editar nota";
   emNotaAgregar.textContent = "Guardar cambios";
   emNotaCancelar.hidden = false;
+  emMigrar.actualizar(nota);
   setEstado(emNotaEstado, "");
   dibujarNotasEm();
   emNotaForm.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -5364,7 +5811,8 @@ emBorrar.addEventListener("click", borrarEm);
 // Esc cierra la ventana
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelEm.hidden) return;
-  if (!emForm.hidden) cerrarFormEm();
+  if (!emHoja.hidden) cerrarHoja();
+  else if (!emForm.hidden) cerrarFormEm();
   else if (!emDetalle.hidden) cerrarDetalleEm();
 });
 
@@ -5829,7 +6277,7 @@ ntModal.innerHTML = `
         <span>Descripción</span>
         <textarea class="nt-desc" rows="3" maxlength="5000" placeholder="¿Para qué es este notario?"></textarea>
       </label>
-      <label class="nt-campo nt-campo-destino">
+      <label class="nt-campo nt-campo-destino" hidden>
         <span>Guardar en</span>
         <select class="nt-destino">
           <option value="sheets">Google Sheets (hoja Notarios · hasta 50,000 caracteres)</option>
@@ -5887,6 +6335,18 @@ const ntEl = {
   listaTitulo: ntq(".nt-lista-titulo"),
   lista: ntq(".nt-lista"),
 };
+
+const migNt = montarMigrar(ntEl.destino, {
+  accion: "notario_migrar",
+  obtener: () => ntPorId(NT.abierto),
+  estado: ntEl.estadoDatos,
+  siempre: true,
+  listo: (n) => {
+    n.limite = NT_LIMITE;
+    ntDibujarMedidor(n);
+    ntDibujarTodo();
+  },
+});
 
 // Medidor de caracteres del notario abierto (con el aviso de poco espacio)
 function ntDibujarMedidor(n) {
@@ -6067,6 +6527,7 @@ function ntAbrirNuevo(zona) {
   ntEl.desc.value = "";
   ntEl.destino.value = "drive";
   ntEl.destino.disabled = false;
+  migNt.actualizar(null);
   ntEl.guardarDatos.textContent = "Crear notario";
   ntEl.borrarNotario.hidden = true;
   ntEl.notas.hidden = true;
@@ -6083,6 +6544,7 @@ function ntAbrir(n) {
   ntEl.desc.value = n.descripcion || "";
   ntEl.destino.value = n.destino === "sheets" ? "sheets" : "drive";
   ntEl.destino.disabled = true; // el lugar se elige al crear el notario
+  migNt.actualizar(n);
   ntEl.guardarDatos.textContent = "Guardar nombre y descripción";
   ntEl.borrarNotario.hidden = false;
   ntEl.notas.hidden = false;
@@ -6122,7 +6584,7 @@ async function ntGuardarDatos() {
       existente.descripcion = descripcion;
       setEstado(ntEl.estadoDatos, "Guardado ✓", "ok");
     } else {
-      const destino = ntEl.destino.value === "sheets" ? "sheets" : "drive";
+      const destino = "drive"; // todo se guarda en Drive
       const nuevo = { id: ntNuevoId(), zona: NT.zonaNueva, nombre, descripcion, fecha: selloFechaHora(), destino, limite: destino === "sheets" ? NT_LIMITE_SHEETS : NT_LIMITE, notas: [] };
       await llamarNotas("notario_agregar", { id: nuevo.id, zona: nuevo.zona, nombre, descripcion, fecha: nuevo.fecha, destino });
       NT.lista.push(nuevo);
@@ -6225,7 +6687,7 @@ async function ntCrearDesdeFormulario(zona, nombreCrudo, descripcionCruda, desti
     setEstado(estadoEl, "La descripción del notario admite hasta 5,000 caracteres (llevas " + ntFmt(descripcion.length) + ")", "error");
     return null;
   }
-  const destino = destinoCrudo === "drive" ? "drive" : "sheets";
+  const destino = "drive"; // todo se guarda en Drive
   const nuevo = { id: ntNuevoId(), zona, nombre, descripcion, fecha: selloFechaHora(), destino, limite: destino === "sheets" ? NT_LIMITE_SHEETS : NT_LIMITE, notas: [] };
   boton.disabled = true;
   setEstado(estadoEl, "Creando notario…");

@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="48" />
+  <meta name="app-version" content="49" />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=48" />
+  <link rel="stylesheet" href="styles.css?v=49" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -428,7 +428,7 @@
                 </label>
               </div>
               <!-- Dónde se guarda el texto de la nota -->
-              <label class="notas-campo">
+              <label class="notas-campo" hidden>
                 <span>Guardar en</span>
                 <select id="notas-destino">
                   <option value="sheets">Google Sheets (en la hoja Notas)</option>
@@ -527,7 +527,7 @@
           <span>Nombre</span>
           <input id="ej-nombre" type="text" maxlength="80" placeholder="Ej. Sentadillas" autocomplete="off" />
         </label>
-        <label class="notas-campo">
+        <label class="notas-campo" hidden>
           <span>Guardar en</span>
           <select id="ej-destino">
             <option value="sheets">Google Sheets (en la hoja)</option>
@@ -633,7 +633,7 @@
           <span>Nombre</span>
           <input id="di-nombre" type="text" maxlength="80" placeholder="Ej. Idea del día" autocomplete="off" />
         </label>
-        <label class="notas-campo">
+        <label class="notas-campo" hidden>
           <span>Guardar en</span>
           <select id="di-destino">
             <option value="sheets">Google Sheets (en la hoja)</option>
@@ -696,7 +696,7 @@
           <input id="de-nombre" type="text" maxlength="80" placeholder="Ej. Préstamo a Juan" autocomplete="off" />
         </label>
         <p id="de-creada" class="notas-estado" hidden></p>
-        <label class="notas-campo">
+        <label class="notas-campo" hidden>
           <span>Guardar en</span>
           <select id="de-destino">
             <option value="sheets">Google Sheets (en la hoja)</option>
@@ -763,7 +763,7 @@
           <span>Fecha</span>
           <input id="ip-fecha" type="date" min="1999-02-02" max="2099-02-02" />
         </label>
-        <label class="notas-campo">
+        <label class="notas-campo" hidden>
           <span>Guardar en</span>
           <select id="ip-destino">
             <option value="sheets">Google Sheets (en la hoja)</option>
@@ -830,7 +830,7 @@
           <span>Fecha</span>
           <input id="cm-fecha" type="date" min="1999-02-02" max="2099-02-02" />
         </label>
-        <label class="notas-campo">
+        <label class="notas-campo" hidden>
           <span>Guardar en</span>
           <select id="cm-destino">
             <option value="sheets">Google Sheets (en la hoja)</option>
@@ -901,7 +901,7 @@
             <option value="Ventas">Ventas</option>
           </select>
         </label>
-        <label class="notas-campo">
+        <label class="notas-campo" hidden>
           <span>Guardar en</span>
           <select id="bz-destino">
             <option value="sheets">Google Sheets (en la hoja)</option>
@@ -985,6 +985,13 @@
           <button id="em-det-ajustes" class="em-det-btn" type="button" aria-label="Ajustes de este proyecto" title="Ajustes">&#9881;&#xFE0E;</button>
         </div>
         <div id="em-det-imagen" class="em-det-hero"></div>
+        <!-- Botón de la hoja de redes: justo debajo del banner (empuja hacia abajo el nombre, la descripción y lo demás) -->
+        <div class="em-det-hoja-fila">
+          <button id="em-hoja-abrir" class="em-hoja-abrir" type="button">
+            <span class="em-hoja-abrir-ico" aria-hidden="true">&#128202;</span>
+            <span>Hoja de redes</span>
+          </button>
+        </div>
         <div class="em-det-titulo-fila">
           <h3 id="em-det-nombre" class="em-det-nombre"></h3>
           <span id="em-det-fecha" class="em-det-fecha"></span>
@@ -1009,7 +1016,7 @@
                 <input id="em-nota-fecha" class="em-nota-texto" type="datetime-local" />
               </label>
             </div>
-            <label class="em-nota-campo">
+            <label class="em-nota-campo" hidden>
               <span>Guardar en</span>
               <select id="em-nota-destino" class="em-nota-texto">
                 <option value="sheets">Google Sheets (hasta 50,000 caracteres en total por empresa)</option>
@@ -1026,6 +1033,26 @@
             </div>
           </div>
           <div id="em-notas-lista" class="em-notas-lista"></div>
+        </div>
+      </div>
+
+      <!-- Hoja de redes: una sola hoja con celdas de texto, parecida a Google Sheets (pestaña «Hoja Redes» de tu libro) -->
+      <div id="em-hoja" class="em-hoja" hidden role="dialog" aria-modal="true" aria-labelledby="em-hoja-titulo">
+        <div class="em-hoja-barra">
+          <button id="em-hoja-volver" class="em-hoja-icono" type="button" aria-label="Volver" title="Volver">&#8592;</button>
+          <h3 id="em-hoja-titulo" class="em-hoja-titulo">&#128202; Hoja de redes</h3>
+          <span id="em-hoja-estado" class="notas-estado em-hoja-estado" role="status"></span>
+          <button id="em-hoja-recargar" class="em-hoja-icono" type="button" aria-label="Volver a leer la hoja" title="Volver a leer la hoja">&#8635;</button>
+          <button id="em-hoja-guardar" class="em-hoja-guardar" type="button">Guardar</button>
+        </div>
+        <div class="em-hoja-herr">
+          <button id="em-hoja-fila-mas" class="em-hoja-herr-btn" type="button">+ Fila</button>
+          <button id="em-hoja-filas-mas" class="em-hoja-herr-btn" type="button">+ 10 filas</button>
+          <button id="em-hoja-fila-quitar" class="em-hoja-herr-btn em-hoja-herr-peligro" type="button" title="Quita la fila donde está el cursor">&#128465; Quitar fila</button>
+          <span class="em-hoja-ayuda">Se guarda sola al escribir. Enter baja, Tab avanza; puedes pegar celdas copiadas de Google Sheets.</span>
+        </div>
+        <div id="em-hoja-scroll" class="em-hoja-scroll">
+          <table id="em-hoja-tabla" class="em-hoja-tabla"></table>
         </div>
       </div>
 
@@ -1154,9 +1181,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=48"></script>
-  <script src="app.js?v=48"></script>
-  <script src="voz.js?v=48"></script>
-  <script type="module" src="firebase.js?v=48"></script>
+  <script src="config.js?v=49"></script>
+  <script src="app.js?v=49"></script>
+  <script src="voz.js?v=49"></script>
+  <script type="module" src="firebase.js?v=49"></script>
 </body>
 </html>

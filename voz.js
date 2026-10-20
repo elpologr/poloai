@@ -375,7 +375,7 @@
     if (!z) throw new Error("Elige una zona");
     if (typeof llamarNotas !== "function") throw new Error("app.js no está cargado");
     const nombre = c.nombre.trim() || "Sin nombre";
-    const destino = "sheets"; // lo largo pasa solo a Drive en el Apps Script (más de 40,000 caracteres)
+    const destino = "drive"; // todo se guarda en Drive (el Apps Script también lo fuerza)
 
     if (z.tipo === "nota") {
       const nota = {
