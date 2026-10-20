@@ -4895,8 +4895,7 @@ function dibujarDetalleEm() {
 
 function abrirDetalleEm(d) {
   emDetActual = d;
-  emNotaEditandoId = null;
-  emNotaTexto.value = "";
+  emNotaReiniciarForm();
   setEstado(emNotaEstado, "");
   dibujarDetalleEm();
   emDetalle.hidden = false;
@@ -4914,12 +4913,77 @@ emEl("em-det-ajustes").addEventListener("click", () => {
 });
 
 // ----- Notas personales de la empresa o proyecto abierto (columna H «Notas» de la hoja) -----
+// Cada nota tiene nombre, fecha de creación, fecha de la última modificación y dónde se guarda su texto:
+//  · Google Sheets: el texto vive en la celda H de la empresa (50,000 caracteres en total entre las notas de Sheets);
+//  · Google Drive: el texto vive en su propio .txt (hasta 1,000,000 de caracteres por nota).
+const EM_LIM_SHEETS = 50000; // igual a LIMITE_NOTARIO_SHEETS del Apps Script
+const EM_LIM_DRIVE = 1000000; // igual a LIMITE_NOTARIO del Apps Script
+const EM_SEP_LARGO = 9; // largo del separador entre notas dentro de la celda
+const EM_ENCABEZADO = 70; // largo aproximado del encabezado de una nota en la celda (sin el nombre)
+const emNotaForm = emEl("em-nota-form");
+const emNotaFormTitulo = emEl("em-nota-form-titulo");
+const emNotaNombre = emEl("em-nota-nombre");
+const emNotaFecha = emEl("em-nota-fecha");
+const emNotaDestino = emEl("em-nota-destino");
 const emNotaTexto = emEl("em-nota-texto");
+const emNotaContador = emEl("em-nota-contador");
 const emNotaAgregar = emEl("em-nota-agregar");
+const emNotaCancelar = emEl("em-nota-cancelar");
 const emNotaEstado = emEl("em-nota-estado");
 const emNotasLista = emEl("em-notas-lista");
 const emNotasTitulo = emEl("em-notas-titulo");
-let emNotaEditandoId = null; // id de la nota que se está editando (null = ninguna)
+let emNotaEditandoId = null; // id de la nota que se está editando (null = nota nueva)
+
+// Deja el formulario como «Nueva nota»
+function emNotaReiniciarForm() {
+  emNotaEditandoId = null;
+  emNotaNombre.value = "";
+  emNotaFecha.value = fechaActualInput();
+  emNotaDestino.value = "sheets";
+  emNotaTexto.value = "";
+  emNotaFormTitulo.textContent = "Nueva nota";
+  emNotaAgregar.textContent = "Agregar nota";
+  emNotaCancelar.hidden = true;
+  emActualizarContador();
+}
+
+// Caracteres que aún caben en la celda de Sheets para el texto de una nota (descontando lo ocupado por las demás)
+function emEspacioSheets(d, editando) {
+  const notas = Array.isArray(d.notas) ? d.notas : [];
+  let usado = d.notasLargo || 0;
+  let quedan = notas.length;
+  if (editando) {
+    usado -= editando.largo || 0;
+    quedan -= 1;
+    if (quedan > 0) usado -= EM_SEP_LARGO;
+  }
+  if (quedan > 0) usado += EM_SEP_LARGO;
+  return Math.max(0, EM_LIM_SHEETS - usado - EM_ENCABEZADO - emNotaNombre.value.length);
+}
+
+// Contador de lo que se escribe: cuánto lleva y cuánto cabe en el lugar elegido
+function emActualizarContador() {
+  const d = emDetActual;
+  if (!d) {
+    emNotaContador.textContent = "";
+    return;
+  }
+  const editando = emNotaEditandoId ? (d.notas || []).find((n) => n.id === emNotaEditandoId) : null;
+  const largo = emNotaTexto.value.length;
+  const drive = emNotaDestino.value === "drive";
+  const tope = drive ? EM_LIM_DRIVE : emEspacioSheets(d, editando);
+  const sobran = largo - tope;
+  emNotaContador.textContent = drive
+    ? ntFmt(largo) + " / " + ntFmt(EM_LIM_DRIVE) + " caracteres (Google Drive)"
+    : ntFmt(largo) + " / " + ntFmt(tope) + " caracteres libres en Google Sheets para esta empresa";
+  emNotaContador.className = "em-nota-contador" + (sobran > 0 ? " em-nota-contador-error" : "");
+  if (sobran > 0) {
+    emNotaContador.textContent += " · te pasas por " + ntFmt(sobran) + (drive ? "" : ". Acórtala o guárdala en Google Drive");
+  }
+  emNotaAgregar.disabled = sobran > 0;
+}
+[emNotaTexto, emNotaNombre].forEach((el) => el.addEventListener("input", emActualizarContador));
+emNotaDestino.addEventListener("change", emActualizarContador);
 
 function dibujarNotasEm() {
   const d = emDetActual;
@@ -4932,69 +4996,36 @@ function dibujarNotasEm() {
     p.className = "em-nota-vacia";
     p.textContent = "Aún no hay notas aquí. Escribe la primera arriba ✨";
     emNotasLista.appendChild(p);
-    return;
+  } else {
+    lista
+      .slice()
+      .reverse()
+      .forEach((nota) => emNotasLista.appendChild(emCrearNota(d, nota)));
   }
-  lista
-    .slice()
-    .reverse()
-    .forEach((nota) => emNotasLista.appendChild(emCrearNota(d, nota)));
+  emActualizarContador();
 }
 
 function emCrearNota(d, nota) {
   const caja = document.createElement("div");
-  caja.className = "em-nota";
-  const fecha = document.createElement("div");
-  fecha.className = "em-nota-fecha";
-  fecha.textContent = nota.fecha || "";
-
-  if (emNotaEditandoId === nota.id) {
-    const ta = document.createElement("textarea");
-    ta.className = "em-nota-texto em-nota-edit";
-    ta.rows = 4;
-    ta.value = nota.texto;
-    const estado = document.createElement("span");
-    estado.className = "notas-estado em-nota-estado";
-    const fila = document.createElement("div");
-    fila.className = "em-nota-fila";
-    const ok = document.createElement("button");
-    ok.type = "button";
-    ok.className = "em-nota-btn-agregar";
-    ok.textContent = "Guardar cambios";
-    const no = document.createElement("button");
-    no.type = "button";
-    no.className = "em-nota-btn-sec";
-    no.textContent = "Cancelar";
-    fila.append(ok, no, estado);
-    no.addEventListener("click", () => {
-      emNotaEditandoId = null;
-      dibujarNotasEm();
-    });
-    ok.addEventListener("click", async () => {
-      const t = ntLimpiar(ta.value);
-      if (!t) {
-        setEstado(estado, "La nota no puede quedar vacía", "error");
-        return;
-      }
-      ok.disabled = true;
-      setEstado(estado, "Guardando…");
-      try {
-        await llamarNotas("empresa_nota_guardar", { id: d.id, notaId: nota.id, fecha: nota.fecha, texto: t });
-        nota.texto = t;
-        emNotaEditandoId = null;
-        dibujarNotasEm();
-      } catch (e) {
-        setEstado(estado, "Error: " + e.message, "error");
-        ok.disabled = false;
-      }
-    });
-    caja.append(fecha, ta, fila);
-    setTimeout(() => ta.focus(), 0);
-    return caja;
-  }
-
+  caja.className = "em-nota" + (emNotaEditandoId === nota.id ? " em-nota-editando" : "");
+  const cab = document.createElement("div");
+  cab.className = "em-nota-cab";
+  const nombre = document.createElement("b");
+  nombre.className = "em-nota-nombre";
+  nombre.textContent = nota.nombre || "Sin nombre";
+  const lugar = document.createElement("span");
+  lugar.className = "em-nota-lugar";
+  lugar.textContent = nota.destino === "drive" ? "☁ Drive" : "▦ Sheets";
+  cab.append(nombre, lugar);
+  const fechas = document.createElement("div");
+  fechas.className = "em-nota-fecha";
+  fechas.textContent =
+    "Creada: " + (nota.fecha || "—") + (nota.modificada ? " · Modificada: " + nota.modificada : "");
   const texto = document.createElement("p");
   texto.className = "em-nota-cuerpo";
   texto.textContent = nota.texto;
+  const larga = String(nota.texto || "").length > 600;
+  if (larga) texto.classList.add("em-nota-colapsada");
   const botones = document.createElement("div");
   botones.className = "em-nota-botones";
   const editar = document.createElement("button");
@@ -5003,10 +5034,7 @@ function emCrearNota(d, nota) {
   editar.title = "Editar nota";
   editar.setAttribute("aria-label", "Editar nota");
   editar.textContent = "✎";
-  editar.addEventListener("click", () => {
-    emNotaEditandoId = nota.id;
-    dibujarNotasEm();
-  });
+  editar.addEventListener("click", () => emNotaEditar(nota));
   const borrar = document.createElement("button");
   borrar.type = "button";
   borrar.className = "em-nota-btn";
@@ -5014,11 +5042,13 @@ function emCrearNota(d, nota) {
   borrar.setAttribute("aria-label", "Eliminar nota");
   borrar.textContent = "×";
   borrar.addEventListener("click", async () => {
-    if (!window.confirm("¿Eliminar esta nota?")) return;
+    if (!window.confirm("¿Eliminar la nota «" + (nota.nombre || "Sin nombre") + "»?")) return;
     setEstado(emNotaEstado, "Eliminando…");
     try {
-      await llamarNotas("empresa_nota_borrar", { id: d.id, notaId: nota.id });
+      const j = await llamarNotas("empresa_nota_borrar", { id: d.id, notaId: nota.id });
       d.notas = d.notas.filter((x) => x.id !== nota.id);
+      if (typeof j.largo === "number") d.notasLargo = j.largo;
+      if (emNotaEditandoId === nota.id) emNotaReiniciarForm();
       setEstado(emNotaEstado, "Nota eliminada", "ok");
       dibujarNotasEm();
     } catch (e) {
@@ -5026,11 +5056,44 @@ function emCrearNota(d, nota) {
     }
   });
   botones.append(editar, borrar);
-  caja.append(fecha, texto, botones);
+  caja.append(cab, fechas, texto);
+  if (larga) {
+    const mas = document.createElement("button");
+    mas.type = "button";
+    mas.className = "em-nota-mas";
+    mas.textContent = "Ver todo";
+    mas.addEventListener("click", () => {
+      const abierta = texto.classList.toggle("em-nota-colapsada");
+      mas.textContent = abierta ? "Ver todo" : "Ver menos";
+    });
+    caja.appendChild(mas);
+  }
+  caja.appendChild(botones);
   return caja;
 }
 
-async function emAgregarNota() {
+// Carga una nota en el formulario de arriba para modificarla
+function emNotaEditar(nota) {
+  emNotaEditandoId = nota.id;
+  emNotaNombre.value = nota.nombre || "";
+  emNotaFecha.value = fechaAInput(nota.fecha) || fechaActualInput();
+  emNotaDestino.value = nota.destino === "drive" ? "drive" : "sheets";
+  emNotaTexto.value = nota.texto || "";
+  emNotaFormTitulo.textContent = "Editar nota";
+  emNotaAgregar.textContent = "Guardar cambios";
+  emNotaCancelar.hidden = false;
+  setEstado(emNotaEstado, "");
+  dibujarNotasEm();
+  emNotaForm.scrollIntoView({ behavior: "smooth", block: "center" });
+  emNotaNombre.focus();
+}
+emNotaCancelar.addEventListener("click", () => {
+  emNotaReiniciarForm();
+  setEstado(emNotaEstado, "");
+  dibujarNotasEm();
+});
+
+async function emGuardarNota() {
   const d = emDetActual;
   if (!d) return;
   const texto = ntLimpiar(emNotaTexto.value);
@@ -5038,28 +5101,51 @@ async function emAgregarNota() {
     setEstado(emNotaEstado, "Escribe algo primero", "error");
     return;
   }
-  const nota = { id: ntNuevoId(), fecha: selloFechaHora(), texto };
   const actuales = Array.isArray(d.notas) ? d.notas : [];
-  const sobran = ntLargo(actuales.concat([nota])) - NT_LIMITE;
-  if (sobran > 0) {
-    setEstado(emNotaEstado, "No cabe: te pasas por " + ntFmt(sobran) + " caracteres", "error");
+  const editando = emNotaEditandoId ? actuales.find((n) => n.id === emNotaEditandoId) : null;
+  const nombre = emNotaNombre.value.replace(/[|\r\n]+/g, " ").trim().slice(0, 80);
+  const destino = emNotaDestino.value === "drive" ? "drive" : "sheets";
+  const fecha = inputAFecha(emNotaFecha.value) || (editando && editando.fecha) || selloFechaHora();
+  if (editando && editando.nombre === nombre && editando.fecha === fecha && editando.destino === destino && editando.texto === texto) {
+    emNotaReiniciarForm();
+    setEstado(emNotaEstado, "Sin cambios");
+    dibujarNotasEm();
     return;
   }
+  const nota = {
+    id: editando ? editando.id : ntNuevoId(),
+    nombre,
+    fecha,
+    modificada: editando ? selloFechaHora() : "", // al modificar queda anotado cuándo
+    destino,
+    texto,
+  };
   emNotaAgregar.disabled = true;
   setEstado(emNotaEstado, "Guardando…");
   try {
-    await llamarNotas("empresa_nota_guardar", { id: d.id, notaId: nota.id, fecha: nota.fecha, texto: nota.texto });
-    d.notas = actuales.concat([nota]);
-    emNotaTexto.value = "";
-    setEstado(emNotaEstado, "Nota agregada ✓", "ok");
+    const j = await llamarNotas("empresa_nota_guardar", {
+      id: d.id,
+      notaId: nota.id,
+      nombre: nota.nombre,
+      fecha: nota.fecha,
+      modificada: nota.modificada,
+      destino: nota.destino,
+      texto: nota.texto,
+    });
+    nota.largo = typeof j.notaLargo === "number" ? j.notaLargo : 0;
+    if (typeof j.largo === "number") d.notasLargo = j.largo;
+    d.notas = editando ? actuales.map((n) => (n.id === nota.id ? nota : n)) : actuales.concat([nota]);
+    const eraEdicion = !!editando;
+    emNotaReiniciarForm();
+    setEstado(emNotaEstado, eraEdicion ? "Cambios guardados ✓" : "Nota agregada ✓", "ok");
     dibujarNotasEm();
   } catch (e) {
     setEstado(emNotaEstado, "Error: " + e.message, "error");
   } finally {
-    emNotaAgregar.disabled = false;
+    emActualizarContador();
   }
 }
-emNotaAgregar.addEventListener("click", emAgregarNota);
+emNotaAgregar.addEventListener("click", emGuardarNota);
 
 // ----- Mini notas cuadradas -----
 function dibujarChipsEm() {
@@ -5164,6 +5250,7 @@ async function guardarEm() {
       descripcion: emDescripcion.value.trim(),
       links: enlacesDeTexto(emLinks.value).join("\n"),
       notas: editando && Array.isArray(editando.notas) ? editando.notas : [], // las notas se guardan aparte (columna H)
+      notasLargo: editando ? editando.notasLargo || 0 : 0,
     };
     await llamarNotas(editando ? "empresa_editar" : "empresa_agregar", d);
     // Se reemplaza solo ESA nota (por posición, no por Id) y luego se vuelve a leer la hoja para mostrar lo que quedó guardado

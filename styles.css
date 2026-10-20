@@ -2244,3 +2244,21 @@ span.em-red { --red-fondo: #262b3d; border-style: dashed; }
 @media (max-width: 600px) {
   .em-det-notas-zona { margin-left: 14px; margin-right: 14px; }
 }
+
+/* ---------- Notas de empresa: nombre, fechas y lugar de guardado ---------- */
+.em-nota-form { margin-bottom: 18px; padding: 12px; border: 1px solid rgba(159, 180, 222, 0.28); border-radius: 14px; background: rgba(255, 255, 255, 0.04); }
+.em-nota-form-titulo { margin: 0 0 10px; font-size: 0.95rem; color: #dfe5f5; }
+.em-nota-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.em-nota-campo { display: block; margin-bottom: 10px; font-size: 0.8rem; font-weight: 700; color: #9fb4de; }
+.em-nota-campo .em-nota-texto { margin-top: 4px; font-weight: 400; }
+.em-nota-form select.em-nota-texto, .em-nota-form input.em-nota-texto { color-scheme: dark; }
+.em-nota-contador { margin-top: 6px; font-size: 0.8rem; color: #9fb4de; }
+.em-nota-contador-error { color: #ff9b9b; font-weight: 700; }
+.em-nota-fila { margin-top: 10px; }
+.em-nota-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+.em-nota-nombre { color: #f2f4fa; overflow-wrap: anywhere; }
+.em-nota-lugar { padding: 1px 8px; font-size: 0.7rem; font-weight: 800; color: #07080c; background: #9fc0ff; border-radius: 999px; }
+.em-nota-editando { outline: 2px solid rgba(159, 192, 255, 0.8); }
+.em-nota-colapsada { max-height: 9em; overflow: hidden; }
+.em-nota-mas { margin-top: 6px; padding: 0; font: inherit; font-size: 0.82rem; font-weight: 700; color: #9fc0ff; background: none; border: 0; cursor: pointer; }
+@media (max-width: 600px) { .em-nota-campos { grid-template-columns: 1fr; } }
