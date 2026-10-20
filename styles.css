@@ -2621,3 +2621,47 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
 /* El botón del menú lateral (☰) está fijo arriba a la izquierda: se baja la barra de la hoja de redes y de la nota especial
    para que el botón de regresar (←) quede debajo de él y no tapado */
 .em-hoja > .em-hoja-barra { padding-top: 64px; }
+
+/* ---------- Nota especial: correo, cuenta de COC, apartados desplegables y colores de cada red ---------- */
+.em-nesp-campo input {
+  width: 100%; box-sizing: border-box; padding: 8px 10px; font: inherit; font-size: 0.95rem; color: #202124;
+  background: #fff; border: 1px solid #dadce0; border-radius: 8px;
+}
+.em-nesp-campo input:focus { outline: 2px solid #188038; outline-offset: -1px; }
+.em-nesp-punto { display: none; margin-left: 6px; font-size: 0.7em; opacity: 0.9; }
+.con-datos > summary .em-nesp-punto, .con-datos > .em-nesp-punto, .em-nesp-coc-btn.con-datos .em-nesp-punto { display: inline; }
+
+.em-nesp-coc-btn {
+  display: flex; align-items: center; width: 100%; padding: 10px 14px; font: inherit; font-size: 0.95rem; font-weight: 800;
+  color: #fff; text-align: left; cursor: pointer; background: linear-gradient(135deg, #f5a623, #c77700); border: 0; border-radius: 10px;
+}
+.em-nesp-coc-btn:hover { filter: brightness(1.08); }
+.em-nesp-flecha { margin-left: auto; transition: transform 0.15s; }
+.em-nesp-coc-btn.abierto .em-nesp-flecha { transform: rotate(180deg); }
+.em-nesp-coc { display: flex; flex-direction: column; gap: 10px; padding: 10px; background: #fff8e6; border: 1px solid #f5d28a; border-radius: 10px; }
+.em-nesp-coc[hidden] { display: none; }
+
+/* Cada red: recuadro de su color que se despliega */
+.em-nesp-tarjeta.em-nesp-plat { display: block; padding: 0; overflow: hidden; border: 2px solid var(--plat-borde, #dadce0); }
+.em-nesp-plat[data-plat="YT"] { --plat-fondo: #d6201a; --plat-borde: #d6201a; }
+.em-nesp-plat[data-plat="FB"] { --plat-fondo: #1877f2; --plat-borde: #1877f2; }
+.em-nesp-plat[data-plat="IG"] { --plat-fondo: linear-gradient(45deg, #f2a23c, #e1306c 55%, #7b3fe4); --plat-borde: #e1306c; }
+.em-nesp-plat[data-plat="TT"] { --plat-fondo: #050505; --plat-borde: #050505; }
+.em-nesp-plat > summary {
+  display: flex; align-items: center; padding: 13px 14px; font-size: 1.05rem; font-weight: 800; color: #fff;
+  background: var(--plat-fondo); cursor: pointer; list-style: none;
+}
+.em-nesp-plat > summary::-webkit-details-marker { display: none; }
+.em-nesp-plat > summary::after { content: "\25BE"; margin-left: auto; transition: transform 0.15s; }
+.em-nesp-plat[open] > summary::after { transform: rotate(180deg); }
+.em-nesp-plat[data-plat="TT"] > summary { border-bottom: 3px solid; border-image: linear-gradient(90deg, #25f4ee, #fe2c55) 1; }
+.em-nesp-plat[data-plat="TT"] .em-nesp-nombre { text-shadow: -1.5px -1.5px 0 #25f4ee, 1.5px 1.5px 0 #fe2c55; }
+.em-nesp-plat-cuerpo { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+
+/* Videos y Shorts dentro de cada red */
+.em-nesp-sec { display: block; padding: 0; background: #f8f9fa; border: 1px solid #e8eaed; border-radius: 10px; }
+.em-nesp-sec > summary { display: flex; align-items: center; padding: 10px 12px; font-size: 0.95rem; font-weight: 700; color: #202124; cursor: pointer; list-style: none; }
+.em-nesp-sec > summary::-webkit-details-marker { display: none; }
+.em-nesp-sec > summary::after { content: "\25BE"; margin-left: auto; color: #5f6368; transition: transform 0.15s; }
+.em-nesp-sec[open] > summary::after { transform: rotate(180deg); }
+.em-nesp-sec-cuerpo { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; }

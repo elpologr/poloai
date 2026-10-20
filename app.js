@@ -6832,6 +6832,7 @@ const nespBuscar = (d) => (Array.isArray(d.notas) ? d.notas : []).find((n) => n.
 function nespClaves() {
   const k = [];
   if (nespValores.REDES && nespValores.REDES.trim()) k.push("REDES"); // texto de antes, cuando las redes se escribían aquí
+  k.push("CORREO", "COC_NOMBRE", "COC_LINK", "COC_TH", "COC_PRECIO"); // referencia de correo y cuenta de Clash of Clans
   // _DESC y _TAGS = videos; _SDESC y _STAGS = shorts
   NESP_PLATAFORMAS.forEach((p) => k.push(p.id + "_DESC", p.id + "_TAGS", p.id + "_SDESC", p.id + "_STAGS"));
   return k;
@@ -6874,7 +6875,8 @@ async function nespCopiar(texto, boton) {
   nespAvisoBoton(boton, ok ? "¡Copiado!" : "No se pudo");
 }
 
-function nespCrearCampo(clave, etiqueta, aria, filas, ph) {
+// Un campo con su botón «Copiar». linea = true: una sola línea (input); si no, un cuadro de texto (textarea)
+function nespCrearCampo(clave, etiqueta, aria, filas, ph, linea) {
   const campo = document.createElement("div");
   campo.className = "em-nesp-campo";
   const cab = document.createElement("div");
@@ -6886,16 +6888,31 @@ function nespCrearCampo(clave, etiqueta, aria, filas, ph) {
   copiar.className = "em-nesp-copiar";
   copiar.textContent = "Copiar";
   cab.append(et, copiar);
-  const ta = document.createElement("textarea");
-  ta.rows = filas;
-  ta.maxLength = NESP_MAX;
+  let ta;
+  if (linea) {
+    ta = document.createElement("input");
+    ta.type = "text";
+    ta.maxLength = 500;
+    ta.autocomplete = "off";
+  } else {
+    ta = document.createElement("textarea");
+    ta.rows = filas;
+    ta.maxLength = NESP_MAX;
+  }
   ta.placeholder = ph || "";
   ta.value = nespValores[clave] || "";
   ta.setAttribute("aria-label", aria);
-  ta.addEventListener("input", () => { nespValores[clave] = ta.value; nespMarcarCambio(); });
+  ta.addEventListener("input", () => { nespValores[clave] = ta.value; nespActualizarMarcas(); nespMarcarCambio(); });
   copiar.addEventListener("click", () => nespCopiar(ta.value, copiar));
   campo.append(cab, ta);
   return campo;
+}
+
+// Pone un punto ● en los apartados cerrados que ya tienen algo escrito
+function nespActualizarMarcas() {
+  nespCuerpo.querySelectorAll("[data-claves]").forEach((el) => {
+    el.classList.toggle("con-datos", el.dataset.claves.split(",").some((k) => nespValores[k] && nespValores[k].trim()));
+  });
 }
 
 // Links del proyecto: el «Link» y la «Zona de links» de ⚙ Ajustes (sin repetir)
@@ -6959,25 +6976,76 @@ function nespCrearRedes(d) {
   return redes;
 }
 
-// Una sección (videos o shorts) de una red: su descripción, sus hashtags y el botón de copiar todo
+// Una sección desplegable (videos o shorts) de una red: su descripción, sus hashtags y el botón de copiar todo
 function nespCrearSeccion(p, titulo, cuando, kDesc, kTags) {
-  const sec = document.createElement("div");
+  const sec = document.createElement("details");
   sec.className = "em-nesp-sec";
-  const h5 = document.createElement("h5");
-  h5.textContent = titulo;
+  sec.dataset.claves = kDesc + "," + kTags;
+  const sum = document.createElement("summary");
+  const tit = document.createElement("span");
+  tit.textContent = titulo;
+  const punto = document.createElement("span");
+  punto.className = "em-nesp-punto";
+  punto.textContent = "●";
+  sum.append(tit, punto);
+  const cuerpo = document.createElement("div");
+  cuerpo.className = "em-nesp-sec-cuerpo";
   const todo = document.createElement("button");
   todo.type = "button";
   todo.className = "em-nesp-copiar em-nesp-copiar-todo";
   todo.textContent = "Copiar descripción + hashtags";
   todo.addEventListener("click", () =>
     nespCopiar([nespValores[kDesc], nespValores[kTags]].filter((x) => x && x.trim()).join("\n\n"), todo));
-  sec.append(
-    h5,
+  cuerpo.append(
     nespCrearCampo(kDesc, "Descripción", p.nombre + " " + cuando + ": descripción", 6, "Descripción que usas en tus " + cuando + " de " + p.nombre + "…"),
     nespCrearCampo(kTags, "Hashtags", p.nombre + " " + cuando + ": hashtags", 2, "#hashtag1 #hashtag2 #hashtag3"),
     todo
   );
+  sec.append(sum, cuerpo);
   return sec;
+}
+
+// Referencia de correo + cuenta de Clash of Clans (los recuadros salen al presionar «Cuenta de COC»)
+function nespCrearCorreo() {
+  const t = document.createElement("section");
+  t.className = "em-nesp-tarjeta";
+  const h = document.createElement("h4");
+  h.textContent = "\u{1F4E7} Referencia de correo";
+  t.append(h, nespCrearCampo("CORREO", "Texto para recordar el correo de este proyecto", "Referencia de correo", 2, "Ej.: correo principal del canal…"));
+
+  const claves = ["COC_NOMBRE", "COC_LINK", "COC_TH", "COC_PRECIO"];
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "em-nesp-coc-btn";
+  btn.dataset.claves = claves.join(",");
+  btn.setAttribute("aria-expanded", "false");
+  const txt = document.createElement("span");
+  txt.textContent = "Cuenta de COC";
+  const punto = document.createElement("span");
+  punto.className = "em-nesp-punto";
+  punto.textContent = "●";
+  const flecha = document.createElement("span");
+  flecha.className = "em-nesp-flecha";
+  flecha.setAttribute("aria-hidden", "true");
+  flecha.textContent = "▾";
+  btn.append(txt, punto, flecha);
+
+  const caja = document.createElement("div");
+  caja.className = "em-nesp-coc";
+  caja.hidden = true;
+  caja.append(
+    nespCrearCampo("COC_NOMBRE", "Nombre", "Cuenta de COC: nombre", 1, "", true),
+    nespCrearCampo("COC_LINK", "Link", "Cuenta de COC: link", 1, "https://…", true),
+    nespCrearCampo("COC_TH", "TH", "Cuenta de COC: nivel de ayuntamiento (TH)", 1, "", true),
+    nespCrearCampo("COC_PRECIO", "Precio de venta", "Cuenta de COC: precio de venta", 1, "", true)
+  );
+  btn.addEventListener("click", () => {
+    caja.hidden = !caja.hidden;
+    btn.setAttribute("aria-expanded", String(!caja.hidden));
+    btn.classList.toggle("abierto", !caja.hidden);
+  });
+  t.append(btn, caja);
+  return t;
 }
 
 function nespConstruir() {
@@ -6988,6 +7056,7 @@ function nespConstruir() {
   nespCuerpo.appendChild(ayuda);
 
   nespCuerpo.appendChild(nespCrearRedes(nespProyecto));
+  nespCuerpo.appendChild(nespCrearCorreo());
 
   // Redes que se habían escrito a mano antes de enlazarlas con los ajustes: se conservan hasta que las borres
   if (nespValores.REDES && nespValores.REDES.trim()) {
@@ -6999,19 +7068,30 @@ function nespConstruir() {
     nespCuerpo.appendChild(viejo);
   }
 
+  // Cada red es un recuadro de su color que se despliega; adentro, Videos y Shorts también se despliegan
   NESP_PLATAFORMAS.forEach((p) => {
-    const t = document.createElement("section");
-    t.className = "em-nesp-tarjeta";
+    const t = document.createElement("details");
+    t.className = "em-nesp-tarjeta em-nesp-plat";
     t.dataset.plat = p.id;
-    const h4 = document.createElement("h4");
-    h4.textContent = p.icono + " " + p.nombre;
-    t.append(
-      h4,
+    t.dataset.claves = [p.id + "_DESC", p.id + "_TAGS", p.id + "_SDESC", p.id + "_STAGS"].join(",");
+    const sum = document.createElement("summary");
+    const nom = document.createElement("span");
+    nom.className = "em-nesp-nombre";
+    nom.textContent = p.icono + " " + p.nombre;
+    const punto = document.createElement("span");
+    punto.className = "em-nesp-punto";
+    punto.textContent = "●";
+    sum.append(nom, punto);
+    const cuerpo = document.createElement("div");
+    cuerpo.className = "em-nesp-plat-cuerpo";
+    cuerpo.append(
       nespCrearSeccion(p, "\u{1F3AC} Videos", "videos", p.id + "_DESC", p.id + "_TAGS"),
       nespCrearSeccion(p, "\u26A1 Shorts", "shorts", p.id + "_SDESC", p.id + "_STAGS")
     );
+    t.append(sum, cuerpo);
     nespCuerpo.appendChild(t);
   });
+  nespActualizarMarcas();
 }
 
 function nespMarcarCambio() {
