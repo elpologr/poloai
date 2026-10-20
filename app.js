@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "50";
+const VERSION = "51";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -7510,4 +7510,88 @@ cargarDatos();
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
   }
+})();
+
+
+// ---------- Notas hechas sin internet: se suben solas al volver la conexión ----------
+// La versión «Sin internet» (sin-internet.html) guarda las notas en este dispositivo (cola «polo-offline-cola»).
+// Aquí, con la app principal abierta y con sesión, se suben una por una a Google Drive/Sheets. Una nota solo se quita
+// de la cola cuando el Apps Script confirma que ya quedó guardada. El «bloqueo» evita que la página sin internet
+// y esta suban lo mismo a la vez.
+(function subirPendientesSinInternet() {
+  const CLAVE_COLA = "polo-offline-cola";
+  const CLAVE_BLOQUEO = "polo-offline-bloqueo";
+  let subiendo = false;
+
+  const leer = () => {
+    try { return JSON.parse(localStorage.getItem(CLAVE_COLA)) || []; } catch (e) { return []; }
+  };
+  const guardar = (c) => {
+    try { localStorage.setItem(CLAVE_COLA, JSON.stringify(c)); } catch (e) {}
+  };
+  const bloqueoLibre = () => Date.now() - (+localStorage.getItem(CLAVE_BLOQUEO) || 0) > 90000;
+  const marcarBloqueo = () => { try { localStorage.setItem(CLAVE_BLOQUEO, String(Date.now())); } catch (e) {} };
+  const soltarBloqueo = () => { try { localStorage.removeItem(CLAVE_BLOQUEO); } catch (e) {} };
+
+  let aviso = null;
+  let avisoTimer = null;
+  function decir(texto, tipo) {
+    if (!aviso) {
+      aviso = document.createElement("div");
+      aviso.className = "aviso-flotante";
+      aviso.setAttribute("role", "status");
+      document.body.appendChild(aviso);
+    }
+    aviso.textContent = texto;
+    aviso.classList.toggle("error", tipo === "error");
+    aviso.hidden = false;
+    clearTimeout(avisoTimer);
+    avisoTimer = setTimeout(() => { aviso.hidden = true; }, 7000);
+  }
+
+  async function subir() {
+    if (subiendo || !navigator.onLine) return;
+    if (!leer().some((x) => !x.error)) return;
+    if (!credencialVigente()) return; // sin sesión no se puede subir; se intentará cuando haya
+    if (!bloqueoLibre()) return;
+    subiendo = true;
+    marcarBloqueo();
+    let subidas = 0;
+    let conError = 0;
+    try {
+      while (true) {
+        const it = leer().find((x) => !x.error);
+        if (!it) break;
+        decir("Subiendo notas hechas sin internet… (" + (subidas + 1) + ")");
+        try {
+          await llamarNotas(it.accion, it.payload);
+          guardar(leer().filter((x) => x.payload.id !== it.payload.id));
+          subidas++;
+          marcarBloqueo();
+        } catch (e) {
+          if (!credencialVigente()) break; // la sesión se cerró: las notas se quedan guardadas
+          if (e instanceof TypeError) break; // se cortó la conexión: se reintenta después
+          const c = leer();
+          const pos = c.findIndex((x) => x.payload.id === it.payload.id);
+          if (pos !== -1) { c[pos].error = e.message || "Error desconocido"; guardar(c); }
+          conError++;
+        }
+        await new Promise((r) => setTimeout(r, 400));
+      }
+    } finally {
+      subiendo = false;
+      soltarBloqueo();
+    }
+    if (subidas) {
+      decir("✓ " + subidas + (subidas === 1 ? " nota hecha sin internet ya quedó guardada" : " notas hechas sin internet ya quedaron guardadas") +
+        (conError ? " · " + conError + " con error (siguen en la versión sin internet)" : "") + ". Vuelve a abrir la zona para verla.");
+    } else if (conError) {
+      decir(conError + " nota(s) no se pudieron subir; siguen guardadas en «Sin internet».", "error");
+    }
+  }
+
+  window.addEventListener("online", () => setTimeout(subir, 1500));
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) subir(); });
+  setInterval(subir, 60000);
+  setTimeout(subir, 3000);
 })();

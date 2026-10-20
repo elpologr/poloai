@@ -45,6 +45,7 @@
 <body>
 <main>
   <h1>📴 Polo AI · Sin internet</h1>
+  <p style="margin:0 0 12px"><a href="index.html" style="color:#fff;font-weight:600">Abrir la app completa →</a></p>
 
   <div class="tarjeta">
     <div class="estado">
@@ -93,6 +94,7 @@
   "use strict";
   const CLAVE_COLA = "polo-offline-cola";
   const CLAVE_SESION = "polo-ai-sesion"; // la misma que usa la página principal
+  const CLAVE_BLOQUEO = "polo-offline-bloqueo"; // compartido con la página principal: evita subir lo mismo dos veces a la vez
   const dos = (n) => String(n).padStart(2, "0");
   const $ = (id) => document.getElementById(id);
 
@@ -240,6 +242,8 @@
     if (!navigator.onLine) { decir($("msg-sync"), "Sin internet: se subirán cuando vuelva.", ""); return; }
     const u = sesion();
     if (!u) { decir($("msg-sync"), "Hace falta iniciar sesión: abre la página principal con internet y entra con Google.", "error"); return; }
+    if (Date.now() - (+localStorage.getItem(CLAVE_BLOQUEO) || 0) < 90000) { decir($("msg-sync"), "Ya se están subiendo desde otra pestaña…", ""); return; }
+    localStorage.setItem(CLAVE_BLOQUEO, String(Date.now()));
     subiendo = true;
     $("sincronizar").disabled = true;
     let subidas = 0, fallos = 0;
@@ -263,6 +267,7 @@
         else { if (pos !== -1) c2[pos].error = (j && j.error) || "Error desconocido"; fallos++; }
         guardarCola(c2);
         dibujar();
+        localStorage.setItem(CLAVE_BLOQUEO, String(Date.now()));
         await new Promise((r) => setTimeout(r, 400)); // poco a poco
       }
       // Se renueva el pase de este dispositivo para que la sesión siga viva
@@ -274,6 +279,7 @@
       }
     } finally {
       subiendo = false;
+      localStorage.removeItem(CLAVE_BLOQUEO);
       $("sincronizar").disabled = false;
       dibujar();
     }

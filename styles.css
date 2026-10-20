@@ -1,5 +1,5 @@
 :root {
-  --app-version: "50"; /* debe coincidir con VERSION en app.js */
+  --app-version: "51"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -2414,3 +2414,12 @@ span.em-red { --red-fondo: #262b3d; border-style: dashed; }
 .btn-lateral-instalar[hidden] { display: none; }
 .lateral-instalar-ayuda { margin: 8px 2px 0; font-size: 0.85rem; line-height: 1.4; color: #d9d2ee; }
 .lateral-instalar-ayuda[hidden] { display: none; }
+
+/* ---------- Aviso flotante (subida de notas hechas sin internet) ---------- */
+.aviso-flotante {
+  position: fixed; left: 12px; right: 12px; bottom: 16px; z-index: 200; max-width: 480px; margin: 0 auto; padding: 10px 14px;
+  font-size: 0.9rem; font-weight: 600; color: #1e5b32; background: #e6f6ea; border: 1px solid #b7e1c1;
+  border-radius: 10px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+.aviso-flotante.error { color: #a50e0e; background: #fce8e6; border-color: #f5b5b0; }
+.aviso-flotante[hidden] { display: none; }
