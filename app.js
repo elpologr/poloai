@@ -4912,6 +4912,38 @@ const REDES_EM = [
   { id: "drive", nombre: "Google Drive", glifo: "▲", hosts: ["drive.google.com", "docs.google.com"] },
 ];
 
+// Iconos de las redes (SVG propios y sencillos; usan el color del texto). Si una red no tiene icono se usa el glifo de texto.
+const EM_SVG_BASE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">';
+const EM_TXT = (t, tam) => '<text x="12" y="17.5" text-anchor="middle" font-size="' + tam + '" font-weight="800" fill="currentColor" stroke="none" font-family="Arial,sans-serif">' + t + '</text>';
+const EM_ICONOS_SVG = {
+  youtube: '<rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="M10 9.5v5l4.5-2.5z" fill="currentColor" stroke="none"/>',
+  facebook: '<path d="M14.2 8H16.5V4.8h-2.7c-2.6 0-3.8 1.6-3.8 3.9V10H7.7v3.2H10V20h3.3v-6.8h2.5l.5-3.2h-3v-1c0-.7.3-1 .9-1z" fill="currentColor" stroke="none"/>',
+  x: '<path d="M5 4l14 16M19 4L5 20"/>',
+  instagram: '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17" cy="7" r="1" fill="currentColor" stroke="none"/>',
+  threads: EM_TXT("@", 17),
+  tiktok: '<path d="M14 4v10.5a3.5 3.5 0 1 1-3.5-3.5M14 4c.4 2.3 2 3.8 4.5 4"/>',
+  whatsapp: '<path d="M4 20l1.3-4.2A8 8 0 1 1 8.3 18.7z"/><path d="M9.3 8.6c0 3.3 2.8 6.1 6.1 6.1l1-1.4-2-1-.9.8c-1-.4-1.9-1.3-2.3-2.3l.8-.9-1-2z" fill="currentColor" stroke="none"/>',
+  telegram: '<path d="M21 4L3 11l6 2 2 6 3-4 4 3z" stroke-width="1.8"/><path d="M9 13l12-9"/>',
+  linkedin: EM_TXT("in", 14),
+  github: '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 6l-3 12"/>',
+  twitch: '<path d="M5 3h15v10l-4 4h-4l-3 3v-3H5z"/><path d="M11 7v4M15 7v4"/>',
+  spotify: '<circle cx="12" cy="12" r="9"/><path d="M7 9.5c3.5-1 7-.7 10 1M7.5 12.5c3-.8 6-.5 8.5 1M8 15.3c2.5-.6 5-.4 7 .8"/>',
+  pinterest: EM_TXT("P", 17),
+  reddit: EM_TXT("r/", 13),
+  discord: '<path d="M5 7.5c2-1.3 4-2 7-2s5 .7 7 2c1 2.5 1.6 5.5 1.5 9-1.5 1.2-3 1.8-4.5 2l-1-2c-1 .3-2 .4-3 .4s-2-.1-3-.4l-1 2c-1.5-.2-3-.8-4.5-2-.1-3.5.5-6.5 1.5-9z" stroke-width="1.8"/><circle cx="9.2" cy="12.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.8" cy="12.5" r="1.2" fill="currentColor" stroke="none"/>',
+  drive: '<path d="M9 4h6l6 10-3 5H6l-3-5z" stroke-width="1.8"/><path d="M9 4l6 10h6M15 4L9 14H3M6 19l3-5h9"/>',
+  enlace: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+};
+// Devuelve el icono de una red como elemento <span>; si no hay SVG, usa el glifo de texto
+function emIconoRed(redId, glifo) {
+  const span = document.createElement("span");
+  span.className = "em-red-ico";
+  span.setAttribute("aria-hidden", "true");
+  if (EM_ICONOS_SVG[redId]) span.innerHTML = EM_SVG_BASE + EM_ICONOS_SVG[redId] + "</svg>"; // contenido fijo del código, sin datos del usuario
+  else span.textContent = glifo;
+  return span;
+}
+
 // Devuelve la red de un link (o una «Enlace» genérico) y un texto corto para mostrar debajo del nombre
 function emRedDeLink(href) {
   let host = "";
@@ -4982,19 +5014,14 @@ function dibujarDetalleEm() {
   lista.forEach((l) => {
     const href = hrefSeguro(l);
     const red = href ? emRedDeLink(href) : { id: "enlace", nombre: "Texto", glifo: "✎", corto: l.length > 38 ? l.slice(0, 37) + "…" : l };
-    const el = document.createElement(href ? "a" : "span");
-    el.className = "em-red";
+    // Cada recuadro es un botón: al presionarlo se abre el submenú de esa red (el enlace se abre desde ahí)
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "em-red" + (href ? "" : " em-red-texto");
     el.dataset.red = red.id;
-    if (href) {
-      el.href = href;
-      el.target = "_blank";
-      el.rel = "noopener noreferrer";
-      el.title = href;
-    }
-    const ico = document.createElement("span");
-    ico.className = "em-red-ico";
-    ico.setAttribute("aria-hidden", "true");
-    ico.textContent = red.glifo;
+    el.title = href || l;
+    el.setAttribute("aria-label", "Abrir el submenú de " + red.nombre);
+    el.setAttribute("aria-haspopup", "dialog");
     const txt = document.createElement("span");
     txt.className = "em-red-txt";
     const b = document.createElement("b");
@@ -5002,14 +5029,60 @@ function dibujarDetalleEm() {
     const sm = document.createElement("small");
     sm.textContent = red.corto;
     txt.append(b, sm);
-    el.append(ico, txt);
+    el.append(emIconoRed(red.id, red.glifo), txt);
+    el.addEventListener("click", () => abrirSubRed(red, href, l, el));
     emDetLinks.appendChild(el);
   });
   emDetLinksZona.hidden = lista.length === 0;
   dibujarNotasEm();
 }
 
+// ----- Submenú de una red (se abre al presionar un recuadro de enlace). De momento está vacío: aquí irán sus opciones -----
+const emRedSub = emEl("em-red-sub");
+const emRedSubCab = emEl("em-red-sub-cab");
+const emRedSubIco = emEl("em-red-sub-ico");
+const emRedSubNombre = emEl("em-red-sub-nombre");
+const emRedSubLink = emEl("em-red-sub-link");
+const emRedSubAbrir = emEl("em-red-sub-abrir");
+const emRedSubCuerpo = emEl("em-red-sub-cuerpo"); // zona libre para el contenido futuro
+let emSubActual = null; // { red, href, texto, empresa } del submenú abierto (null = cerrado)
+let emSubBoton = null; // recuadro que lo abrió (para devolver el foco al cerrar)
+
+function abrirSubRed(red, href, texto, boton) {
+  emSubActual = { red, href, texto, empresa: emDetActual };
+  emSubBoton = boton || null;
+  // Mismo color de fondo que tenía el recuadro
+  const fondo = boton ? getComputedStyle(boton).getPropertyValue("--red-fondo").trim() : "";
+  if (fondo) emRedSubCab.style.setProperty("--red-fondo", fondo);
+  else emRedSubCab.style.removeProperty("--red-fondo");
+  emRedSubCab.dataset.red = red.id;
+  emRedSubIco.innerHTML = "";
+  emRedSubIco.appendChild(emIconoRed(red.id, red.glifo));
+  emRedSubNombre.textContent = red.nombre;
+  emRedSubLink.textContent = href || texto;
+  if (href) {
+    emRedSubAbrir.href = href;
+    emRedSubAbrir.hidden = false;
+  } else {
+    emRedSubAbrir.removeAttribute("href");
+    emRedSubAbrir.hidden = true;
+  }
+  emRedSub.hidden = false;
+  emRedSub.scrollTop = 0;
+  emEl("em-red-sub-volver").focus();
+}
+function cerrarSubRed() {
+  if (emRedSub.hidden) return;
+  emRedSub.hidden = true;
+  emSubActual = null;
+  if (emSubBoton && document.contains(emSubBoton)) emSubBoton.focus();
+  emSubBoton = null;
+}
+emEl("em-red-sub-volver").addEventListener("click", cerrarSubRed);
+
 function abrirDetalleEm(d) {
+  emRedSub.hidden = true;
+  emSubActual = null;
   emDetActual = d;
   emNotaReiniciarForm();
   setEstado(emNotaEstado, "");
@@ -5019,6 +5092,9 @@ function abrirDetalleEm(d) {
   emEl("em-det-volver").focus();
 }
 function cerrarDetalleEm() {
+  emRedSub.hidden = true;
+  emSubActual = null;
+  emSubBoton = null;
   emDetalle.hidden = true;
   emHoja.hidden = true;
   emDetActual = null;
@@ -6640,7 +6716,8 @@ emBorrar.addEventListener("click", borrarEm);
 // Esc cierra la ventana
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelEm.hidden) return;
-  if (!emHoja.hidden) cerrarHoja();
+  if (!emRedSub.hidden) cerrarSubRed();
+  else if (!emHoja.hidden) cerrarHoja();
   else if (!emForm.hidden) cerrarFormEm();
   else if (!emDetalle.hidden) cerrarDetalleEm();
 });
