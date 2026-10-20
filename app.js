@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "54";
+const VERSION = "55";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -5197,18 +5197,132 @@ function hojaIdYoutube(texto) {
   return /^[\w-]{11}$/.test(id) ? id : "";
 }
 
-// Miniatura del video dentro de cualquier celda cuyo contenido sea un link de YouTube (al tocarla abre el video)
-function hojaActualizarMiniatura(td, inp, texto) {
-  let m = td.querySelector(".em-hoja-mini");
-  const id = hojaIdYoutube(texto); // en cualquier celda (no solo en la columna Youtube)
-  inp.classList.toggle("em-hoja-celda-mini", !!id);
-  if (!id) {
-    if (m) m.remove();
-    return;
+// Video de Facebook o Instagram (reel, video, post con video); devuelve { red, url } o null. Perfiles y páginas no cuentan.
+function hojaVideoSocial(texto) {
+  const url = hojaLinkDe(texto);
+  if (!url) return null;
+  let u;
+  try { u = new URL(url); } catch (e) { return null; }
+  const host = u.hostname.toLowerCase().replace(/^(www|m|web|mbasic)\./, "");
+  if (host === "fb.watch" && u.pathname.length > 1) return { red: "facebook", url };
+  if (host === "facebook.com" && /^\/(reel|reels|watch|video\.php|share\/[vr]|[^/]+\/videos)(\/|$)/.test(u.pathname)) return { red: "facebook", url };
+  if (host === "instagram.com" && /^\/(?:[^/]+\/)?(reel|reels|p|tv)\/[\w-]+/.test(u.pathname)) return { red: "instagram", url };
+  return null;
+}
+
+// Miniaturas de Facebook/Instagram: las pide el Apps Script («miniatura_link») y se recuerdan en este dispositivo unas horas
+const HOJA_CLAVE_MINIS = "polo-hoja-redes-minis";
+const HOJA_MINIS_TTL = 10 * 3600 * 1000;
+const HOJA_MINIS_MAX = 80;
+const HOJA_MINIS_REINTENTO = 5 * 60 * 1000; // si una miniatura no se pudo, no se vuelve a pedir en 5 minutos
+let hojaMinisCache = null;
+const hojaMinisFallos = {};
+const hojaMinisPend = {};
+const hojaMinisCola = [];
+let hojaMinisActivas = 0;
+function hojaMinisLeer() {
+  if (!hojaMinisCache) {
+    try { hojaMinisCache = JSON.parse(localStorage.getItem(HOJA_CLAVE_MINIS)) || {}; } catch (e) { hojaMinisCache = {}; }
   }
+  return hojaMinisCache;
+}
+function hojaMinisGuardar() {
+  const c = hojaMinisLeer();
+  const claves = Object.keys(c).sort((x, y) => c[y].t - c[x].t);
+  claves.slice(HOJA_MINIS_MAX).forEach((k) => delete c[k]);
+  try { localStorage.setItem(HOJA_CLAVE_MINIS, JSON.stringify(c)); } catch (e) {}
+}
+function hojaPedirMiniSocial(url, forzar, cb) {
+  const c = hojaMinisLeer();
+  if (!forzar && c[url] && Date.now() - c[url].t < HOJA_MINIS_TTL) { cb(c[url].src); return; }
+  if (forzar) delete c[url];
+  else if (hojaMinisFallos[url] && Date.now() - hojaMinisFallos[url] < HOJA_MINIS_REINTENTO) return;
+  if (hojaMinisPend[url]) { hojaMinisPend[url].push(cb); return; }
+  hojaMinisPend[url] = [cb];
+  hojaMinisCola.push({ url, forzar: !!forzar });
+  hojaMinisSiguiente();
+}
+function hojaMinisSiguiente() {
+  while (hojaMinisActivas < 2 && hojaMinisCola.length) {
+    const t = hojaMinisCola.shift();
+    hojaMinisActivas++;
+    llamarNotas("miniatura_link", { url: t.url, forzar: t.forzar })
+      .then((j) => {
+        if (!j || !j.imagen) { hojaMinisFallos[t.url] = Date.now(); return; }
+        hojaMinisLeer()[t.url] = { src: j.imagen, t: Date.now() };
+        hojaMinisGuardar();
+        (hojaMinisPend[t.url] || []).forEach((cb) => cb(j.imagen));
+      })
+      .catch(() => { hojaMinisFallos[t.url] = Date.now(); })
+      .finally(() => {
+        delete hojaMinisPend[t.url];
+        hojaMinisActivas--;
+        hojaMinisSiguiente();
+      });
+  }
+}
+
+// Recuadro de un video de Facebook/Instagram: primero un fondo de color con el logo; al llegar la miniatura se muestra encima
+function hojaMiniSocial(td, m, s) {
+  if (!m) {
+    m = document.createElement("a");
+    m.className = "em-hoja-mini em-hoja-mini-red em-hoja-mini-" + s.red;
+    m.dataset.tipo = s.red;
+    m.dataset.etq = s.red === "facebook" ? "FB" : "IG";
+    m.target = "_blank";
+    m.rel = "noopener noreferrer";
+    const ins = document.createElement("span");
+    ins.className = "em-hoja-mini-ins";
+    ins.textContent = "\u25B6";
+    const img = document.createElement("img");
+    img.alt = "Miniatura del video";
+    img.hidden = true;
+    img.referrerPolicy = "no-referrer";
+    img.addEventListener("load", () => { img.hidden = false; });
+    img.addEventListener("error", () => {
+      img.hidden = true;
+      img.removeAttribute("src");
+      // La dirección de la imagen pudo caducar: se pide una nueva una sola vez
+      if (m.dataset.reint) return;
+      m.dataset.reint = "1";
+      const url = m.dataset.url;
+      hojaPedirMiniSocial(url, true, (src) => { if (m.dataset.url === url) img.src = src; });
+    });
+    m.append(img, ins);
+    td.appendChild(m);
+  }
+  m.title = s.red === "facebook" ? "Abrir el video de Facebook" : "Abrir el video de Instagram";
+  m.href = s.url;
+  if (m.dataset.url !== s.url) {
+    m.dataset.url = s.url;
+    delete m.dataset.reint;
+    const img = m.querySelector("img");
+    img.hidden = true;
+    img.removeAttribute("src");
+    // Un momento de espera por si todavía se está escribiendo el link
+    clearTimeout(m._espera);
+    m._espera = setTimeout(() => {
+      if (m.dataset.url !== s.url) return;
+      hojaPedirMiniSocial(s.url, false, (src) => { if (m.dataset.url === s.url) img.src = src; });
+    }, 700);
+  }
+}
+
+// Miniatura dentro de cualquier celda cuyo contenido sea un link de video: YouTube (al tocarla se abre el reproductor),
+// Facebook o Instagram (al tocarla se abre el video en otra pestaña)
+function hojaActualizarMiniatura(td, inp, texto) {
+  const id = hojaIdYoutube(texto);
+  const social = id ? null : hojaVideoSocial(texto);
+  const tipo = id ? "youtube" : social ? social.red : "";
+  let m = td.querySelector(".em-hoja-mini");
+  if (m && m.dataset.tipo !== tipo) { m.remove(); m = null; }
+  inp.classList.toggle("em-hoja-celda-mini", !!tipo);
+  if (!tipo) return;
+  if (social) { hojaMiniSocial(td, m, social); return; }
   if (!m) {
     m = document.createElement("a");
     m.className = "em-hoja-mini";
+    m.dataset.tipo = "youtube";
     m.target = "_blank";
     m.rel = "noopener noreferrer";
     m.title = "Abrir el video";

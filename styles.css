@@ -1,5 +1,5 @@
 :root {
-  --app-version: "54"; /* debe coincidir con VERSION en app.js */
+  --app-version: "55"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -2449,3 +2449,14 @@ span.em-red { --red-fondo: #262b3d; border-style: dashed; }
 .em-hoja-sel-btn[aria-pressed="true"] { color: #fff; background: #188038; }
 .em-hoja-sel-btn:disabled { opacity: 0.6; cursor: default; }
 @media (max-width: 480px) { .em-hoja-titulo { font-size: 0.92rem; } .em-hoja-barra { gap: 6px; padding: 8px; } }
+
+/* ---------- Miniaturas de videos de Facebook e Instagram ---------- */
+.em-hoja-mini img[hidden] { display: none; }
+.em-hoja-mini-red { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.4rem; }
+.em-hoja-mini-red img { position: absolute; inset: 0; z-index: 1; }
+.em-hoja-mini-facebook { background: linear-gradient(135deg, #1877f2, #0b4fb3); }
+.em-hoja-mini-instagram { background: linear-gradient(135deg, #f58529, #dd2a7b 55%, #8134af); }
+.em-hoja-mini-red::after {
+  content: attr(data-etq); position: absolute; right: 3px; bottom: 3px; z-index: 2; padding: 1px 5px;
+  font-size: 0.65rem; font-weight: 800; color: #fff; background: rgba(0, 0, 0, 0.6); border-radius: 4px;
+}

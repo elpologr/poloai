@@ -125,3 +125,5 @@ La página de **Bazar** tiene tres zonas, separadas por divisiones marcadas:
 Al crear o editar un registro, el selector **Categoría** (Bazar, Pedidos de Yeso o Ventas) permite cambiarlo de zona. Por voz también funciona: *«anota en ventas que vendí la lámpara en 350 pesos»* o *«crea una venta que diga …»* (se guarda en la hoja «Bazar» con categoría `Ventas`).
 
 **Después de actualizar:** pega el nuevo `google-apps-script.gs` en Apps Script, publica una **nueva versión** de la implementación (ver «Después de cambiar el Apps Script») y sube **todos** los archivos del proyecto (`index.html`, `app.js`, `voz.js`, `styles.css`).
+
+- **Miniaturas en la hoja de redes**: en cualquier celda cuyo contenido sea un link de **YouTube** se muestra la miniatura (al tocarla se abre el reproductor, pausado). Los links de videos de **Facebook** (reel, watch, videos, fb.watch) e **Instagram** (reel, p, tv) muestran un recuadro de color con el logo y, si el Apps Script logra leer la miniatura del video público (acción `miniatura_link`), la imagen; al tocarlo se abre el video en otra pestaña.
