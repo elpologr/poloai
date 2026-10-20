@@ -6830,8 +6830,10 @@ const nespSucio = () => nespCambios !== nespGuardado;
 const nespBuscar = (d) => (Array.isArray(d.notas) ? d.notas : []).find((n) => n.nombre === NESP_NOMBRE) || null;
 
 function nespClaves() {
-  const k = ["REDES"];
-  NESP_PLATAFORMAS.forEach((p) => k.push(p.id + "_DESC", p.id + "_TAGS"));
+  const k = [];
+  if (nespValores.REDES && nespValores.REDES.trim()) k.push("REDES"); // texto de antes, cuando las redes se escribían aquí
+  // _DESC y _TAGS = videos; _SDESC y _STAGS = shorts
+  NESP_PLATAFORMAS.forEach((p) => k.push(p.id + "_DESC", p.id + "_TAGS", p.id + "_SDESC", p.id + "_STAGS"));
   return k;
 }
 
@@ -6896,6 +6898,88 @@ function nespCrearCampo(clave, etiqueta, aria, filas, ph) {
   return campo;
 }
 
+// Links del proyecto: el «Link» y la «Zona de links» de ⚙ Ajustes (sin repetir)
+function nespEnlacesDe(d) {
+  const lista = [];
+  [d.link].concat(enlacesDeTexto(d.links)).forEach((l) => {
+    const t = String(l || "").trim();
+    if (t && !lista.includes(t)) lista.push(t);
+  });
+  return lista;
+}
+
+function nespCrearRedes(d) {
+  const redes = document.createElement("section");
+  redes.className = "em-nesp-tarjeta";
+  const hr = document.createElement("h4");
+  hr.textContent = "\u{1F310} Redes sociales del proyecto";
+  const ayuda = document.createElement("p");
+  ayuda.className = "em-nesp-ayuda-chica";
+  ayuda.textContent = "Vienen de ⚙ Ajustes del proyecto (Link y Zona de links). Toca una para copiar su link.";
+  redes.append(hr, ayuda);
+  const lista = nespEnlacesDe(d);
+  if (!lista.length) {
+    const v = document.createElement("p");
+    v.className = "em-nesp-ayuda-chica";
+    v.textContent = "Este proyecto aún no tiene links. Agrégalos en ⚙ Ajustes → Zona de links.";
+    redes.appendChild(v);
+    return redes;
+  }
+  const grid = document.createElement("div");
+  grid.className = "em-det-links";
+  lista.forEach((l) => {
+    const href = hrefSeguro(l);
+    const red = href ? emRedDeLink(href) : { id: "enlace", nombre: "Texto", glifo: "✎", corto: l.length > 38 ? l.slice(0, 37) + "…" : l };
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "em-red" + (href ? "" : " em-red-texto");
+    el.dataset.red = red.id;
+    el.title = "Copiar: " + (href || l);
+    el.setAttribute("aria-label", "Copiar el link de " + red.nombre);
+    const txt = document.createElement("span");
+    txt.className = "em-red-txt";
+    const b = document.createElement("b");
+    b.textContent = red.nombre;
+    const sm = document.createElement("small");
+    sm.textContent = red.corto;
+    txt.append(b, sm);
+    el.append(emIconoRed(red.id, red.glifo), txt);
+    el.addEventListener("click", async () => {
+      await nespCopiar(href || l, sm);
+    });
+    grid.appendChild(el);
+  });
+  redes.appendChild(grid);
+  const todos = document.createElement("button");
+  todos.type = "button";
+  todos.className = "em-nesp-copiar em-nesp-copiar-todo";
+  todos.textContent = "Copiar todos los links";
+  todos.addEventListener("click", () => nespCopiar(lista.join("\n"), todos));
+  redes.appendChild(todos);
+  return redes;
+}
+
+// Una sección (videos o shorts) de una red: su descripción, sus hashtags y el botón de copiar todo
+function nespCrearSeccion(p, titulo, cuando, kDesc, kTags) {
+  const sec = document.createElement("div");
+  sec.className = "em-nesp-sec";
+  const h5 = document.createElement("h5");
+  h5.textContent = titulo;
+  const todo = document.createElement("button");
+  todo.type = "button";
+  todo.className = "em-nesp-copiar em-nesp-copiar-todo";
+  todo.textContent = "Copiar descripción + hashtags";
+  todo.addEventListener("click", () =>
+    nespCopiar([nespValores[kDesc], nespValores[kTags]].filter((x) => x && x.trim()).join("\n\n"), todo));
+  sec.append(
+    h5,
+    nespCrearCampo(kDesc, "Descripción", p.nombre + " " + cuando + ": descripción", 6, "Descripción que usas en tus " + cuando + " de " + p.nombre + "…"),
+    nespCrearCampo(kTags, "Hashtags", p.nombre + " " + cuando + ": hashtags", 2, "#hashtag1 #hashtag2 #hashtag3"),
+    todo
+  );
+  return sec;
+}
+
 function nespConstruir() {
   nespCuerpo.innerHTML = "";
   const ayuda = document.createElement("p");
@@ -6903,13 +6987,17 @@ function nespConstruir() {
   ayuda.textContent = "Se guarda sola al escribir. Con «Copiar» pegas el texto directo en cada red.";
   nespCuerpo.appendChild(ayuda);
 
-  const redes = document.createElement("section");
-  redes.className = "em-nesp-tarjeta";
-  const hr = document.createElement("h4");
-  hr.textContent = "\u{1F310} Redes sociales del proyecto";
-  redes.append(hr, nespCrearCampo("REDES", "Links o usuarios (uno por línea)", "Redes sociales del proyecto", 5,
-    "YouTube: https://…\nFacebook: https://…\nInstagram: @…\nTikTok: @…"));
-  nespCuerpo.appendChild(redes);
+  nespCuerpo.appendChild(nespCrearRedes(nespProyecto));
+
+  // Redes que se habían escrito a mano antes de enlazarlas con los ajustes: se conservan hasta que las borres
+  if (nespValores.REDES && nespValores.REDES.trim()) {
+    const viejo = document.createElement("section");
+    viejo.className = "em-nesp-tarjeta";
+    const h = document.createElement("h4");
+    h.textContent = "\u{1F4DD} Redes escritas antes";
+    viejo.append(h, nespCrearCampo("REDES", "Ya no se usa; borra el texto cuando quieras", "Redes escritas antes", 4, ""));
+    nespCuerpo.appendChild(viejo);
+  }
 
   NESP_PLATAFORMAS.forEach((p) => {
     const t = document.createElement("section");
@@ -6917,17 +7005,10 @@ function nespConstruir() {
     t.dataset.plat = p.id;
     const h4 = document.createElement("h4");
     h4.textContent = p.icono + " " + p.nombre;
-    const todo = document.createElement("button");
-    todo.type = "button";
-    todo.className = "em-nesp-copiar em-nesp-copiar-todo";
-    todo.textContent = "Copiar descripción + hashtags";
-    todo.addEventListener("click", () =>
-      nespCopiar([nespValores[p.id + "_DESC"], nespValores[p.id + "_TAGS"]].filter((x) => x && x.trim()).join("\n\n"), todo));
     t.append(
       h4,
-      nespCrearCampo(p.id + "_DESC", "Descripción", p.nombre + ": descripción", 6, "Descripción que usas en " + p.nombre + "…"),
-      nespCrearCampo(p.id + "_TAGS", "Hashtags", p.nombre + ": hashtags", 2, "#hashtag1 #hashtag2 #hashtag3"),
-      todo
+      nespCrearSeccion(p, "\u{1F3AC} Videos", "videos", p.id + "_DESC", p.id + "_TAGS"),
+      nespCrearSeccion(p, "\u26A1 Shorts", "shorts", p.id + "_SDESC", p.id + "_STAGS")
     );
     nespCuerpo.appendChild(t);
   });
