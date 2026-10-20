@@ -4655,15 +4655,15 @@ function emUsarLinkImagen() {
   const u = emUrlImg.value.trim();
   if (!u) {
     setEstado(emFormEstado, "Pega primero el link de la imagen", "error");
-    return;
+    return false;
   }
   if (!imagenValida(u) || u.length > 2000) {
     setEstado(emFormEstado, "El link debe empezar con http:// o https://", "error");
-    return;
+    return false;
   }
   if (/^https?:\/\/(www\.)?ibb\.co\//i.test(u)) {
     setEstado(emFormEstado, "Ese es el link de la página de imgbb. Copia el «Enlace directo» (empieza con https://i.ibb.co/…)", "error");
-    return;
+    return false;
   }
   emImagenUrl = u;
   emImagenNueva = null; // el link reemplaza a cualquier archivo elegido antes
@@ -4671,6 +4671,7 @@ function emUsarLinkImagen() {
   emUrlImg.value = "";
   emDibujarVistaImagen();
   setEstado(emFormEstado, "");
+  return true;
 }
 emUsarUrl.addEventListener("click", emUsarLinkImagen);
 emUrlImg.addEventListener("keydown", (e) => {
@@ -4748,6 +4749,7 @@ function abrirFormEm(d) {
   emEditando = d;
   emImagenUrl = d ? d.imagen || "" : "";
   emImagenNueva = null;
+  emEl("em-url-img").value = ""; // el link pegado en una nota nunca pasa a la siguiente
   emFormTitulo.textContent = d ? "Editar empresa / proyecto" : "Nueva empresa / proyecto";
   emNombre.value = d ? d.nombre : "";
   emFecha.value = d && d.fecha ? d.fecha : ipHoy(); // si es nueva, empieza con la fecha de hoy
@@ -4778,6 +4780,8 @@ async function guardarEm() {
     setEstado(emFormEstado, "Escribe el nombre", "error");
     return;
   }
+  // Si pegó un link y no presionó «Usar link», se aplica ahora a ESTA nota
+  if (emEl("em-url-img").value.trim() && !emUsarLinkImagen()) return;
   emGuardar.disabled = true;
   try {
     // 1) Si se eligió una imagen nueva, se sube a imgbb a través del Apps Script
@@ -4801,11 +4805,14 @@ async function guardarEm() {
       links: enlacesDeTexto(emLinks.value).join("\n"),
     };
     await llamarNotas(editando ? "empresa_editar" : "empresa_agregar", d);
-    if (editando) empresas = empresas.map((x) => (x.id === id ? d : x));
+    // Se reemplaza solo ESA nota (por posición, no por Id) y luego se vuelve a leer la hoja para mostrar lo que quedó guardado
+    const pos = editando ? empresas.indexOf(editando) : -1;
+    if (pos !== -1) empresas[pos] = d;
     else empresas.push(d);
     cerrarFormEm();
     dibujarChipsEm();
     setEstado(emEstado, "Guardado ✓", "ok");
+    cargarEmpresas().then(() => setEstado(emEstado, "Guardado ✓", "ok"));
   } catch (err) {
     setEstado(emFormEstado, "Error: " + err.message, "error");
   } finally {
@@ -4820,10 +4827,11 @@ async function borrarEm() {
   setEstado(emFormEstado, "Eliminando…");
   try {
     await llamarNotas("empresa_borrar", { id: d.id });
-    empresas = empresas.filter((x) => x.id !== d.id);
+    empresas = empresas.filter((x) => x !== d);
     cerrarFormEm();
     dibujarChipsEm();
     setEstado(emEstado, "Eliminado", "ok");
+    cargarEmpresas().then(() => setEstado(emEstado, "Eliminado", "ok"));
   } catch (err) {
     setEstado(emFormEstado, "Error: " + err.message, "error");
   } finally {
