@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="46" />
+  <meta name="app-version" content="47" />
   <title>Polo AI</title>
   <link rel="stylesheet" href="styles.css?v=46" />
 </head>
@@ -981,6 +981,11 @@
               <button id="em-quitar-img" class="notas-btn notas-btn-sec" type="button" hidden>Quitar imagen</button>
             </div>
             <input id="em-archivo" type="file" accept="image/*" hidden />
+            <div class="proy-url-img">
+              <input id="em-url-img" type="url" inputmode="url" maxlength="2000" autocomplete="off"
+                     placeholder="…o pega aquí el link de la imagen (imgbb)" aria-label="Link de la imagen" />
+              <button id="em-usar-url" class="notas-btn notas-btn-sec" type="button">Usar link</button>
+            </div>
           </div>
           <div class="proy-datos-col">
             <label class="notas-campo">

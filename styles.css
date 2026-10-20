@@ -1,5 +1,5 @@
 :root {
-  --app-version: "46"; /* debe coincidir con VERSION en app.js */
+  --app-version: "47"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -1865,6 +1865,21 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 }
 /* La tarjeta blanca que envuelve al calendario no hace falta cuando se ve la página del día */
 #calendario.con-dia-abierto { padding: 0; background: none; border: none; box-shadow: none; }
+
+/* ---------- Imagen por link (pegar la dirección de imgbb en vez de subir el archivo) ---------- */
+.proy-url-img { display: flex; gap: 8px; margin-top: 10px; }
+.proy-url-img input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--nb-texto);
+  background: #fff;
+  border: 1px solid var(--nb-borde);
+  border-radius: 10px;
+}
+.proy-url-img .notas-btn { flex: none; }
 
 /* ---------- Empresas/Proyectos: cuadrícula de 4 por fila; la imagen llena el cuadro ---------- */
 #em-chips {

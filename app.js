@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "46";
+const VERSION = "47";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -25,7 +25,7 @@ const VERSION = "46";
     "cuenta-nota", "cuenta-dispositivos", "disp-panel", "disp-estado", "disp-lista", "disp-todas",
     "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
-    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha",
+    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
   ];
   const problemas = [];
@@ -4635,6 +4635,9 @@ function emDibujarVistaImagen() {
     const img = document.createElement("img");
     img.alt = "Imagen de la empresa o proyecto";
     img.referrerPolicy = "no-referrer";
+    img.addEventListener("error", () => {
+      emVista.textContent = "No se pudo cargar la imagen. Revisa el link.";
+    });
     img.src = src;
     emVista.appendChild(img);
   } else {
@@ -4644,6 +4647,39 @@ function emDibujarVistaImagen() {
   emElegirImg.textContent = emImagenNueva || emImagenUrl ? "Cambiar imagen" : "Elegir imagen";
 }
 emElegirImg.addEventListener("click", () => emArchivo.click());
+
+// Poner la imagen pegando su link (por ejemplo el «Enlace directo» de imgbb): no se sube nada, solo se usa la dirección
+const emUrlImg = emEl("em-url-img");
+const emUsarUrl = emEl("em-usar-url");
+function emUsarLinkImagen() {
+  const u = emUrlImg.value.trim();
+  if (!u) {
+    setEstado(emFormEstado, "Pega primero el link de la imagen", "error");
+    return;
+  }
+  if (!imagenValida(u) || u.length > 2000) {
+    setEstado(emFormEstado, "El link debe empezar con http:// o https://", "error");
+    return;
+  }
+  if (/^https?:\/\/(www\.)?ibb\.co\//i.test(u)) {
+    setEstado(emFormEstado, "Ese es el link de la página de imgbb. Copia el «Enlace directo» (empieza con https://i.ibb.co/…)", "error");
+    return;
+  }
+  emImagenUrl = u;
+  emImagenNueva = null; // el link reemplaza a cualquier archivo elegido antes
+  emArchivo.value = "";
+  emUrlImg.value = "";
+  emDibujarVistaImagen();
+  setEstado(emFormEstado, "");
+}
+emUsarUrl.addEventListener("click", emUsarLinkImagen);
+emUrlImg.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    emUsarLinkImagen();
+  }
+});
+
 emQuitarImg.addEventListener("click", () => {
   emImagenNueva = null;
   emImagenUrl = "";
@@ -4733,6 +4769,7 @@ function cerrarFormEm() {
   emImagenNueva = null;
   emImagenUrl = "";
   emArchivo.value = "";
+  emEl("em-url-img").value = "";
 }
 
 async function guardarEm() {
