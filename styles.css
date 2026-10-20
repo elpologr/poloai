@@ -2291,8 +2291,8 @@ span.em-red { --red-fondo: #262b3d; border-style: dashed; }
 
 /* ---------- Hoja de redes: celdas de texto, parecida a Google Sheets ---------- */
 .em-hoja {
-  position: absolute; inset: 0; z-index: 7; display: flex; flex-direction: column;
-  color: #202124; background: #fff; border-radius: inherit; overflow: hidden;
+  position: fixed; inset: 0; z-index: 80; display: flex; flex-direction: column;
+  color: #202124; background: #fff; border-radius: 0; overflow: hidden;
   font-family: Arial, "Helvetica Neue", system-ui, sans-serif;
 }
 .em-hoja[hidden] { display: none; }
@@ -2346,6 +2346,17 @@ span.em-red { --red-fondo: #262b3d; border-style: dashed; }
   background: transparent; border: 0; border-radius: 0; outline: none; box-shadow: none; text-overflow: ellipsis;
 }
 .em-hoja-celda:focus { background: #fff; box-shadow: inset 0 0 0 2px #1a73e8; text-overflow: clip; }
+.em-hoja-tabla td { position: relative; }
+.em-hoja-celda-link { color: #1a0dab; text-decoration: underline; }
+.em-hoja-celda-link:focus { color: #202124; text-decoration: none; }
+.em-hoja-celda-link { padding-right: 30px; }
+.em-hoja-link {
+  position: absolute; top: 50%; right: 4px; transform: translateY(-50%); z-index: 1;
+  display: flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+  font-size: 14px; font-weight: 700; line-height: 1; color: #fff; text-decoration: none;
+  background: #1a73e8; border-radius: 50%;
+}
+.em-hoja-link:hover { background: #1558b0; }
 .em-hoja-fila-activa td { background: #f3f8ff; }
 .em-hoja-fila-activa td:focus-within { background: #fff; }
 .em-hoja-vacia { padding: 24px; text-align: center; color: #5f6368; }

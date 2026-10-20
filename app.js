@@ -5033,7 +5033,7 @@ emEl("em-det-ajustes").addEventListener("click", () => {
 // Vive en la pestaña «Hoja Redes» del libro de Google Sheets (Nombre | Fecha | Youtube | Aviso | Facebook | Aviso | …).
 // Se lee completa al abrirla y se guarda completa (sola, un momento después de escribir, y al cerrar).
 const HOJA_COLUMNAS = ["Nombre", "Fecha", "Youtube", "Aviso", "Facebook", "Aviso", "Instagram", "Aviso", "TikTok", "Aviso", "Threads", "Aviso", "X", "Aviso", "Whatsapp Community"];
-const HOJA_ANCHOS = [200, 120, 180, 130, 180, 130, 180, 130, 180, 130, 180, 130, 160, 130, 200];
+const HOJA_ANCHOS = [400, 240, 360, 260, 360, 260, 360, 260, 360, 260, 360, 260, 320, 260, 400];
 const HOJA_FILAS_MIN = 25;
 const HOJA_FILAS_MAX = 2000; // igual a MAX_FILAS_REDES del Apps Script
 const HOJA_CELDA_MAX = 5000; // igual a MAX_CELDA_REDES del Apps Script
@@ -5087,6 +5087,37 @@ function hojaDibujar() {
   hojaFilaActiva = -1;
 }
 
+// Link pulsable: si el texto de la celda es una dirección web, aparece un botón ↗ que la abre en otra pestaña
+function hojaLinkDe(texto) {
+  const t = String(texto || "").trim();
+  if (!t || /\s/.test(t)) return "";
+  if (/^https?:\/\/\S+$/i.test(t)) return t;
+  if (/^www\.\S+\.\S+$/i.test(t)) return "https://" + t;
+  return "";
+}
+
+function hojaActualizarLink(td, texto) {
+  const inp = td.querySelector(".em-hoja-celda");
+  let a = td.querySelector(".em-hoja-link");
+  const url = hojaLinkDe(texto);
+  if (inp) inp.classList.toggle("em-hoja-celda-link", !!url);
+  if (!url) {
+    if (a) a.remove();
+    return;
+  }
+  if (!a) {
+    a = document.createElement("a");
+    a.className = "em-hoja-link";
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = "\u2197";
+    a.title = "Abrir el link";
+    a.setAttribute("aria-label", "Abrir el link de esta celda");
+    td.appendChild(a);
+  }
+  a.href = url;
+}
+
 function hojaCrearFila(r) {
   const tr = document.createElement("tr");
   const num = document.createElement("th");
@@ -5111,6 +5142,7 @@ function hojaCrearFila(r) {
     inp.spellcheck = false;
     inp.setAttribute("aria-label", nombre + ", fila " + (r + 2));
     td.appendChild(inp);
+    hojaActualizarLink(td, inp.value);
     tr.appendChild(td);
   });
   return tr;
@@ -5262,6 +5294,7 @@ emHojaTabla.addEventListener("input", (e) => {
   const t = e.target;
   if (!t.classList || !t.classList.contains("em-hoja-celda")) return;
   hojaFilas[+t.dataset.r][+t.dataset.c] = t.value;
+  hojaActualizarLink(t.parentElement, t.value);
   hojaMarcarCambio();
 });
 emHojaTabla.addEventListener("focusin", (e) => {
