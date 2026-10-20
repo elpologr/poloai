@@ -1,5 +1,5 @@
 :root {
-  --app-version: "55"; /* debe coincidir con VERSION en app.js */
+  --app-version: "56"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -470,6 +470,8 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   font-size: 1.25rem;
   color: #d8c6ff;
 }
+.lateral-marca { display: flex; align-items: center; gap: 10px; }
+.lateral-marca img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex: none; }
 .lateral-cerrar {
   border: none;
   background: transparent;

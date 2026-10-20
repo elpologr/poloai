@@ -3,17 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="55" />
+  <meta name="app-version" content="56" />
   <meta name="theme-color" content="#4a2685" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Polo AI" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest-principal.json" />
-  <link rel="icon" href="icon-app.svg" type="image/svg+xml" />
+  <link rel="icon" href="imagenes/perfil.webp" type="image/webp" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="preconnect" href="https://accounts.google.com" />
+  <link rel="preconnect" href="https://script.google.com" />
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=55" />
+  <link rel="stylesheet" href="styles.css?v=56" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -26,7 +29,10 @@
   <div id="fondo-lateral" class="fondo-lateral" hidden></div>
   <aside id="barra-lateral" class="barra-lateral" aria-label="Menú lateral" aria-hidden="true">
     <div class="lateral-cabecera">
-      <strong>Polo AI</strong>
+      <span class="lateral-marca">
+        <img src="imagenes/perfil.webp" alt="" width="32" height="32" decoding="async" />
+        <strong>Polo AI</strong>
+      </span>
       <button id="lateral-cerrar" class="lateral-cerrar" type="button" aria-label="Cerrar menú">&times;</button>
     </div>
 
@@ -1225,9 +1231,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=55"></script>
-  <script src="app.js?v=55"></script>
-  <script src="voz.js?v=55"></script>
-  <script type="module" src="firebase.js?v=55"></script>
+  <script src="config.js?v=56"></script>
+  <script src="app.js?v=56"></script>
+  <script src="voz.js?v=56"></script>
+  <script type="module" src="firebase.js?v=56"></script>
 </body>
 </html>
