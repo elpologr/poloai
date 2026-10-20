@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "58";
+const VERSION = "59";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -889,6 +889,7 @@ async function respuestaGoogle(resp) {
 
 function cerrarSesion() {
   clearTimeout(temporizadorSesion);
+  ofBorrarDatos(); // las listas guardadas para usar sin internet se borran del dispositivo
   // Se cierra también en el Apps Script el pase de este dispositivo (si lo hay)
   if (usuario && usuario.tipo === "dispositivo" && usuario.credencial && configurado()) {
     llamarSesion("sesion_cerrar", usuario.credencial).catch(() => {});
@@ -1206,20 +1207,154 @@ async function leerJsonRespuesta(r) {
 }
 
 // Llama al Apps Script para las notas (siempre con la sesión de Google)
-async function llamarNotas(accion, extra) {
+// Llamada directa a internet (sin modo «sin internet»). limiteMs (opcional): si la red no responde en ese tiempo se corta.
+async function llamarNotasRed(accion, extra, limiteMs) {
   if (!configurado()) throw new Error("Falta configurar config.js");
   const idToken = credencialVigente();
   if (!idToken) throw new Error("Inicia sesión con Google");
-  // text/plain evita el "preflight" de CORS con Apps Script
-  const r = await fetch(CONFIG.APPS_SCRIPT_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(Object.assign({ token: CONFIG.TOKEN, idToken, accion }, extra || {})),
-  });
-  const j = await leerJsonRespuesta(r);
+  const ctl = limiteMs ? new AbortController() : null;
+  const reloj = ctl ? setTimeout(() => ctl.abort(), limiteMs) : null;
+  let j;
+  try {
+    // text/plain evita el "preflight" de CORS con Apps Script
+    const r = await fetch(CONFIG.APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(Object.assign({ token: CONFIG.TOKEN, idToken, accion }, extra || {})),
+      signal: ctl ? ctl.signal : undefined,
+    });
+    j = await leerJsonRespuesta(r);
+  } finally {
+    if (reloj) clearTimeout(reloj);
+  }
   sesionRechazada(j);
   if (!j.ok) throw new Error(j.error || "Error");
   return j;
+}
+
+// ---------- Modo sin internet ----------
+// Todas las lecturas y guardados de las zonas pasan por llamarNotas. Aquí se agrega:
+//  - Con conexión, la última lista de cada zona se guarda en este dispositivo.
+//  - Sin conexión (o con una red que no responde), se muestra esa última lista más las notas nuevas que aún no se suben,
+//    y los guardados NUEVOS (no las ediciones ni los borrados) se ponen en la cola «polo-offline-cola», que se sube sola
+//    al volver el internet (ver subirPendientesSinInternet, al final de este archivo).
+const OF_CLAVE_COLA = "polo-offline-cola"; // la misma que usa sin-internet.html
+const OF_CLAVE_DATOS = "polo-offline-datos:";
+// acción de lectura -> nombre de la lista dentro de la respuesta
+const OF_LISTAS = {
+  nota_listar: "notas", ejercicio_listar: "ejercicios", diario_listar: "diarios", deuda_listar: "deudas",
+  informacion_listar: "informaciones", comando_listar: "comandosLista", bazar_listar: "bazarLista",
+  empresa_listar: "empresas", proyecto_listar: "proyectos", notario_listar: "notarios", tarea_diaria_listar: "tareas",
+};
+// guardado nuevo permitido sin internet -> [lectura que lo muestra, nombre de la zona]
+const OF_AGREGAR = {
+  nota_agregar: ["nota_listar", "Notas"],
+  ejercicio_agregar: ["ejercicio_listar", "Ejercicio"],
+  diario_agregar: ["diario_listar", "Diario"],
+  deuda_agregar: ["deuda_listar", "Deudas"],
+  informacion_agregar: ["informacion_listar", "Información Primordial"],
+  comando_agregar: ["comando_listar", "Comandos"],
+  bazar_agregar: ["bazar_listar", "Bazar"],
+};
+
+function ofLeerCola() {
+  try { return JSON.parse(localStorage.getItem(OF_CLAVE_COLA)) || []; } catch (e) { return []; }
+}
+function ofGuardarCola(c) {
+  try { localStorage.setItem(OF_CLAVE_COLA, JSON.stringify(c)); return true; } catch (e) { return false; }
+}
+function ofLeerLista(accion) {
+  try { return JSON.parse(localStorage.getItem(OF_CLAVE_DATOS + accion)); } catch (e) { return null; }
+}
+function ofEscribirLista(accion, c) {
+  try { localStorage.setItem(OF_CLAVE_DATOS + accion, JSON.stringify(c)); } catch (e) { /* sin espacio: se sigue sin copia */ }
+}
+// Al cerrar sesión se borran las listas guardadas en el dispositivo (la cola de notas pendientes se conserva)
+function ofBorrarDatos() {
+  try {
+    Object.keys(localStorage).forEach((k) => { if (k.indexOf(OF_CLAVE_DATOS) === 0) localStorage.removeItem(k); });
+  } catch (e) {}
+}
+
+// Agrega un elemento nuevo a la copia guardada de su lista (para que no «desaparezca» si luego se abre sin internet)
+function ofMezclarEnCache(accionAgregar, payload) {
+  const def = OF_AGREGAR[accionAgregar];
+  if (!def || !payload || !payload.id) return;
+  const c = ofLeerLista(def[0]);
+  const clave = OF_LISTAS[def[0]];
+  if (!c || !c.j || !Array.isArray(c.j[clave])) return;
+  if (c.j[clave].some((x) => String(x.id) === String(payload.id))) return;
+  c.j[clave].push(payload);
+  ofEscribirLista(def[0], c);
+}
+
+function ofSinRed(e) {
+  return navigator.onLine === false || (e && e.name === "AbortError") ||
+    (e instanceof TypeError && /fetch|network|load failed|conexi/i.test(String(e.message)));
+}
+
+let ofAvisoEl = null;
+let ofAvisoTimer = null;
+let ofAvisoMostrado = false;
+function ofAviso(texto, siempre) {
+  if (ofAvisoMostrado && !siempre) return;
+  ofAvisoMostrado = true;
+  if (!ofAvisoEl) {
+    ofAvisoEl = document.createElement("div");
+    ofAvisoEl.className = "aviso-flotante";
+    ofAvisoEl.setAttribute("role", "status");
+    document.body.appendChild(ofAvisoEl);
+  }
+  ofAvisoEl.textContent = texto;
+  ofAvisoEl.hidden = false;
+  clearTimeout(ofAvisoTimer);
+  ofAvisoTimer = setTimeout(() => { ofAvisoEl.hidden = true; }, 6000);
+}
+
+async function llamarNotas(accion, extra) {
+  const esLista = OF_LISTAS[accion];
+  const esAgregar = OF_AGREGAR[accion];
+  try {
+    const j = await llamarNotasRed(accion, extra, esLista ? 20000 : esAgregar ? 30000 : 0);
+    ofAvisoMostrado = false; // hubo conexión: la próxima vez que falle se vuelve a avisar
+    if (esLista) ofEscribirLista(accion, { guardado: Date.now(), j });
+    else if (esAgregar) ofMezclarEnCache(accion, extra);
+    return j;
+  } catch (e) {
+    // Solo se usa el modo sin internet si de verdad es un problema de conexión y hay una sesión vigente
+    if (!ofSinRed(e) || !credencialVigente()) throw e;
+
+    if (esLista) {
+      const c = ofLeerLista(accion);
+      if (!c || !c.j) throw new Error("Sin internet, y esta zona todavía no se había abierto con conexión en este dispositivo.");
+      const j = Object.assign({}, c.j, { offline: true });
+      const clave = OF_LISTAS[accion];
+      j[clave] = Array.isArray(j[clave]) ? j[clave].slice() : [];
+      // Lo anotado sin internet que todavía no se sube también se ve
+      const cola = ofLeerCola();
+      Object.keys(OF_AGREGAR).forEach((acc) => {
+        if (OF_AGREGAR[acc][0] !== accion) return;
+        cola.forEach((x) => {
+          if (x.accion === acc && x.payload && !j[clave].some((y) => String(y.id) === String(x.payload.id))) j[clave].push(x.payload);
+        });
+      });
+      ofAviso("📴 Sin internet: se muestra lo último guardado en este dispositivo. Lo nuevo que anotes se subirá solo al volver la conexión.");
+      return j;
+    }
+
+    if (esAgregar && extra && extra.id) {
+      const cola = ofLeerCola();
+      if (!cola.some((x) => x.payload && String(x.payload.id) === String(extra.id))) {
+        const zona = extra.categoria === "Ventas" ? "Ventas" : esAgregar[1];
+        cola.push({ zona, accion, payload: extra, creado: Date.now() });
+        if (!ofGuardarCola(cola)) throw new Error("No cupo en el dispositivo para guardar esto sin internet.");
+      }
+      ofAviso("📴 Sin internet: guardado en este dispositivo ✓ Se subirá solo al volver la conexión.", true);
+      return { ok: true, offline: true };
+    }
+
+    throw new Error("Sin internet: esto necesita conexión. Sin internet solo se pueden agregar elementos nuevos (notas, diario, ejercicio, deudas, información, comandos y bazar).");
+  }
 }
 
 // ----- Botón «☁ Migrar a Drive» -----
@@ -7585,6 +7720,7 @@ function tdSonar(t) {
   document.getElementById("td-alarma-texto").textContent = t.texto;
   document.getElementById("td-alarma-ok").disabled = false;
   v.hidden = false;
+  try { if (window.poloEscritorio) window.poloEscritorio.alarmaSonando(t.hora + " · " + t.texto); } catch (e) {} // app de Windows: trae la ventana al frente
   const ciclo = () => {
     tdPitido();
     tdVibrar();
@@ -7604,6 +7740,7 @@ function tdParar() {
   const v = document.getElementById("td-alarma");
   if (v) v.hidden = true;
   tdSonando = null;
+  try { if (window.poloEscritorio) window.poloEscritorio.alarmaTerminada(); } catch (e) {}
   tdQuitarNotificaciones();
 }
 function tdPosponer() {
@@ -8435,13 +8572,14 @@ cargarDatos();
         if (!it) break;
         decir("Subiendo notas hechas sin internet… (" + (subidas + 1) + ")");
         try {
-          await llamarNotas(it.accion, it.payload);
+          await llamarNotasRed(it.accion, it.payload, 30000);
+          ofMezclarEnCache(it.accion, it.payload);
           guardar(leer().filter((x) => x.payload.id !== it.payload.id));
           subidas++;
           marcarBloqueo();
         } catch (e) {
           if (!credencialVigente()) break; // la sesión se cerró: las notas se quedan guardadas
-          if (e instanceof TypeError) break; // se cortó la conexión: se reintenta después
+          if (e instanceof TypeError || (e && e.name === "AbortError")) break; // se cortó la conexión: se reintenta después
           const c = leer();
           const pos = c.findIndex((x) => x.payload.id === it.payload.id);
           if (pos !== -1) { c[pos].error = e.message || "Error desconocido"; guardar(c); }

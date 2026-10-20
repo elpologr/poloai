@@ -51,7 +51,8 @@ self.addEventListener("activate", (e) => {
 async function responder(e, clave) {
   const req = e.request;
   const llave = BASE + clave;
-  const red = fetch(req).then(async (r) => {
+  // «no-cache»: siempre se pregunta al servidor si hay versión nueva (si no cambió, responde rápido sin descargar de nuevo)
+  const red = fetch(req.url, { cache: "no-cache" }).then(async (r) => {
     if (r.ok) {
       const copia = r.clone();
       const c = await caches.open(CACHE);
