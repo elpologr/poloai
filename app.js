@@ -25,7 +25,7 @@ const VERSION = "59";
     "cuenta-nota", "cuenta-dispositivos", "disp-panel", "disp-estado", "disp-lista", "disp-todas",
     "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
-    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp",
+    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp", "em-canal",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
   ];
   const problemas = [];
@@ -5373,6 +5373,8 @@ function cerrarDetalleEm() {
   emHoja.hidden = true;
   const nesp = document.getElementById("em-nesp");
   if (nesp) nesp.hidden = true;
+  const canal = document.getElementById("em-canal");
+  if (canal) canal.hidden = true;
   emDetActual = null;
 }
 emEl("em-det-volver").addEventListener("click", cerrarDetalleEm);
@@ -5783,8 +5785,10 @@ function hojaAgregarFilas(n) {
   return true;
 }
 
+let hojaTocada = false; // se editó algo desde que se abrió la hoja (el perfil del canal vuelve a leer los videos al regresar)
 function hojaMarcarCambio() {
   hojaCambios++;
+  hojaTocada = true;
   setEstado(emHojaEstado, "Sin guardar…");
   clearTimeout(hojaTemporizador);
   hojaTemporizador = setTimeout(guardarHoja, HOJA_ESPERA);
@@ -5873,6 +5877,7 @@ async function abrirHoja(n) {
   if (!emDetActual) return;
   hojaEmpresa = emDetActual; // la hoja es de ESTE proyecto
   hojaNumero = n === 2 ? 2 : 1;
+  hojaTocada = false;
   hojaPintarSelector();
   emHoja.hidden = false;
   await cargarHoja();
@@ -5909,10 +5914,12 @@ async function cerrarHoja() {
   }
   hojaCerrarVideo();
   emHoja.hidden = true;
+  canalAlVolverDeHoja(hojaTocada || hojaGuardado > 0);
 }
 
-emEl("em-hoja-abrir").addEventListener("click", () => abrirHoja(1));
-emEl("em-hoja-abrir-2").addEventListener("click", () => abrirHoja(2));
+// «Hoja principal» y «Hoja secundaria» abren primero el perfil del canal; la hoja de redes se abre con su engrane
+emEl("em-hoja-abrir").addEventListener("click", () => abrirCanal(1));
+emEl("em-hoja-abrir-2").addEventListener("click", () => abrirCanal(2));
 emHoja.querySelectorAll(".em-hoja-sel-btn").forEach((b) => b.addEventListener("click", () => hojaCambiar(+b.dataset.hoja)));
 emEl("em-hoja-volver").addEventListener("click", cerrarHoja);
 emHojaGuardar.addEventListener("click", guardarHoja);
@@ -6457,7 +6464,7 @@ if (emHojaColMas) {
 // ----- Reproductor de YouTube dentro de la hoja -----
 // Al tocar una miniatura (o el botón ↗) de un link de YouTube se abre un cuadro con el video PAUSADO:
 // hay que darle play. Al cerrarlo se quita el reproductor, así el video se detiene.
-function hojaAbrirVideo(id, enlace) {
+function hojaAbrirVideo(id, enlace, padre) {
   hojaCerrarVideo();
   const fondo = document.createElement("div");
   fondo.className = "em-hoja-dialogo em-hoja-video-fondo";
@@ -6491,17 +6498,17 @@ function hojaAbrirVideo(id, enlace) {
   marco.appendChild(iframe);
   caja.append(barra, marco);
   fondo.appendChild(caja);
-  emHoja.appendChild(fondo);
+  (padre || emHoja).appendChild(fondo);
   cerrar.addEventListener("click", hojaCerrarVideo);
   fondo.addEventListener("pointerdown", (e) => { if (e.target === fondo) hojaCerrarVideo(); });
   cerrar.focus();
 }
 function hojaCerrarVideo() {
-  const f = emHoja.querySelector(".em-hoja-video-fondo");
+  const f = document.querySelector(".em-hoja-video-fondo");
   if (f) f.remove();
 }
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && emHoja.querySelector(".em-hoja-video-fondo")) {
+  if (e.key === "Escape" && document.querySelector(".em-hoja-video-fondo")) {
     e.stopPropagation();
     hojaCerrarVideo();
   }
@@ -7198,6 +7205,258 @@ document.addEventListener("keydown", (e) => {
   }
 }, true);
 
+// ----- Perfil del canal: se parece al perfil de un canal de YouTube. Hoja principal = Videos, hoja secundaria = Shorts -----
+// Lee las filas de la hoja de redes (columna «Youtube», con el «Nombre» como título) y muestra las miniaturas en 4 columnas,
+// 32 por página; si hay más se crean más páginas. El engrane abre la hoja de redes (donde se agrega la información).
+const CANAL_POR_PAGINA = 32;
+const emCanal = emEl("em-canal");
+const canalScroll = emEl("em-canal-scroll"); // lo que se desplaza; el reproductor se abre sobre emCanal para no moverse con el scroll
+const canalBanner = emEl("em-canal-banner");
+const canalAvatar = emEl("em-canal-avatar");
+const canalNombre = emEl("em-canal-nombre");
+const canalMeta = emEl("em-canal-meta");
+const canalDesc = emEl("em-canal-desc");
+const canalVer = emEl("em-canal-ver");
+const canalTabsEl = emEl("em-canal-tabs");
+const canalEstado = emEl("em-canal-estado");
+const canalGrid = emEl("em-canal-grid");
+const canalPags = emEl("em-canal-pags");
+let canalProyecto = null;
+let canalTab = 1; // 1 = Videos (hoja principal), 2 = Shorts (hoja secundaria)
+let canalPagina = 1;
+let canalDatos = { 1: null, 2: null }; // [{ id, enlace, nombre }] de cada hoja, ya leídos
+
+function canalFilasDeHoja(j) {
+  const cols = (Array.isArray(j.columnas) ? j.columnas : []).map((x) => String(x === undefined || x === null ? "" : x).trim().toLowerCase());
+  const ci = cols.indexOf("youtube");
+  if (ci === -1) throw new Error("no encontré la columna «Youtube» en la hoja");
+  const ni = cols.indexOf("nombre");
+  const lista = [];
+  (Array.isArray(j.filas) ? j.filas : []).forEach((f) => {
+    if (!f) return;
+    const id = hojaIdYoutube(f[ci]);
+    if (!id) return; // sin link de un video de YouTube no hay miniatura
+    lista.push({ id, enlace: hojaLinkDe(f[ci]), nombre: ni >= 0 && f[ni] !== undefined && f[ni] !== null ? String(f[ni]).trim() : "" });
+  });
+  return lista;
+}
+
+async function canalLeer(n) {
+  const d = canalProyecto;
+  const j = await llamarNotas("hoja_redes_listar", { hoja: n, empresa: d.id, empresaNombre: d.nombre });
+  // Un Apps Script viejo no sabe de hojas por proyecto ni de la hoja 2: se rechaza para no mostrar videos de otra hoja
+  if (j.empresa !== d.id) throw new Error("hay que publicar la nueva versión del Apps Script (cada proyecto tiene su propia hoja)");
+  if (n === 2 && j.hoja !== 2) throw new Error("para usar la hoja secundaria hay que publicar la nueva versión del Apps Script");
+  return canalFilasDeHoja(j);
+}
+
+function canalPintarTabs() {
+  canalTabsEl.querySelectorAll(".em-canal-tab").forEach((b) => b.setAttribute("aria-selected", String(+b.dataset.hoja === canalTab)));
+}
+
+function canalPintarMeta() {
+  const d = canalProyecto;
+  if (!d) return;
+  const cuenta = (n, uno, varios) => (canalDatos[n] ? canalDatos[n].length + " " + (canalDatos[n].length === 1 ? uno : varios) : "… " + varios);
+  const partes = [];
+  const yt = nespEnlacesDe(d).map(hrefSeguro).filter(Boolean).find((h) => emRedDeLink(h).id === "youtube");
+  if (yt) {
+    try {
+      const m = new URL(yt).pathname.match(/^\/(@[^/]+)/);
+      if (m) partes.push(decodeURIComponent(m[1]));
+    } catch (e) {}
+  }
+  partes.push(cuenta(1, "video", "videos"), cuenta(2, "short", "shorts"));
+  canalMeta.textContent = partes.join(" · ");
+}
+
+function canalPintarCabecera() {
+  const d = canalProyecto;
+  canalBanner.innerHTML = "";
+  canalAvatar.innerHTML = "";
+  if (imagenValida(d.imagen)) {
+    const fondo = document.createElement("img");
+    fondo.alt = "";
+    fondo.referrerPolicy = "no-referrer";
+    fondo.addEventListener("error", () => fondo.remove());
+    fondo.src = d.imagen;
+    canalBanner.appendChild(fondo);
+    const foto = document.createElement("img");
+    foto.alt = "Imagen de " + d.nombre;
+    foto.referrerPolicy = "no-referrer";
+    foto.addEventListener("error", () => { canalAvatar.textContent = "\u{1F3E2}"; });
+    foto.src = d.imagen;
+    canalAvatar.appendChild(foto);
+  } else {
+    canalAvatar.textContent = "\u{1F3E2}";
+  }
+  canalNombre.textContent = d.nombre;
+  const desc = String(d.descripcion || "").trim();
+  canalDesc.textContent = desc;
+  canalDesc.hidden = !desc;
+  const yt = nespEnlacesDe(d).map(hrefSeguro).filter(Boolean).find((h) => emRedDeLink(h).id === "youtube");
+  canalVer.hidden = !yt;
+  if (yt) canalVer.href = yt;
+  canalPintarMeta();
+}
+
+function canalCrearFicha(v) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "em-canal-ficha";
+  b.title = v.nombre || "Abrir el video";
+  b.setAttribute("aria-label", "Abrir el video" + (v.nombre ? ": " + v.nombre : ""));
+  const mini = document.createElement("span");
+  mini.className = "em-canal-mini";
+  const img = document.createElement("img");
+  img.alt = "";
+  img.loading = "lazy";
+  img.referrerPolicy = "no-referrer";
+  // Los shorts son verticales: su miniatura se recorta al centro
+  img.src = "https://i.ytimg.com/vi/" + v.id + (canalTab === 2 ? "/hqdefault.jpg" : "/mqdefault.jpg");
+  img.addEventListener("error", () => { img.remove(); mini.textContent = "\u25B6"; });
+  mini.appendChild(img);
+  b.appendChild(mini);
+  if (v.nombre) {
+    const t = document.createElement("span");
+    t.className = "em-canal-titulo";
+    t.textContent = v.nombre;
+    b.appendChild(t);
+  }
+  b.addEventListener("click", () => hojaAbrirVideo(v.id, v.enlace || "https://www.youtube.com/watch?v=" + v.id, emCanal));
+  return b;
+}
+
+function canalDibujarPags(total) {
+  canalPags.innerHTML = "";
+  canalPags.hidden = total <= 1;
+  if (total <= 1) return;
+  const boton = (txt, pagina, extra) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "em-canal-pag" + (extra ? " " + extra : "");
+    b.textContent = txt;
+    if (pagina === canalPagina && !extra) b.setAttribute("aria-current", "page");
+    if (!pagina || pagina < 1 || pagina > total || (pagina === canalPagina && extra)) b.disabled = true;
+    else b.addEventListener("click", () => canalIrAPagina(pagina));
+    return b;
+  };
+  canalPags.appendChild(boton("‹", canalPagina - 1, "em-canal-pag-flecha"));
+  const nums = [...new Set([1, total, canalPagina - 1, canalPagina, canalPagina + 1])].filter((n) => n >= 1 && n <= total).sort((x, y) => x - y);
+  let ultimo = 0;
+  nums.forEach((n) => {
+    if (n - ultimo > 1) {
+      const p = document.createElement("span");
+      p.className = "em-canal-pag-puntos";
+      p.textContent = "…";
+      canalPags.appendChild(p);
+    }
+    canalPags.appendChild(boton(String(n), n));
+    ultimo = n;
+  });
+  canalPags.appendChild(boton("›", canalPagina + 1, "em-canal-pag-flecha"));
+}
+
+function canalIrAPagina(n) {
+  canalPagina = n;
+  canalDibujar();
+  canalScroll.scrollTo({ top: Math.max(0, canalTabsEl.offsetTop - 70), behavior: "smooth" });
+}
+
+function canalDibujar() {
+  const lista = canalDatos[canalTab] || [];
+  const paginas = Math.max(1, Math.ceil(lista.length / CANAL_POR_PAGINA));
+  if (canalPagina > paginas) canalPagina = paginas;
+  canalGrid.innerHTML = "";
+  canalGrid.classList.toggle("em-canal-grid-shorts", canalTab === 2);
+  if (!lista.length) {
+    const p = document.createElement("p");
+    p.className = "em-canal-vacio";
+    p.textContent = canalTab === 1
+      ? "Aún no hay links de videos de YouTube en la hoja principal. Agrégalos con el engrane ⚙."
+      : "Aún no hay links de shorts de YouTube en la hoja secundaria. Agrégalos con el engrane ⚙.";
+    canalGrid.appendChild(p);
+    canalDibujarPags(1);
+    return;
+  }
+  lista.slice((canalPagina - 1) * CANAL_POR_PAGINA, canalPagina * CANAL_POR_PAGINA).forEach((v) => canalGrid.appendChild(canalCrearFicha(v)));
+  canalDibujarPags(paginas);
+}
+
+// Muestra Videos (1) o Shorts (2): lee esa hoja si todavía no se había leído
+async function canalMostrar(n) {
+  const d = canalProyecto;
+  if (!d) return;
+  canalTab = n === 2 ? 2 : 1;
+  canalPagina = 1;
+  canalPintarTabs();
+  hojaCerrarVideo();
+  if (canalDatos[canalTab]) {
+    setEstado(canalEstado, "");
+    canalDibujar();
+    return;
+  }
+  const leyendo = canalTab;
+  setEstado(canalEstado, "Cargando…");
+  canalGrid.innerHTML = "";
+  canalPags.hidden = true;
+  try {
+    const lista = await canalLeer(leyendo);
+    if (canalProyecto !== d) return;
+    canalDatos[leyendo] = lista;
+  } catch (err) {
+    if (canalProyecto === d && canalTab === leyendo) setEstado(canalEstado, "Error: " + err.message + " · usa ↻ para reintentar", "error");
+    return;
+  }
+  canalPintarMeta();
+  if (canalTab === leyendo) {
+    setEstado(canalEstado, "");
+    canalDibujar();
+  }
+  // La otra hoja se lee en segundo plano, solo para poner cuántos hay de cada uno
+  const otra = leyendo === 1 ? 2 : 1;
+  if (!canalDatos[otra]) {
+    canalLeer(otra).then((l) => {
+      if (canalProyecto !== d) return;
+      canalDatos[otra] = l;
+      canalPintarMeta();
+    }).catch(() => {});
+  }
+}
+
+function abrirCanal(n) {
+  if (!emDetActual) return;
+  hojaCerrarVideo();
+  canalProyecto = emDetActual;
+  canalDatos = { 1: null, 2: null };
+  canalPintarCabecera();
+  emCanal.hidden = false;
+  canalScroll.scrollTop = 0;
+  canalMostrar(n);
+}
+
+function cerrarCanal() {
+  hojaCerrarVideo();
+  emCanal.hidden = true;
+  canalProyecto = null;
+}
+
+// Al cerrar la hoja de redes (que se abre con el engrane) el perfil sigue abierto: si se editó algo, vuelve a leer los videos
+function canalAlVolverDeHoja(huboCambios) {
+  if (emCanal.hidden || !canalProyecto) return;
+  if (huboCambios) canalDatos = { 1: null, 2: null };
+  canalMostrar(hojaNumero);
+}
+
+canalTabsEl.querySelectorAll(".em-canal-tab").forEach((b) => b.addEventListener("click", () => canalMostrar(+b.dataset.hoja)));
+emEl("em-canal-volver").addEventListener("click", cerrarCanal);
+emEl("em-canal-ajustes").addEventListener("click", () => abrirHoja(canalTab));
+emEl("em-canal-recargar").addEventListener("click", () => {
+  canalDatos = { 1: null, 2: null };
+  canalPintarMeta();
+  canalMostrar(canalTab);
+});
+
 // ----- Mini notas cuadradas -----
 function dibujarChipsEm() {
   emChips.innerHTML = "";
@@ -7417,6 +7676,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelEm.hidden) return;
   if (!emRedSub.hidden) cerrarSubRed();
   else if (!emHoja.hidden) cerrarHoja();
+  else if (!emCanal.hidden) cerrarCanal();
   else if (!emForm.hidden) cerrarFormEm();
   else if (!emDetalle.hidden) cerrarDetalleEm();
 });

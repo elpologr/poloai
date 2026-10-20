@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=63" />
+  <link rel="stylesheet" href="styles.css?v=64" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1138,6 +1138,36 @@
         </div>
       </div>
 
+      <!-- Perfil del canal: se abre con «Hoja principal» (Videos) o «Hoja secundaria» (Shorts). Muestra las miniaturas de la hoja; el engrane lleva a la hoja de redes -->
+      <div id="em-canal" class="em-canal" hidden role="dialog" aria-modal="true" aria-labelledby="em-canal-nombre">
+        <div id="em-canal-scroll" class="em-canal-scroll">
+        <div class="em-det-barra">
+          <button id="em-canal-volver" class="em-det-btn" type="button" aria-label="Volver al proyecto" title="Volver">&#8592;</button>
+          <div class="em-canal-herr">
+            <button id="em-canal-recargar" class="em-det-btn" type="button" aria-label="Volver a leer los videos" title="Volver a leer los videos">&#8635;</button>
+            <button id="em-canal-ajustes" class="em-det-btn" type="button" aria-label="Abrir la hoja de redes (ajustes)" title="Hoja de redes (ajustes)">&#9881;&#xFE0E;</button>
+          </div>
+        </div>
+        <div id="em-canal-banner" class="em-canal-banner"></div>
+        <div class="em-canal-cab">
+          <div id="em-canal-avatar" class="em-canal-avatar"></div>
+          <div class="em-canal-info">
+            <h3 id="em-canal-nombre" class="em-canal-nombre"></h3>
+            <p id="em-canal-meta" class="em-canal-meta"></p>
+            <p id="em-canal-desc" class="em-canal-desc"></p>
+            <a id="em-canal-ver" class="em-canal-ver" target="_blank" rel="noopener noreferrer" hidden>&#9654; Ver canal &#8599;</a>
+          </div>
+        </div>
+        <div id="em-canal-tabs" class="em-canal-tabs" role="tablist" aria-label="Videos o Shorts">
+          <button type="button" class="em-canal-tab" role="tab" data-hoja="1" aria-selected="true">&#127916; Videos</button>
+          <button type="button" class="em-canal-tab" role="tab" data-hoja="2" aria-selected="false">&#9889; Shorts</button>
+        </div>
+        <p id="em-canal-estado" class="em-canal-estado" role="status"></p>
+        <div id="em-canal-grid" class="em-canal-grid"></div>
+        <nav id="em-canal-pags" class="em-canal-pags" aria-label="Páginas" hidden></nav>
+        </div>
+      </div>
+
       <!-- Hoja de redes: una sola hoja con celdas de texto, parecida a Google Sheets (pestaña «Hoja Redes» de tu libro) -->
       <div id="em-hoja" class="em-hoja" hidden role="dialog" aria-modal="true" aria-labelledby="em-hoja-titulo">
         <div class="em-hoja-barra">
@@ -1300,9 +1330,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=63"></script>
-  <script src="app.js?v=63"></script>
-  <script src="voz.js?v=63"></script>
-  <script type="module" src="firebase.js?v=63"></script>
+  <script src="config.js?v=64"></script>
+  <script src="app.js?v=64"></script>
+  <script src="voz.js?v=64"></script>
+  <script type="module" src="firebase.js?v=64"></script>
 </body>
 </html>
