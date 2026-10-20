@@ -1,5 +1,5 @@
 :root {
-  --app-version: "56"; /* debe coincidir con VERSION en app.js */
+  --app-version: "57"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -2533,3 +2533,19 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
   content: attr(data-etq); position: absolute; right: 3px; bottom: 3px; z-index: 2; padding: 1px 5px;
   font-size: 0.65rem; font-weight: 800; color: #fff; background: rgba(0, 0, 0, 0.6); border-radius: 4px;
 }
+
+
+/* ---------- Tareas Obligatorias Diarias: mini notas cuadradas permanentes ---------- */
+.td-nueva { display: flex; gap: 8px; flex-wrap: wrap; }
+.td-nueva input { flex: 1 1 200px; min-width: 0; padding: 10px 12px; font: inherit; color: #2b2140; background: #fff; border: 1px solid #e3d8f6; border-radius: 10px; }
+.td-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 14px; }
+.td-tile { position: relative; aspect-ratio: 1 / 1; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; padding: 12px; border-radius: 16px; background: #fff8c9; color: #3b2d00; box-shadow: 0 6px 14px rgba(60, 30, 100, 0.22); overflow: hidden; }
+.td-tile.td-hecha { background: #d3f9d8; color: #1e5b2e; }
+.td-texto { margin: 0; font-weight: 600; font-size: 0.95rem; line-height: 1.25; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; }
+.td-hora { font-size: 0.75rem; font-weight: 700; min-height: 1em; }
+.td-acciones { display: flex; gap: 6px; align-items: center; }
+.td-acciones button { padding: 6px 8px; font: inherit; font-size: 0.85rem; font-weight: 700; line-height: 1; color: #fff; background: #7a44d6; border: 0; border-radius: 9px; cursor: pointer; }
+.td-acciones .td-ok { flex: 1; background: #2f9e5a; }
+.td-acciones .td-sec { color: #6234b8; background: rgba(255, 255, 255, 0.85); }
+.td-acciones button:disabled { opacity: 0.6; cursor: default; }
+.td-vacio { grid-column: 1 / -1; margin: 6px 0; color: #6f6585; font-weight: 600; }

@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="56" />
+  <meta name="app-version" content="57" />
   <meta name="theme-color" content="#4a2685" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Polo AI" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest-principal.json" />
-  <link rel="icon" href="imagenes/perfil.webp?v=56" type="image/webp" sizes="any" />
-  <link rel="shortcut icon" href="imagenes/perfil.webp?v=56" type="image/webp" />
-  <link rel="apple-touch-icon" href="imagenes/perfil.webp?v=56" />
+  <link rel="icon" href="imagenes/perfil.webp?v=57" type="image/webp" sizes="any" />
+  <link rel="shortcut icon" href="imagenes/perfil.webp?v=57" type="image/webp" />
+  <link rel="apple-touch-icon" href="imagenes/perfil.webp?v=57" />
   <link rel="preconnect" href="https://accounts.google.com" />
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=56" />
+  <link rel="stylesheet" href="styles.css?v=57" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -256,6 +256,10 @@
       <button id="btn-menu-empresas" class="btn-menu btn-menu-hoy btn-menu-empresas" type="button" data-seccion="seccion-empresas">
         <span class="btn-menu-icono" aria-hidden="true">&#127970;</span><span class="btn-menu-texto">Empresas/Proyectos</span>
       </button>
+      <!-- Botón grande «Tareas Obligatorias Diarias»: igual que los dos de arriba. Abre un notario de tareas fijas. -->
+      <button id="btn-menu-tareas" class="btn-menu btn-menu-hoy btn-menu-tareas" type="button" data-seccion="seccion-tareas">
+        <span class="btn-menu-icono" aria-hidden="true">&#128203;</span><span class="btn-menu-texto">Tareas Obligatorias Diarias</span>
+      </button>
       <button class="btn-menu" type="button" data-seccion="calendario">
         <span class="btn-menu-icono" aria-hidden="true">&#128197;</span><span class="btn-menu-texto">Calendario</span>
       </button>
@@ -291,6 +295,35 @@
 
   <main>
     <p id="inicio" class="mensaje-inicio">Elige una sección para comenzar.</p>
+
+    <!-- TAREAS OBLIGATORIAS DIARIAS -->
+    <section id="seccion-tareas" class="seccion seccion-pagina" hidden>
+  <div id="panel-tareas" class="panel-notas panel-pagina" hidden>
+    <div class="notas-caja ejercicio-caja" role="dialog" aria-modal="true" aria-labelledby="td-titulo">
+      <header class="notas-cabecera">
+        <h2 id="td-titulo">&#128203; Tareas Obligatorias Diarias</h2>
+        <div class="notas-cab-botones">
+          <button id="td-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer las tareas de Google Sheets" aria-label="Actualizar tareas">&#8635;</button>
+        </div>
+      </header>
+      <div class="notas-cuerpo">
+        <div id="td-sin-sesion" class="notas-aviso-sesion" hidden>
+          <p>Inicia sesión con tu cuenta de Google para ver y guardar tus tareas.</p>
+          <button id="td-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
+        </div>
+        <div id="td-contenido">
+          <div class="td-nueva">
+            <input id="td-nuevo" type="text" maxlength="300" autocomplete="off" placeholder="Escribe una tarea obligatoria…" aria-label="Nueva tarea obligatoria diaria" />
+            <button id="td-agregar" class="notas-btn" type="button">+ Agregar</button>
+          </div>
+          <p id="td-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="td-grid" class="td-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+    </section>
 
     <!-- CALENDARIO -->
     <section id="calendario" class="seccion" hidden>
@@ -1232,9 +1265,9 @@
     </section>
   </main>
 
-  <script src="config.js?v=56"></script>
-  <script src="app.js?v=56"></script>
-  <script src="voz.js?v=56"></script>
-  <script type="module" src="firebase.js?v=56"></script>
+  <script src="config.js?v=57"></script>
+  <script src="app.js?v=57"></script>
+  <script src="voz.js?v=57"></script>
+  <script type="module" src="firebase.js?v=57"></script>
 </body>
 </html>

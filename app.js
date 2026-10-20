@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "56";
+const VERSION = "57";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -98,6 +98,8 @@ function mostrarSeccion(id) {
   // Día de Hoy también es una página
   if (id === "seccion-hoy") entrarHoy();
   else cerrarHoy();
+  // Tareas Obligatorias Diarias también es una página
+  if (id === "seccion-tareas") entrarTareas();
   // Los Notarios se leen la primera vez que se ve una zona que los tiene
   if (typeof actualizarNotarios === "function") actualizarNotarios();
 }
@@ -161,7 +163,7 @@ async function cargarDatos() {
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({ token: CONFIG.TOKEN, idToken, accion: "calendario_listar" }),
     });
-    const j = await r.json();
+    const j = await leerJsonRespuesta(r);
     sesionRechazada(j);
     if (!j.ok) throw new Error(j.error || "Error desconocido");
     Object.keys(datos).forEach((k) => delete datos[k]);
@@ -197,7 +199,7 @@ async function guardarCampo(fecha, campo, valor) {
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({ token: CONFIG.TOKEN, idToken, fecha, campo, valor }),
   });
-  const j = await r.json();
+  const j = await leerJsonRespuesta(r);
   sesionRechazada(j);
   if (!j.ok) throw new Error(j.error || "Error al guardar");
   datos[fecha] = datos[fecha] || {};
@@ -786,7 +788,7 @@ async function llamarSesion(accion, credencial, extra) {
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify(Object.assign({ token: CONFIG.TOKEN, idToken: credencial, accion }, extra || {})),
   });
-  return r.json();
+  return leerJsonRespuesta(r);
 }
 
 // Nombre corto del dispositivo, para reconocerlo en la lista («Chrome en Android»…)
@@ -1189,6 +1191,20 @@ notasMasColores.addEventListener("click", () => {
 });
 elegirColor("Blanco");
 
+// Lee la respuesta del Apps Script. Si Google devuelve una página HTML (en vez de JSON) se explica con claridad,
+// en lugar de mostrar «Unexpected token '<'»
+async function leerJsonRespuesta(r) {
+  const texto = await r.text();
+  try {
+    return JSON.parse(texto);
+  } catch (e) {
+    throw new Error(
+      "Google respondió una página en vez de datos (código " + r.status + "). Suele pasar si el Apps Script no está " +
+      "implementado con su última versión, si el acceso no es «Cualquier persona», o si tardó demasiado. Intenta de nuevo."
+    );
+  }
+}
+
 // Llama al Apps Script para las notas (siempre con la sesión de Google)
 async function llamarNotas(accion, extra) {
   if (!configurado()) throw new Error("Falta configurar config.js");
@@ -1200,7 +1216,7 @@ async function llamarNotas(accion, extra) {
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify(Object.assign({ token: CONFIG.TOKEN, idToken, accion }, extra || {})),
   });
-  const j = await r.json();
+  const j = await leerJsonRespuesta(r);
   sesionRechazada(j);
   if (!j.ok) throw new Error(j.error || "Error");
   return j;
@@ -1739,6 +1755,7 @@ function actualizarPanelNotas() {
   actualizarPanelBazar(); // y al de Bazar
   actualizarPanelEmpresas(); // y al de Empresas/Proyectos
   actualizarPanelHoy(); // y al de Día de Hoy
+  actualizarPanelTareas(); // y al de Tareas Obligatorias Diarias
   actualizarZonasEtiqueta(); // y a las zonas de Actividades y Trabajo
   if (typeof actualizarNotarios === "function") actualizarNotarios(); // y a los Notarios de todas las zonas
   actualizarCalendarioSesion(); // y a los datos del calendario
@@ -3172,7 +3189,7 @@ async function guardarColorDia(fecha, color) {
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({ token: CONFIG.TOKEN, idToken, accion: "calendario_color", fecha, color }),
   });
-  const j = await r.json();
+  const j = await leerJsonRespuesta(r);
   sesionRechazada(j);
   if (!j.ok) throw new Error(j.error || "Error al guardar");
 }
@@ -7157,6 +7174,201 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || hyDetalle.hidden) return;
   cerrarDetalleHy();
 });
+
+// ---------- Tareas Obligatorias Diarias ----------
+// Mini notas cuadradas que se quedan para siempre (hoja «Tareas Diarias»). «Completar» agrega una «Tarea finalizada»
+// al Diario con el día de hoy y la hora; la tarea NO se quita (mañana se puede completar otra vez).
+const panelTd = document.getElementById("panel-tareas");
+const tdSinSesion = document.getElementById("td-sin-sesion");
+const tdContenido = document.getElementById("td-contenido");
+const tdEstado = document.getElementById("td-estado");
+const tdGrid = document.getElementById("td-grid");
+const tdNuevo = document.getElementById("td-nuevo");
+const tdAgregar = document.getElementById("td-agregar");
+const CLAVE_TD_HECHAS = "polo-tareas-diarias-hechas"; // { idTarea: "AAAA-MM-DD HH:MM" } solo para mostrar «✓ Hoy»
+let tareasDiarias = [];
+let tdCargadas = false;
+let tdCargando = false;
+
+function tdLeerHechas() {
+  try { return JSON.parse(localStorage.getItem(CLAVE_TD_HECHAS)) || {}; } catch (e) { return {}; }
+}
+function tdGuardarHecha(id, marca) {
+  try {
+    const h = tdLeerHechas();
+    h[id] = marca;
+    localStorage.setItem(CLAVE_TD_HECHAS, JSON.stringify(h));
+  } catch (e) {}
+}
+const tdNuevoId = () => String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
+
+function dibujarTareasDiarias() {
+  tdGrid.innerHTML = "";
+  if (!sesionVigente()) return;
+  if (!tareasDiarias.length) {
+    const p = document.createElement("p");
+    p.className = "td-vacio";
+    p.textContent = tdCargadas ? "Aún no hay tareas. ¡Agrega la primera! ✨" : "";
+    tdGrid.appendChild(p);
+    return;
+  }
+  const hoy = new Date();
+  const hoyClave = claveFecha(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  const hechas = tdLeerHechas();
+  tareasDiarias.forEach((t) => {
+    const marca = hechas[t.id] && hechas[t.id].slice(0, 10) === hoyClave ? hechas[t.id] : "";
+    const d = document.createElement("div");
+    d.className = "td-tile" + (marca ? " td-hecha" : "");
+    const txt = document.createElement("p");
+    txt.className = "td-texto";
+    txt.textContent = t.texto;
+    txt.title = t.texto;
+    const hora = document.createElement("div");
+    hora.className = "td-hora";
+    hora.textContent = marca ? "✓ Hoy a las " + marca.slice(11, 16) : "";
+    const acc = document.createElement("div");
+    acc.className = "td-acciones";
+    const ok = document.createElement("button");
+    ok.type = "button";
+    ok.className = "td-ok";
+    ok.textContent = "✅ Completar";
+    ok.addEventListener("click", () => completarTareaDiaria(t, ok));
+    const ed = document.createElement("button");
+    ed.type = "button";
+    ed.className = "td-sec";
+    ed.textContent = "✏️";
+    ed.title = "Editar";
+    ed.setAttribute("aria-label", "Editar tarea");
+    ed.addEventListener("click", () => editarTareaDiaria(t));
+    const bo = document.createElement("button");
+    bo.type = "button";
+    bo.className = "td-sec";
+    bo.textContent = "🗑";
+    bo.title = "Eliminar";
+    bo.setAttribute("aria-label", "Eliminar tarea");
+    bo.addEventListener("click", () => borrarTareaDiaria(t));
+    acc.append(ok, ed, bo);
+    d.append(txt, hora, acc);
+    tdGrid.appendChild(d);
+  });
+}
+
+async function cargarTareasDiarias() {
+  if (tdCargando) return;
+  tdCargando = true;
+  setEstado(tdEstado, "Cargando tareas…");
+  try {
+    const j = await llamarNotas("tarea_diaria_listar");
+    tareasDiarias = j.tareas || [];
+    tdCargadas = true;
+    setEstado(tdEstado, "");
+  } catch (e) {
+    setEstado(tdEstado, "No se pudieron cargar las tareas: " + e.message, "error");
+  }
+  tdCargando = false;
+  dibujarTareasDiarias();
+}
+
+async function agregarTareaDiaria() {
+  const texto = tdNuevo.value.trim().slice(0, 300);
+  if (!texto) { setEstado(tdEstado, "Escribe la tarea primero", "error"); return; }
+  const id = tdNuevoId();
+  tdAgregar.disabled = true;
+  setEstado(tdEstado, "Guardando…");
+  try {
+    await llamarNotas("tarea_diaria_agregar", { id, texto });
+    tareasDiarias.push({ id, texto, creada: "" });
+    tdNuevo.value = "";
+    setEstado(tdEstado, "Tarea agregada ✓", "ok");
+    dibujarTareasDiarias();
+  } catch (e) {
+    setEstado(tdEstado, "Error: " + e.message, "error");
+  }
+  tdAgregar.disabled = false;
+}
+
+async function editarTareaDiaria(t) {
+  const nuevo = window.prompt("Editar tarea:", t.texto);
+  if (nuevo === null) return;
+  const texto = nuevo.trim().slice(0, 300);
+  if (!texto || texto === t.texto) return;
+  setEstado(tdEstado, "Guardando…");
+  try {
+    await llamarNotas("tarea_diaria_editar", { id: t.id, texto });
+    t.texto = texto;
+    setEstado(tdEstado, "Tarea actualizada ✓", "ok");
+    dibujarTareasDiarias();
+  } catch (e) {
+    setEstado(tdEstado, "Error: " + e.message, "error");
+  }
+}
+
+async function borrarTareaDiaria(t) {
+  if (!window.confirm("¿Eliminar para siempre la tarea «" + t.texto + "»? (Lo ya anotado en el Diario se queda.)")) return;
+  setEstado(tdEstado, "Eliminando…");
+  try {
+    await llamarNotas("tarea_diaria_borrar", { id: t.id });
+    tareasDiarias = tareasDiarias.filter((x) => x.id !== t.id);
+    setEstado(tdEstado, "Tarea eliminada", "ok");
+    dibujarTareasDiarias();
+  } catch (e) {
+    setEstado(tdEstado, "Error: " + e.message, "error");
+  }
+}
+
+// «Completar»: agrega al Diario una «Tarea finalizada» con la fecha de hoy y la hora en la descripción.
+// Cada vez lleva un Id nuevo (el Diario no repite Ids), así la tarea se puede completar todos los días.
+async function completarTareaDiaria(t, boton) {
+  const ahora = new Date();
+  const fecha = claveFecha(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+  const hora = dos(ahora.getHours()) + ":" + dos(ahora.getMinutes());
+  const nombre = t.texto.length > 80 ? t.texto.slice(0, 79) + "…" : t.texto;
+  const descripcion =
+    "Tarea obligatoria diaria completada el " + dos(ahora.getDate()) + "/" + dos(ahora.getMonth() + 1) + "/" +
+    ahora.getFullYear() + " a las " + hora + ".\n\n" + t.texto;
+  boton.disabled = true;
+  setEstado(tdEstado, "Anotando en el Diario…");
+  try {
+    await llamarNotas("diario_agregar", { id: tdNuevoId(), nombre, fecha, descripcion, terminado: "Tarea finalizada" });
+    tdGuardarHecha(t.id, fecha + " " + hora);
+    diCargados = false; // el Diario se vuelve a leer al entrar y ya trae la nueva anotación
+    setEstado(tdEstado, "Completada ✓ (ya está en el Diario, hoy a las " + hora + ")", "ok");
+    dibujarTareasDiarias();
+  } catch (e) {
+    boton.disabled = false;
+    setEstado(tdEstado, "Error: " + e.message + " — puedes volver a intentarlo", "error");
+  }
+}
+
+function actualizarPanelTareas() {
+  if (!sesionVigente()) {
+    // Sin sesión no se guardan datos en pantalla
+    tdCargadas = false;
+    tareasDiarias = [];
+  }
+  if (panelTd.hidden) return;
+  const dentro = sesionVigente();
+  tdSinSesion.hidden = dentro;
+  tdContenido.hidden = !dentro;
+  if (dentro && !tdCargadas) cargarTareasDiarias();
+  else dibujarTareasDiarias();
+}
+
+// Se llama al entrar a la página (desde mostrarSeccion); siempre vuelve a leer por si cambió en otro dispositivo
+function entrarTareas() {
+  panelTd.hidden = false;
+  tdCargadas = false;
+  dibujarTareasDiarias();
+  actualizarPanelTareas();
+}
+
+tdAgregar.addEventListener("click", agregarTareaDiaria);
+tdNuevo.addEventListener("keydown", (e) => { if (e.key === "Enter") agregarTareaDiaria(); });
+document.getElementById("td-actualizar").addEventListener("click", () => {
+  if (sesionVigente()) cargarTareasDiarias();
+  else actualizarPanelTareas();
+});
+document.getElementById("td-ir-login").addEventListener("click", abrirLateral);
 
 // ---------- Notario: una zona de notas dentro de una zona de notas ----------
 // Un Notario tiene nombre y descripción, y guarda varias notas por separado dentro de UN archivo .txt de

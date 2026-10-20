@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#4a2685" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="imagenes/perfil.webp?v=56" type="image/webp" sizes="any" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <title>Polo AI · Sin internet</title>
   <style>
     * { box-sizing: border-box; }
@@ -232,7 +232,8 @@
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(Object.assign({ token: CONFIG.TOKEN, idToken: u.credencial, accion }, extra || {})),
     });
-    return r.json();
+    const t = await r.text();
+    try { return JSON.parse(t); } catch (e) { return { ok: false, error: "Google respondió una página en vez de datos (código " + r.status + ")" }; }
   }
 
   async function sincronizar() {
