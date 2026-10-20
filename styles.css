@@ -1,5 +1,5 @@
 :root {
-  --app-version: "51"; /* debe coincidir con VERSION en app.js */
+  --app-version: "52"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -2352,7 +2352,7 @@ span.em-red { --red-fondo: #262b3d; border-style: dashed; }
 }
 .em-hoja-resize:hover, .em-hoja-resize.activo { background: rgba(26, 115, 232, 0.55); }
 .em-hoja-mini {
-  position: absolute; top: 6px; left: 6px; z-index: 1; width: 117px; height: 66px; overflow: hidden;
+  position: absolute; top: 6px; left: 6px; z-index: 1; width: 117px; max-width: calc(100% - 16px); height: 66px; overflow: hidden;
   background: #e8eaed; border-radius: 4px; box-shadow: 0 0 0 1px #dadce0;
 }
 .em-hoja-mini img { display: block; width: 100%; height: 100%; object-fit: cover; }

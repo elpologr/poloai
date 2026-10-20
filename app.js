@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "51";
+const VERSION = "52";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -5036,7 +5036,6 @@ const HOJA_COLUMNAS = ["Nombre", "Fecha", "Youtube", "Aviso", "Facebook", "Aviso
 const HOJA_ANCHOS = [400, 240, 360, 260, 360, 260, 360, 260, 360, 260, 360, 260, 320, 260, 400];
 const HOJA_ANCHO_MIN = 60;
 const HOJA_ANCHO_MAX = 1200;
-const HOJA_COL_YOUTUBE = 2; // columna C «Youtube»: ahí se muestra la miniatura del video
 const HOJA_CLAVE_ANCHOS = "polo-hoja-redes-anchos"; // los anchos que eliges se recuerdan en este dispositivo
 const HOJA_COL_MAX = 60; // igual a MAX_COL_REDES del Apps Script
 const HOJA_NOMBRE_COL_MAX = 60; // igual a MAX_NOMBRE_COL_REDES del Apps Script
@@ -5195,10 +5194,10 @@ function hojaIdYoutube(texto) {
   return /^[\w-]{11}$/.test(id) ? id : "";
 }
 
-// Miniatura del video dentro de la celda de Youtube (al tocarla abre el video)
+// Miniatura del video dentro de cualquier celda cuyo contenido sea un link de YouTube (al tocarla abre el video)
 function hojaActualizarMiniatura(td, inp, texto) {
   let m = td.querySelector(".em-hoja-mini");
-  const id = +inp.dataset.c === HOJA_COL_YOUTUBE ? hojaIdYoutube(texto) : "";
+  const id = hojaIdYoutube(texto); // en cualquier celda (no solo en la columna Youtube)
   inp.classList.toggle("em-hoja-celda-mini", !!id);
   if (!id) {
     if (m) m.remove();
