@@ -2754,3 +2754,53 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
 .em-nesp-links-detectados[hidden] { display: none; }
 .em-nesp-links-detectados { margin-top: 2px; }
 .em-nesp-campo textarea { line-height: 1.4; overflow-wrap: anywhere; }
+
+/* ---------- Cuadrículas de 4 por fila: Deudas, Actividades, Trabajo, Información Primordial, Comandos y Bazar ---------- */
+#de-chips, #ip-chips, #cm-chips, #bz-chips, #bz-chips-yeso, #bz-chips-ventas,
+#zona-actividades .zona-lista.zona-lista-cuadritos,
+#zona-trabajo .zona-lista.zona-lista-cuadritos {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+#de-chips .ej-chip, #ip-chips .ej-chip, #cm-chips .ej-chip, #bz-chips .ej-chip, #bz-chips-yeso .ej-chip, #bz-chips-ventas .ej-chip,
+#zona-actividades .zona-cuadrito, #zona-trabajo .zona-cuadrito {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+}
+#de-chips .ej-chip-resumen, #ip-chips .ej-chip-resumen, #cm-chips .ej-chip-resumen, #bz-chips .ej-chip-resumen,
+#bz-chips-yeso .ej-chip-resumen, #bz-chips-ventas .ej-chip-resumen,
+#zona-actividades .ej-chip-resumen, #zona-trabajo .ej-chip-resumen { padding: 10px; }
+#de-chips .ej-chip-nombre, #ip-chips .ej-chip-nombre, #cm-chips .ej-chip-nombre, #bz-chips .ej-chip-nombre,
+#bz-chips-yeso .ej-chip-nombre, #bz-chips-ventas .ej-chip-nombre,
+#zona-actividades .ej-chip-nombre, #zona-trabajo .ej-chip-nombre { font-size: 0.85rem; }
+#de-chips .ej-chip-desc, #ip-chips .ej-chip-desc, #cm-chips .ej-chip-desc, #bz-chips .ej-chip-desc,
+#bz-chips-yeso .ej-chip-desc, #bz-chips-ventas .ej-chip-desc,
+#zona-actividades .ej-chip-desc, #zona-trabajo .ej-chip-desc { font-size: 0.72rem; -webkit-line-clamp: 4; }
+#de-chips .ej-chip-nuevo, #ip-chips .ej-chip-nuevo, #cm-chips .ej-chip-nuevo, #bz-chips .ej-chip-nuevo,
+#bz-chips-yeso .ej-chip-nuevo, #bz-chips-ventas .ej-chip-nuevo { align-items: center; justify-content: center; }
+#zona-actividades .zona-lista-cuadritos .notas-vacio, #zona-trabajo .zona-lista-cuadritos .notas-vacio { grid-column: 1 / -1; }
+@media (max-width: 480px) {
+  #de-chips, #ip-chips, #cm-chips, #bz-chips, #bz-chips-yeso, #bz-chips-ventas,
+  #zona-actividades .zona-lista.zona-lista-cuadritos,
+  #zona-trabajo .zona-lista.zona-lista-cuadritos { gap: 8px; }
+  #de-chips .ej-chip, #ip-chips .ej-chip, #cm-chips .ej-chip, #bz-chips .ej-chip, #bz-chips-yeso .ej-chip, #bz-chips-ventas .ej-chip,
+  #zona-actividades .zona-cuadrito, #zona-trabajo .zona-cuadrito { width: 100%; height: auto; }
+  #de-chips .ej-chip-resumen, #ip-chips .ej-chip-resumen, #cm-chips .ej-chip-resumen, #bz-chips .ej-chip-resumen,
+  #bz-chips-yeso .ej-chip-resumen, #bz-chips-ventas .ej-chip-resumen,
+  #zona-actividades .ej-chip-resumen, #zona-trabajo .ej-chip-resumen { padding: 6px; }
+  #de-chips .ej-chip-nombre, #ip-chips .ej-chip-nombre, #cm-chips .ej-chip-nombre, #bz-chips .ej-chip-nombre,
+  #bz-chips-yeso .ej-chip-nombre, #bz-chips-ventas .ej-chip-nombre,
+  #zona-actividades .ej-chip-nombre, #zona-trabajo .ej-chip-nombre { font-size: 0.7rem; }
+  #de-chips .ej-chip-desc, #ip-chips .ej-chip-desc, #cm-chips .ej-chip-desc, #bz-chips .ej-chip-desc,
+  #bz-chips-yeso .ej-chip-desc, #bz-chips-ventas .ej-chip-desc,
+  #zona-actividades .ej-chip-desc, #zona-trabajo .ej-chip-desc { font-size: 0.6rem; -webkit-line-clamp: 3; }
+}
+
+/* Día de Hoy: ventana para escribir una nota de hoy en el Diario */
+.td-dialogo-caja textarea {
+  display: block; width: 100%; box-sizing: border-box; margin-top: 4px; padding: 10px; font: inherit; font-weight: 400; color: #2b2140;
+  background: #fff; border: 1px solid #e3d8f6; border-radius: 10px; resize: vertical;
+}

@@ -7768,8 +7768,9 @@ document.addEventListener("keydown", (e) => {
 
 // ---------- Día de Hoy ----------
 // No tiene hoja propia: junta lo que tenga la fecha de hoy en las demás zonas (Calendario, Notas, Ejercicio,
-// Actividades, Trabajo, Diario, Información Primordial, Comandos y Pedidos de Yeso). Deudas y Bazar no
-// guardan fecha, así que no aparecen aquí.
+// Actividades, Trabajo, Diario, Información Primordial, Comandos, Deudas (por su día de creación), Empresas/Proyectos
+// y Pedidos de Yeso). Bazar no guarda fecha, así que no aparece aquí.
+// En el grupo del Diario (donde caen las tareas completadas) hay un recuadro «+ Añadir» para escribir notas de hoy.
 const hyEl = (id) => document.getElementById(id);
 const seccionHy = hyEl("seccion-hoy");
 const panelHy = hyEl("panel-hoy");
@@ -7791,6 +7792,8 @@ const HY_ZONAS = [
   { id: "diario", icono: "📓", titulo: "Diario", seccion: "seccion-diario" },
   { id: "informacion", icono: "⭐", titulo: "Información Primordial", seccion: "seccion-informacion" },
   { id: "comandos", icono: "🎙️", titulo: "Comandos", seccion: "seccion-comandos" },
+  { id: "deudas", icono: "💸", titulo: "Deudas", seccion: "seccion-deudas" },
+  { id: "empresas", icono: "🏢", titulo: "Empresas / Proyectos", seccion: "seccion-empresas" },
   { id: "yeso", icono: "📦", titulo: "Pedidos de Yeso", seccion: "pedidos-yeso" },
 ];
 
@@ -7882,9 +7885,11 @@ function hyArmar(clave, f) {
   });
   (f.diarios || []).forEach((d) => {
     if (d.fecha === clave) {
+      // Las tareas obligatorias completadas llevan su hora en la descripción: así salen ordenadas y con su hora
+      const hf = d.marca === "Tarea finalizada" ? /\ba las (\d{1,2}:\d{2})/.exec(d.descripcion || "") : null;
       por.diario.push({
         nombre: d.nombre,
-        hora: "",
+        hora: hf ? hf[1].padStart(5, "0") : "",
         marca: d.marca === "Tarea finalizada" ? "✅ Tarea finalizada" : d.terminado ? "✅ Terminado" : "",
         texto: d.descripcion,
         extra: d.marca === "Tarea finalizada" ? "Anotación de Tarea Finalizada" : d.marca === "Actividad finalizada" ? "Actividad terminada" : d.terminado ? "Trabajo terminado" : "",
@@ -7901,6 +7906,13 @@ function hyArmar(clave, f) {
     if (c.fecha === clave) {
       por.comandos.push({ nombre: c.nombre, hora: "", texto: c.descripcion, origen: { tipo: "comando", id: c.id } });
     }
+  });
+
+  (f.deudas || []).forEach((d) => {
+    if (d.fecha === clave) por.deudas.push({ nombre: d.nombre, hora: "", texto: d.descripcion, extra: "Creada hoy" });
+  });
+  (f.empresas || []).forEach((e) => {
+    if (e.fecha === clave) por.empresas.push({ nombre: e.nombre, hora: "", texto: e.descripcion, extra: "" });
   });
 
   return HY_ZONAS.map((zona) => {
@@ -7938,7 +7950,7 @@ function hyCrearGrupo(g) {
     if (it.hora || it.marca) {
       const f = document.createElement("span");
       f.className = "ej-chip-fecha";
-      f.textContent = it.hora || it.marca;
+      f.textContent = it.finalizada && it.hora ? "✅ " + it.hora : it.hora || it.marca;
       b.append(n, f, t);
     } else {
       b.append(n, t);
@@ -7946,6 +7958,15 @@ function hyCrearGrupo(g) {
     b.addEventListener("click", () => abrirDetalleHy(g.zona, it));
     chips.appendChild(b);
   });
+  if (g.zona.id === "diario") {
+    const nuevo = document.createElement("button");
+    nuevo.type = "button";
+    nuevo.className = "ej-chip ej-chip-nuevo";
+    nuevo.setAttribute("aria-label", "Añadir una nota de hoy al Diario");
+    nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
+    nuevo.addEventListener("click", hyAbrirNuevaNota);
+    chips.appendChild(nuevo);
+  }
   sec.append(titulo, chips);
   return sec;
 }
@@ -7960,16 +7981,85 @@ function dibujarHoy() {
     p.className = "notas-vacio";
     p.textContent = "No hay nada registrado con la fecha de hoy.";
     hyGruposEl.appendChild(p);
-    return;
   }
-  // El Diario va aparte: primero las demás zonas, y debajo de una línea los recuadros del Diario
+  // El Diario va aparte: primero las demás zonas, y debajo de una línea los recuadros del Diario.
+  // Se muestra siempre (aunque esté vacío) porque ahí está el recuadro «+ Añadir» para escribir notas de hoy.
   conAlgo.filter((g) => g.zona.id !== "diario").forEach((g) => hyGruposEl.appendChild(hyCrearGrupo(g)));
-  const diario = conAlgo.find((g) => g.zona.id === "diario");
-  if (diario) {
-    const linea = document.createElement("hr");
-    linea.className = "hoy-separador";
-    hyGruposEl.append(linea, hyCrearGrupo(diario));
-  }
+  const diario = hyGrupos.find((g) => g.zona.id === "diario") || { zona: HY_ZONAS.find((z) => z.id === "diario"), items: [] };
+  const linea = document.createElement("hr");
+  linea.className = "hoy-separador";
+  hyGruposEl.append(linea, hyCrearGrupo(diario));
+}
+
+// ----- «+ Añadir»: escribir una nota de hoy en el Diario desde Día de Hoy -----
+function hyAbrirNuevaNota() {
+  const fondo = document.createElement("div");
+  fondo.className = "td-dialogo";
+  const caja = document.createElement("div");
+  caja.className = "td-dialogo-caja";
+  caja.setAttribute("role", "dialog");
+  caja.setAttribute("aria-modal", "true");
+  const titulo = document.createElement("h3");
+  titulo.textContent = "📓 Nueva nota de hoy";
+  const campo = (rotulo, el) => {
+    const l = document.createElement("label");
+    l.textContent = rotulo;
+    l.appendChild(el);
+    return l;
+  };
+  const iNombre = document.createElement("input");
+  iNombre.type = "text";
+  iNombre.maxLength = 80;
+  iNombre.autocomplete = "off";
+  const iDesc = document.createElement("textarea");
+  iDesc.rows = 6;
+  iDesc.maxLength = 1000000;
+  const msg = document.createElement("p");
+  msg.className = "notas-estado";
+  const fila = document.createElement("div");
+  fila.className = "td-dialogo-botones";
+  const cancelar = document.createElement("button");
+  cancelar.type = "button";
+  cancelar.className = "notas-btn td-btn-sec";
+  cancelar.textContent = "Cancelar";
+  const guardar = document.createElement("button");
+  guardar.type = "button";
+  guardar.className = "notas-btn";
+  guardar.textContent = "Guardar";
+  fila.append(cancelar, guardar);
+  caja.append(titulo, campo("Nombre", iNombre), campo("Nota", iDesc), msg, fila);
+  fondo.appendChild(caja);
+  document.body.appendChild(fondo);
+  iNombre.focus();
+  const cerrar = () => { fondo.remove(); document.removeEventListener("keydown", alEscape, true); };
+  const alEscape = (e) => { if (e.key === "Escape") { e.stopPropagation(); cerrar(); } };
+  document.addEventListener("keydown", alEscape, true);
+  cancelar.addEventListener("click", cerrar);
+  fondo.addEventListener("click", (e) => { if (e.target === fondo) cerrar(); });
+  guardar.addEventListener("click", async () => {
+    const nombre = iNombre.value.trim().slice(0, 80);
+    const descripcion = iDesc.value.trim();
+    if (!nombre) { setEstado(msg, "Escribe el nombre de la nota", "error"); return; }
+    guardar.disabled = true;
+    setEstado(msg, "Guardando…");
+    try {
+      const id = String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
+      await llamarNotas("diario_agregar", { id, nombre, fecha: hyClaveHoy(), descripcion, destino: "drive", terminado: "" });
+      diCargados = false; // el Diario se vuelve a leer al entrar y ya trae la nota nueva
+      let gd = hyGrupos.find((g) => g.zona.id === "diario");
+      if (!gd) {
+        gd = { zona: HY_ZONAS.find((z) => z.id === "diario"), items: [] };
+        hyGrupos.push(gd);
+      }
+      gd.items.push({ nombre, hora: "", marca: "", texto: descripcion, extra: "", finalizada: false });
+      cerrar();
+      dibujarHoy();
+      setEstado(hyEstado, "Nota añadida al Diario de hoy ✓", "ok");
+    } catch (e) {
+      guardar.disabled = false;
+      setEstado(msg, "Error: " + e.message, "error");
+    }
+  });
 }
 
 // ----- Detalle de un recuadro (solo lectura) -----
@@ -8096,6 +8186,8 @@ async function cargarHoy() {
     ["Diario", "diario_listar"],
     ["Información Primordial", "informacion_listar"],
     ["Comandos", "comando_listar"],
+    ["Deudas", "deuda_listar"],
+    ["Empresas / Proyectos", "empresa_listar"],
   ];
   const resultados = await Promise.allSettled(pedidos.map((p) => llamarNotas(p[1])));
   if (peticion !== hyPeticion) return; // llegó otra petición más nueva: esta ya no sirve
@@ -8108,7 +8200,7 @@ async function cargarHoy() {
     fallaron.push(pedidos[i][0]);
     return null;
   };
-  const cal = dato(0), nts = dato(1), ejs = dato(2), dis = dato(3), ips = dato(4), cms = dato(5);
+  const cal = dato(0), nts = dato(1), ejs = dato(2), dis = dato(3), ips = dato(4), cms = dato(5), deu = dato(6), emp = dato(7);
   hyGrupos = hyArmar(clave, {
     calendario: cal ? cal.datos : null,
     notas: nts ? nts.notas : null,
@@ -8116,6 +8208,8 @@ async function cargarHoy() {
     diarios: dis ? dis.diarios : null,
     informaciones: ips ? ips.informaciones : null,
     comandos: cms ? cms.comandosLista : null,
+    deudas: deu ? deu.deudas : null,
+    empresas: emp ? emp.empresas : null,
   });
   hyCargadas = true;
   if (fallaron.length) setEstado(hyEstado, "No se pudo leer: " + fallaron.join(", "), "error");
