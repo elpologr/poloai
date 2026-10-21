@@ -2749,3 +2749,8 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
   .em-canal-grid { gap: 10px 6px; padding: 10px 12px 8px; }
   .em-canal-titulo { font-size: 0.66rem; }
 }
+
+/* ---------- Nota especial: zona de texto con links (cuadros de color solo donde se detecta un link) ---------- */
+.em-nesp-links-detectados[hidden] { display: none; }
+.em-nesp-links-detectados { margin-top: 2px; }
+.em-nesp-campo textarea { line-height: 1.4; overflow-wrap: anywhere; }

@@ -6839,7 +6839,7 @@ const nespBuscar = (d) => (Array.isArray(d.notas) ? d.notas : []).find((n) => n.
 function nespClaves() {
   const k = [];
   if (nespValores.REDES && nespValores.REDES.trim()) k.push("REDES"); // texto de antes, cuando las redes se escribían aquí
-  k.push("CORREO", "COC_NOMBRE", "COC_LINK", "COC_TH", "COC_PRECIO"); // referencia de correo y cuenta de Clash of Clans
+  k.push("CORREO", "TEXTO_LINKS", "COC_NOMBRE", "COC_LINK", "COC_TH", "COC_PRECIO"); // referencia de correo y cuenta de Clash of Clans
   // _DESC y _TAGS = videos; _SDESC y _STAGS = shorts
   NESP_PLATAFORMAS.forEach((p) => k.push(p.id + "_DESC", p.id + "_TAGS", p.id + "_SDESC", p.id + "_STAGS"));
   return k;
@@ -6983,6 +6983,90 @@ function nespCrearRedes(d) {
   return redes;
 }
 
+// ----- Zona de texto con links: solo se crea un cuadro de color donde se detecta un link (no uno por línea) -----
+const NESP_TEXTO_MAX = 20000; // esta zona admite más texto que los demás campos
+// Busca links dentro de un texto libre: direcciones http(s) y dominios de redes conocidas escritos sin «https://»
+function nespLinksDeTexto(texto) {
+  const lista = [];
+  const hostsConocidos = REDES_EM.reduce((a, r) => a.concat(r.hosts), []);
+  String(texto || "").split(/\s+/).forEach((tok) => {
+    const t = tok.replace(/^[(\[{<"'\u201C\u2018]+/, "").replace(/[.,;:!?)\]}>"'\u201D\u2019\u2026]+$/, "");
+    if (!t || t.charAt(0) === "#") return;
+    let href = "";
+    if (/^https?:\/\/\S+$/i.test(t)) {
+      href = t;
+    } else {
+      const m = /^(?:www\.)?([^\s\/?#@]+)(?:[\/?#]\S*)?$/i.exec(t);
+      if (m) {
+        const h = m[1].toLowerCase();
+        if (hostsConocidos.some((x) => h === x || h.endsWith("." + x))) href = "https://" + t;
+      }
+    }
+    if (href && !lista.some((x) => x.href === href)) lista.push({ href, texto: t });
+  });
+  return lista;
+}
+
+// Dibuja los cuadros (con el color de cada red) de los links que haya en el texto; tocar un cuadro copia su link
+function nespPintarLinks(contenedor, texto) {
+  contenedor.innerHTML = "";
+  const links = nespLinksDeTexto(texto);
+  contenedor.hidden = links.length === 0;
+  links.forEach((l) => {
+    const red = emRedDeLink(l.href);
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "em-red";
+    el.dataset.red = red.id;
+    el.title = "Copiar: " + l.href;
+    el.setAttribute("aria-label", "Copiar el link de " + red.nombre);
+    const txt = document.createElement("span");
+    txt.className = "em-red-txt";
+    const b = document.createElement("b");
+    b.textContent = red.nombre;
+    const sm = document.createElement("small");
+    sm.textContent = red.corto;
+    txt.append(b, sm);
+    el.append(emIconoRed(red.id, red.glifo), txt);
+    el.addEventListener("click", () => nespCopiar(l.href, sm));
+    contenedor.appendChild(el);
+  });
+}
+
+// Zona de texto libre (justo debajo de las redes): aquí van los links completos y los demás datos para copiar a las descripciones
+function nespCrearTextoLinks(d) {
+  // La primera vez se llena con los links del proyecto; después es solo tuyo
+  if (nespValores.TEXTO_LINKS === undefined) nespValores.TEXTO_LINKS = nespEnlacesDe(d).join("\n");
+  const t = document.createElement("section");
+  t.className = "em-nesp-tarjeta";
+  const h = document.createElement("h4");
+  h.textContent = "\u{1F4DD} Texto y links para las descripciones";
+  const ayuda = document.createElement("p");
+  ayuda.className = "em-nesp-ayuda-chica";
+  ayuda.textContent = "Escribe aquí los links completos y los demás datos que copias a tus videos. Abajo aparece un cuadro solo por cada link detectado.";
+  const campo = nespCrearCampo("TEXTO_LINKS", "Texto completo", "Texto con links y datos", 10, "https://…\nOtros datos útiles para tus descripciones…");
+  const ta = campo.querySelector("textarea");
+  ta.maxLength = NESP_TEXTO_MAX;
+  const traer = document.createElement("button");
+  traer.type = "button";
+  traer.className = "em-nesp-copiar em-nesp-copiar-todo";
+  traer.textContent = "Traer links del proyecto";
+  const vista = document.createElement("div");
+  vista.className = "em-det-links em-nesp-links-detectados";
+  const pintar = () => nespPintarLinks(vista, ta.value);
+  ta.addEventListener("input", pintar);
+  traer.addEventListener("click", () => {
+    const faltan = nespEnlacesDe(d).filter((l) => !ta.value.includes(l));
+    if (!faltan.length) { nespAvisoBoton(traer, "Ya están todos"); return; }
+    ta.value = (ta.value.replace(/\s+$/, "") + "\n" + faltan.join("\n")).replace(/^\n/, "");
+    ta.dispatchEvent(new Event("input")); // actualiza la nota, el guardado y los cuadros
+    nespAvisoBoton(traer, "Agregados ✓");
+  });
+  pintar();
+  t.append(h, ayuda, campo, traer, vista);
+  return t;
+}
+
 // Una sección desplegable (videos o shorts) de una red: su descripción, sus hashtags y el botón de copiar todo
 function nespCrearSeccion(p, titulo, cuando, kDesc, kTags) {
   const sec = document.createElement("details");
@@ -7063,6 +7147,7 @@ function nespConstruir() {
   nespCuerpo.appendChild(ayuda);
 
   nespCuerpo.appendChild(nespCrearRedes(nespProyecto));
+  nespCuerpo.appendChild(nespCrearTextoLinks(nespProyecto));
   nespCuerpo.appendChild(nespCrearCorreo());
 
   // Redes que se habían escrito a mano antes de enlazarlas con los ajustes: se conservan hasta que las borres
