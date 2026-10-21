@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=70" />
+  <link rel="stylesheet" href="styles.css?v=71" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1061,6 +1061,8 @@
             <button type="button" class="em-zona-btn em-grupo-btn" role="tab" data-grupo="Personales" aria-selected="true">&#128100; Personales</button>
             <button type="button" class="em-zona-btn em-grupo-btn" role="tab" data-grupo="Ajenos" aria-selected="false">&#129309; Ajenos</button>
           </div>
+          <!-- Tercer divisor: Personales → Míos | Familiares; Ajenos → Amigos | Clientes (los botones los dibuja app.js) -->
+          <div id="em-subgrupos" class="em-zonas em-grupos em-subgrupos" role="tablist" aria-label="Subcategoría del proyecto" hidden></div>
           <p id="em-estado" class="notas-estado proy-estado-lista"></p>
           <div id="em-chips" class="ej-chips"></div>
         </div>
@@ -1173,6 +1175,8 @@
           <button type="button" class="em-canal-tab" role="tab" data-hoja="1" aria-selected="true">&#127916; Videos</button>
           <button type="button" class="em-canal-tab" role="tab" data-hoja="2" aria-selected="false">&#9889; Shorts</button>
         </div>
+        <!-- Botones de redes: solo se ven las miniaturas de la red elegida (los arma app.js) -->
+        <div id="em-canal-redes" class="em-canal-redes" role="group" aria-label="Red social"></div>
         <p id="em-canal-estado" class="em-canal-estado" role="status"></p>
         <div id="em-canal-grid" class="em-canal-grid"></div>
         <nav id="em-canal-pags" class="em-canal-pags" aria-label="Páginas" hidden></nav>
@@ -1197,6 +1201,7 @@
           <button id="em-hoja-fila-mas" class="em-hoja-herr-btn" type="button">+ Fila</button>
           <button id="em-hoja-filas-mas" class="em-hoja-herr-btn" type="button">+ 10 filas</button>
           <button id="em-hoja-col-mas" class="em-hoja-herr-btn" type="button">+ Columna</button>
+          <button id="em-hoja-col-quitar" class="em-hoja-herr-btn em-hoja-herr-peligro" type="button" title="Elige una columna para quitarla (pide confirmación)">&#128465; Quitar columna</button>
           <button id="em-hoja-fila-quitar" class="em-hoja-herr-btn em-hoja-herr-peligro" type="button" title="Quita la fila donde está el cursor">&#128465; Quitar fila</button>
           <span class="em-hoja-ayuda">Se guarda sola al escribir. Enter baja, Tab avanza. Arrastra sobre las celdas (o toca la letra de una columna) para seleccionar y usa Ctrl+C / Ctrl+V; arrastra el nombre de una columna para moverla.</span>
         </div>
@@ -1252,6 +1257,10 @@
                 <option value="Personales">Personales</option>
                 <option value="Ajenos">Ajenos</option>
               </select>
+            </label>
+            <label id="em-subgrupo-campo" class="notas-campo">
+              <span>Subcategoría</span>
+              <select id="em-subgrupo"></select>
             </label>
             <label class="notas-campo">
               <span>Fecha</span>
@@ -1357,7 +1366,7 @@
   </main>
 
   <script src="config.js?v=64"></script>
-  <script src="app.js?v=73"></script>
+  <script src="app.js?v=74"></script>
   <script src="voz.js?v=64"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

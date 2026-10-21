@@ -5210,8 +5210,8 @@ function emZonasLocales() {
   try { return JSON.parse(localStorage.getItem(CLAVE_ZONAS_LOCAL_EM)) || {}; } catch (e) { return {}; }
 }
 // p = pendiente: la hoja todavía no confirmó que guardó esa zona (se quita solo cuando la hoja devuelve lo mismo)
-function emGuardarZonaLocal(id, zona, grupo) {
-  try { const m = emZonasLocales(); m[id] = { z: zona, g: grupo, p: true }; localStorage.setItem(CLAVE_ZONAS_LOCAL_EM, JSON.stringify(m)); } catch (e) {}
+function emGuardarZonaLocal(id, zona, grupo, subgrupo) {
+  try { const m = emZonasLocales(); m[id] = { z: zona, g: grupo, s: subgrupo, p: true }; localStorage.setItem(CLAVE_ZONAS_LOCAL_EM, JSON.stringify(m)); } catch (e) {}
 }
 function emEscribirZonasLocales(m) {
   try { localStorage.setItem(CLAVE_ZONAS_LOCAL_EM, JSON.stringify(m)); } catch (e) {}
@@ -5220,7 +5220,7 @@ let emBackendSinZona = false; // true si la hoja/Apps Script no devuelve la zona
 let emVersionScript = ""; // versión del Apps Script que respondió la última lectura (vacía si es una versión vieja que no la informa)
 const emAvisoZona = () => "⚠ La hoja no está guardando la zona ni el tipo (Personales/Ajenos): por ahora solo se recuerdan en este dispositivo. " +
   "Versión del Apps Script que responde: " + (emVersionScript || "ninguna indicada (es una versión vieja o distinta)") +
-  ". Debe decir «drive-y-hoja-redes-7-zonas»: publica una nueva versión de esa implementación.";
+  ". Debe decir «drive-y-hoja-redes-8-subgrupos»: publica una nueva versión de esa implementación.";
 const emZonaInfo = (nombre) => ZONAS_EM.find((z) => z.nombre === nombre) || ZONAS_EM[0];
 const emZonaDe = (d) => emZonaInfo(d && d.zona).nombre;
 // Dentro de «Proyectos» hay dos grupos: Personales y Ajenos (columna J «Grupo»; lo vacío cuenta como Personales)
@@ -5230,6 +5230,35 @@ const emGrupoDe = (d) => (d && GRUPOS_EM.indexOf(d.grupo) !== -1 ? d.grupo : GRU
 let emGrupoActivo = (() => {
   try { const g = localStorage.getItem(CLAVE_GRUPO_EM); return GRUPOS_EM.indexOf(g) !== -1 ? g : GRUPOS_EM[0]; } catch (e) { return GRUPOS_EM[0]; }
 })();
+// Subcategorías de cada grupo (columna K «Subgrupo»; lo vacío cuenta como la primera de su grupo)
+const SUBGRUPOS_EM = { Personales: ["Míos", "Familiares"], Ajenos: ["Amigos", "Clientes"] };
+const CLAVE_SUBGRUPO_EM = "polo-ai-empresas-subgrupo";
+const emSubgrupoDe = (d) => {
+  const lista = SUBGRUPOS_EM[emGrupoDe(d)];
+  return d && lista.indexOf(d.subgrupo) !== -1 ? d.subgrupo : lista[0];
+};
+// Subcategoría elegida en cada grupo (se recuerda por separado: Personales y Ajenos)
+let emSubgruposActivos = (() => {
+  try { return JSON.parse(localStorage.getItem(CLAVE_SUBGRUPO_EM)) || {}; } catch (e) { return {}; }
+})();
+function emSubgrupoActivo() {
+  const lista = SUBGRUPOS_EM[emGrupoActivo];
+  return lista.indexOf(emSubgruposActivos[emGrupoActivo]) !== -1 ? emSubgruposActivos[emGrupoActivo] : lista[0];
+}
+const emSubgruposCaja = emEl("em-subgrupos");
+const emSubgrupoSelect = emEl("em-subgrupo");
+const emSubgrupoCampo = emEl("em-subgrupo-campo");
+function emLlenarSubgrupos(grupo, elegido) {
+  const lista = SUBGRUPOS_EM[GRUPOS_EM.indexOf(grupo) !== -1 ? grupo : GRUPOS_EM[0]];
+  emSubgrupoSelect.innerHTML = "";
+  lista.forEach((n) => emSubgrupoSelect.add(new Option(n, n)));
+  emSubgrupoSelect.value = lista.indexOf(elegido) !== -1 ? elegido : lista[0];
+}
+function emElegirSubgrupo(nombre) {
+  emSubgruposActivos[emGrupoActivo] = nombre;
+  try { localStorage.setItem(CLAVE_SUBGRUPO_EM, JSON.stringify(emSubgruposActivos)); } catch (e) {}
+  dibujarChipsEm();
+}
 const emGruposCaja = emEl("em-grupos");
 const emGruposBtns = Array.from(document.querySelectorAll("#em-grupos .em-grupo-btn"));
 const emGrupoSelect = emEl("em-grupo");
@@ -5245,11 +5274,15 @@ let emZonaActiva = (() => {
 })();
 const emZonasBtns = Array.from(document.querySelectorAll("#em-zonas .em-zona-btn"));
 const emZonaSelect = emEl("em-zona");
-function emElegirZona(nombre, grupo) {
+function emElegirZona(nombre, grupo, subgrupo) {
   emZonaActiva = emZonaInfo(nombre).nombre;
   if (grupo && GRUPOS_EM.indexOf(grupo) !== -1) {
     emGrupoActivo = grupo;
     try { localStorage.setItem(CLAVE_GRUPO_EM, emGrupoActivo); } catch (e) {}
+    if (subgrupo && SUBGRUPOS_EM[grupo].indexOf(subgrupo) !== -1) {
+      emSubgruposActivos[grupo] = subgrupo;
+      try { localStorage.setItem(CLAVE_SUBGRUPO_EM, JSON.stringify(emSubgruposActivos)); } catch (e) {}
+    }
   }
   try { localStorage.setItem(CLAVE_ZONA_EM, emZonaActiva); } catch (e) {}
   emZonasBtns.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.zona === emZonaActiva)));
@@ -5757,12 +5790,21 @@ function hojaVideoSocial(texto) {
   if (!url) return null;
   let u;
   try { u = new URL(url); } catch (e) { return null; }
-  const host = u.hostname.toLowerCase().replace(/^(www|m|web|mbasic)\./, "");
+  const host = u.hostname.toLowerCase().replace(/^(www|m|web|mbasic|mobile)\./, "");
   if (host === "fb.watch" && u.pathname.length > 1) return { red: "facebook", url };
   if (host === "facebook.com" && /^\/(reel|reels|watch|video\.php|share\/[vr]|[^/]+\/videos)(\/|$)/.test(u.pathname)) return { red: "facebook", url };
   if (host === "instagram.com" && /^\/(?:[^/]+\/)?(reel|reels|p|tv)\/[\w-]+/.test(u.pathname)) return { red: "instagram", url };
+  // TikTok: video completo o link corto (vm. / vt.)
+  if (host === "tiktok.com" && /^\/(@[^/]+\/video\/\d+|t\/[\w-]+|v\/\d+)/.test(u.pathname)) return { red: "tiktok", url };
+  if ((host === "vm.tiktok.com" || host === "vt.tiktok.com") && u.pathname.length > 1) return { red: "tiktok", url };
+  // Threads: una publicación (no un perfil)
+  if ((host === "threads.net" || host === "threads.com") && /^\/@[^/]+\/post\/[\w-]+/.test(u.pathname)) return { red: "threads", url };
+  // X: una publicación (no un perfil)
+  if ((host === "x.com" || host === "twitter.com") && /^\/(?:[^/]+|i\/web)\/status\/\d+/.test(u.pathname)) return { red: "x", url };
   return null;
 }
+const HOJA_RED_ETQ = { facebook: "FB", instagram: "IG", tiktok: "TT", threads: "TH", x: "X" };
+const HOJA_RED_NOMBRE = { youtube: "YouTube", facebook: "Facebook", instagram: "Instagram", tiktok: "TikTok", threads: "Threads", x: "X" };
 
 // Miniaturas de Facebook/Instagram: las pide el Apps Script («miniatura_link») y se recuerdan en este dispositivo unas horas
 const HOJA_CLAVE_MINIS = "polo-hoja-redes-minis";
@@ -5822,7 +5864,7 @@ function hojaMiniSocial(td, m, s) {
     m = document.createElement("a");
     m.className = "em-hoja-mini em-hoja-mini-red em-hoja-mini-" + s.red;
     m.dataset.tipo = s.red;
-    m.dataset.etq = s.red === "facebook" ? "FB" : "IG";
+    m.dataset.etq = HOJA_RED_ETQ[s.red] || "";
     m.target = "_blank";
     m.rel = "noopener noreferrer";
     const ins = document.createElement("span");
@@ -5845,7 +5887,7 @@ function hojaMiniSocial(td, m, s) {
     m.append(img, ins);
     td.appendChild(m);
   }
-  m.title = s.red === "facebook" ? "Abrir el video de Facebook" : "Abrir el video de Instagram";
+  m.title = "Abrir el video de " + (HOJA_RED_NOMBRE[s.red] || "la red");
   m.href = s.url;
   if (m.dataset.url !== s.url) {
     m.dataset.url = s.url;
@@ -6028,6 +6070,7 @@ async function guardarHoja() {
 }
 
 async function cargarHoja() {
+  hojaSalirModoQuitar();
   hojaCargada = false;
   hojaSel = null;
   hojaSelAncla = null;
@@ -6110,6 +6153,7 @@ async function cerrarHoja() {
     if (!ok && !window.confirm("No se pudo guardar la hoja. ¿Cerrar de todos modos y perder los últimos cambios?")) return;
   }
   hojaCerrarVideo();
+  hojaSalirModoQuitar();
   emHoja.hidden = true;
   canalAlVolverDeHoja(hojaTocada || hojaGuardado > 0);
 }
@@ -6656,6 +6700,171 @@ if (emHojaColMas) {
     emHojaScroll.scrollLeft = emHojaScroll.scrollWidth;
     hojaEnfocar(0, hojaColumnas.length - 1);
   });
+}
+
+// ----- Quitar una columna: el botón activa un modo en el que solo se puede tocar la columna que se quiere quitar -----
+// Se pide confirmación antes de borrarla (con todo lo que tenga escrito). Las demás columnas no se tocan.
+const emHojaColQuitar = emEl("em-hoja-col-quitar");
+let hojaModoQuitar = false;
+let hojaConfirmando = false; // hay un cuadro de confirmación abierto
+let hojaColResaltada = -1;
+let hojaModoAviso = null;
+
+// Cuadro de confirmación propio (window.confirm no siempre funciona en la app instalada); devuelve true si se acepta
+function hojaConfirmar(titulo, texto, textoBoton) {
+  return new Promise((resolve) => {
+    const fondo = document.createElement("div");
+    fondo.className = "em-hoja-dialogo";
+    const caja = document.createElement("div");
+    caja.className = "em-hoja-dialogo-caja";
+    caja.setAttribute("role", "alertdialog");
+    caja.setAttribute("aria-modal", "true");
+    const h = document.createElement("strong");
+    h.textContent = titulo;
+    const p = document.createElement("p");
+    p.className = "em-hoja-dialogo-texto";
+    p.textContent = texto;
+    const fila = document.createElement("div");
+    fila.className = "em-hoja-dialogo-botones";
+    const cancelar = document.createElement("button");
+    cancelar.type = "button";
+    cancelar.className = "em-hoja-herr-btn";
+    cancelar.textContent = "Cancelar";
+    const ok = document.createElement("button");
+    ok.type = "button";
+    ok.className = "em-hoja-guardar em-hoja-guardar-peligro";
+    ok.textContent = textoBoton || "Aceptar";
+    fila.append(cancelar, ok);
+    caja.append(h, p, fila);
+    fondo.appendChild(caja);
+    emHoja.appendChild(fondo);
+    const tecla = (e) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation(); // Esc cierra solo este cuadro
+      cerrar(false);
+    };
+    const cerrar = (valor) => {
+      document.removeEventListener("keydown", tecla, true);
+      fondo.remove();
+      resolve(valor);
+    };
+    document.addEventListener("keydown", tecla, true);
+    ok.addEventListener("click", () => cerrar(true));
+    cancelar.addEventListener("click", () => cerrar(false));
+    fondo.addEventListener("pointerdown", (e) => { if (e.target === fondo) cerrar(false); });
+    setTimeout(() => cancelar.focus(), 30); // el foco empieza en «Cancelar» para no borrar sin querer
+  });
+}
+
+// Índice de la columna (0 = la primera de datos) bajo un evento de la tabla; -1 si no es una columna
+function hojaColDeEvento(e) {
+  const cel = e.target && e.target.closest ? e.target.closest("td, th") : null;
+  if (!cel || !emHojaTabla.contains(cel)) return -1;
+  return cel.cellIndex - 1;
+}
+
+function hojaResaltarColumna(idx) {
+  if (idx === hojaColResaltada) return;
+  const marcar = (i, on) => {
+    if (i < 0) return;
+    Array.prototype.forEach.call(emHojaTabla.rows, (tr) => {
+      const c = tr.cells[i + 1];
+      if (c) c.classList.toggle("em-hoja-col-quitar", on);
+    });
+  };
+  marcar(hojaColResaltada, false);
+  marcar(idx, true);
+  hojaColResaltada = idx;
+}
+
+function hojaEntrarModoQuitar() {
+  hojaModoQuitar = true;
+  emHoja.classList.add("em-hoja-quitando");
+  emHojaColQuitar.classList.add("activo");
+  emHojaColQuitar.textContent = "\u2715 Cancelar";
+  if (!hojaModoAviso) {
+    hojaModoAviso = document.createElement("div");
+    hojaModoAviso.className = "em-hoja-modo-aviso";
+    hojaModoAviso.setAttribute("role", "status");
+    const t = document.createElement("span");
+    t.textContent = "Toca la columna que quieres quitar";
+    const x = document.createElement("button");
+    x.type = "button";
+    x.className = "em-hoja-herr-btn";
+    x.textContent = "Cancelar";
+    x.addEventListener("click", hojaSalirModoQuitar);
+    hojaModoAviso.append(t, x);
+    emHoja.appendChild(hojaModoAviso);
+  }
+}
+
+function hojaSalirModoQuitar() {
+  if (!hojaModoQuitar) return;
+  hojaModoQuitar = false;
+  hojaConfirmando = false;
+  emHoja.classList.remove("em-hoja-quitando");
+  emHojaColQuitar.classList.remove("activo");
+  emHojaColQuitar.textContent = "\u{1F5D1} Quitar columna";
+  hojaResaltarColumna(-1);
+  if (hojaModoAviso) { hojaModoAviso.remove(); hojaModoAviso = null; }
+}
+
+if (emHojaColQuitar) {
+  emHojaColQuitar.addEventListener("click", () => {
+    if (hojaModoQuitar) { hojaSalirModoQuitar(); return; }
+    if (!hojaCargada) {
+      hojaAviso("La hoja todav\u00EDa no carga: espera a que termine o usa \u21BB", "error");
+      return;
+    }
+    if (!hojaDinamico) {
+      hojaAviso("Para quitar columnas hay que publicar la nueva versi\u00F3n del Apps Script (Implementar \u2192 Administrar implementaciones \u2192 Nueva versi\u00F3n)", "error");
+      return;
+    }
+    if (hojaColumnas.length <= 1) {
+      hojaAviso("La hoja necesita al menos una columna", "error");
+      return;
+    }
+    hojaEntrarModoQuitar();
+  });
+
+  // En este modo la tabla no se edita ni se arrastra: lo \u00FAnico que hace un toque es elegir la columna
+  emHojaTabla.addEventListener("pointerdown", (e) => { if (hojaModoQuitar) e.stopPropagation(); }, true);
+  emHojaTabla.addEventListener("mouseover", (e) => {
+    if (hojaModoQuitar && !hojaConfirmando) hojaResaltarColumna(hojaColDeEvento(e));
+  });
+  emHojaTabla.addEventListener("click", async (e) => {
+    if (!hojaModoQuitar) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (hojaConfirmando) return;
+    const idx = hojaColDeEvento(e);
+    if (idx < 0 || idx >= hojaColumnas.length) return;
+    hojaConfirmando = true;
+    hojaResaltarColumna(idx);
+    const nombre = hojaColumnas[idx];
+    const conDatos = hojaFilas.filter((f) => String(f[idx]).trim()).length;
+    const esRed = CANAL_REDES.some((r) => r.cols.includes(String(nombre).trim().toLowerCase()));
+    const texto = (conDatos
+      ? "Se borrar\u00E1 la columna con sus " + conDatos + (conDatos === 1 ? " celda con datos" : " celdas con datos") + ". "
+      : "La columna est\u00E1 vac\u00EDa. ") +
+      (esRed ? "El perfil del canal dejar\u00E1 de mostrar esta red hasta que vuelvas a agregar la columna. " : "") +
+      "Esto no se puede deshacer.";
+    const ok = await hojaConfirmar("\u00BFEliminar la columna \u00AB" + nombre + "\u00BB (" + hojaLetra(idx) + ")?", texto, "Eliminar columna");
+    hojaConfirmando = false;
+    if (!hojaModoQuitar) return; // se cancel\u00F3 el modo mientras se preguntaba
+    if (!ok) { hojaResaltarColumna(-1); return; } // sigue en el modo por si quer\u00EDa elegir otra
+    hojaSalirModoQuitar();
+    hojaSel = null;
+    hojaSelAncla = null;
+    hojaColumnas.splice(idx, 1);
+    hojaAnchos.splice(idx, 1);
+    hojaFilas.forEach((f) => f.splice(idx, 1));
+    hojaGuardarAnchos();
+    hojaDibujar();
+    hojaMarcarCambio();
+    hojaAviso("Columna \u00AB" + nombre + "\u00BB eliminada", "ok");
+  }, true);
 }
 
 // ----- Reproductor de YouTube dentro de la hoja -----
@@ -7455,19 +7664,42 @@ const canalPags = emEl("em-canal-pags");
 let canalProyecto = null;
 let canalTab = 1; // 1 = Videos (hoja principal), 2 = Shorts (hoja secundaria)
 let canalPagina = 1;
-let canalDatos = { 1: null, 2: null }; // [{ id, enlace, nombre }] de cada hoja, ya leídos
+let canalRed = "youtube"; // red elegida con los botones de redes (solo se ven las miniaturas de esa red)
+let canalDatos = { 1: null, 2: null }; // [{ red, id (solo YouTube), enlace, nombre }] de cada hoja, ya leídos (todas las redes)
+// Columnas de la hoja que corresponden a cada red (se comparan en minúsculas)
+const CANAL_REDES = [
+  { id: "youtube", nombre: "YouTube", cols: ["youtube"] },
+  { id: "facebook", nombre: "Facebook", cols: ["facebook"] },
+  { id: "instagram", nombre: "Instagram", cols: ["instagram"] },
+  { id: "tiktok", nombre: "TikTok", cols: ["tiktok", "tik tok"] },
+  { id: "threads", nombre: "Threads", cols: ["threads"] },
+  { id: "x", nombre: "X", cols: ["x", "twitter", "x (twitter)"] },
+];
+
+// Un link de video de esa red (o null). YouTube lleva su id; las demás, solo el link
+function canalVideoDeRed(red, texto) {
+  if (red === "youtube") {
+    const id = hojaIdYoutube(texto);
+    return id ? { red, id, enlace: hojaLinkDe(texto) } : null;
+  }
+  const v = hojaVideoSocial(texto);
+  return v && v.red === red ? { red, enlace: v.url } : null;
+}
 
 function canalFilasDeHoja(j) {
   const cols = (Array.isArray(j.columnas) ? j.columnas : []).map((x) => String(x === undefined || x === null ? "" : x).trim().toLowerCase());
-  const ci = cols.indexOf("youtube");
-  if (ci === -1) throw new Error("no encontré la columna «Youtube» en la hoja");
+  const redCols = []; // [{ red, i }]: las columnas de la hoja que son de una red
+  CANAL_REDES.forEach((r) => cols.forEach((nombre, i) => { if (r.cols.includes(nombre)) redCols.push({ red: r.id, i }); }));
+  if (!redCols.length) throw new Error("no encontré columnas de redes (Youtube, Facebook, Instagram, TikTok, Threads, X) en la hoja");
   const ni = cols.indexOf("nombre");
   const lista = [];
   (Array.isArray(j.filas) ? j.filas : []).forEach((f) => {
     if (!f) return;
-    const id = hojaIdYoutube(f[ci]);
-    if (!id) return; // sin link de un video de YouTube no hay miniatura
-    lista.push({ id, enlace: hojaLinkDe(f[ci]), nombre: ni >= 0 && f[ni] !== undefined && f[ni] !== null ? String(f[ni]).trim() : "" });
+    const nombre = ni >= 0 && f[ni] !== undefined && f[ni] !== null ? String(f[ni]).trim() : "";
+    redCols.forEach(({ red, i }) => {
+      const v = canalVideoDeRed(red, f[i]); // sin link de un video de esa red no hay miniatura
+      if (v) lista.push(Object.assign(v, { nombre }));
+    });
   });
   return lista;
 }
@@ -7485,20 +7717,39 @@ function canalPintarTabs() {
   canalTabsEl.querySelectorAll(".em-canal-tab").forEach((b) => b.setAttribute("aria-selected", String(+b.dataset.hoja === canalTab)));
 }
 
+function canalEnlaceRed() {
+  const d = canalProyecto;
+  if (!d) return "";
+  return nespEnlacesDe(d).map(hrefSeguro).filter(Boolean).find((h) => emRedDeLink(h).id === canalRed) || "";
+}
+
+// Botón «Ver canal» / «Ver perfil»: lleva al perfil de la red elegida (si el proyecto tiene ese enlace)
+function canalPintarVer() {
+  const h = canalEnlaceRed();
+  canalVer.hidden = !h;
+  if (!h) return;
+  canalVer.href = h;
+  canalVer.textContent = canalRed === "youtube" ? "\u25B6 Ver canal \u2197" : "\u2197 Ver perfil de " + (HOJA_RED_NOMBRE[canalRed] || "la red");
+}
+
 function canalPintarMeta() {
   const d = canalProyecto;
   if (!d) return;
-  const cuenta = (n, uno, varios) => (canalDatos[n] ? canalDatos[n].length + " " + (canalDatos[n].length === 1 ? uno : varios) : "… " + varios);
+  const cuenta = (n, uno, varios) => {
+    if (!canalDatos[n]) return "\u2026 " + varios;
+    const k = canalDatos[n].filter((v) => v.red === canalRed).length;
+    return k + " " + (k === 1 ? uno : varios);
+  };
   const partes = [];
-  const yt = nespEnlacesDe(d).map(hrefSeguro).filter(Boolean).find((h) => emRedDeLink(h).id === "youtube");
-  if (yt) {
+  const enlace = canalEnlaceRed();
+  if (enlace) {
     try {
-      const m = new URL(yt).pathname.match(/^\/(@[^/]+)/);
+      const m = new URL(enlace).pathname.match(/^\/(@[^/]+)/);
       if (m) partes.push(decodeURIComponent(m[1]));
     } catch (e) {}
   }
   partes.push(cuenta(1, "video", "videos"), cuenta(2, "short", "shorts"));
-  canalMeta.textContent = partes.join(" · ");
+  canalMeta.textContent = partes.join(" \u00B7 ");
 }
 
 function canalPintarCabecera() {
@@ -7525,13 +7776,11 @@ function canalPintarCabecera() {
   const desc = String(d.descripcion || "").trim();
   canalDesc.textContent = desc;
   canalDesc.hidden = !desc;
-  const yt = nespEnlacesDe(d).map(hrefSeguro).filter(Boolean).find((h) => emRedDeLink(h).id === "youtube");
-  canalVer.hidden = !yt;
-  if (yt) canalVer.href = yt;
+  canalPintarVer();
   canalPintarMeta();
 }
 
-function canalCrearFicha(v) {
+function canalCrearFichaYoutube(v) {
   const b = document.createElement("button");
   b.type = "button";
   b.className = "em-canal-ficha";
@@ -7555,6 +7804,46 @@ function canalCrearFicha(v) {
     b.appendChild(t);
   }
   b.addEventListener("click", () => hojaAbrirVideo(v.id, v.enlace || "https://www.youtube.com/watch?v=" + v.id, emCanal));
+  return b;
+}
+
+// Ficha de un video de Facebook, Instagram, TikTok, Threads o X: fondo de color con el logo; al llegar la miniatura
+// (la pide el Apps Script con «miniatura_link») se muestra encima. Al tocarla se abre el video en otra pestaña.
+function canalCrearFicha(v) {
+  if (v.red === "youtube") return canalCrearFichaYoutube(v);
+  const nombreRed = HOJA_RED_NOMBRE[v.red] || "la red";
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "em-canal-ficha";
+  b.title = v.nombre || "Abrir el video de " + nombreRed;
+  b.setAttribute("aria-label", "Abrir el video de " + nombreRed + (v.nombre ? ": " + v.nombre : ""));
+  const mini = document.createElement("span");
+  mini.className = "em-canal-mini em-canal-mini-red em-canal-mini-" + v.red;
+  const def = REDES_EM.find((x) => x.id === v.red);
+  mini.appendChild(emIconoRed(v.red, def ? def.glifo : ""));
+  const img = document.createElement("img");
+  img.alt = "";
+  img.hidden = true;
+  img.referrerPolicy = "no-referrer";
+  let reintento = false;
+  img.addEventListener("load", () => { img.hidden = false; });
+  img.addEventListener("error", () => {
+    img.hidden = true;
+    img.removeAttribute("src");
+    if (reintento) return; // la dirección de la imagen pudo caducar: se pide una nueva una sola vez
+    reintento = true;
+    hojaPedirMiniSocial(v.enlace, true, (src) => { img.src = src; });
+  });
+  mini.appendChild(img);
+  b.appendChild(mini);
+  if (v.nombre) {
+    const t = document.createElement("span");
+    t.className = "em-canal-titulo";
+    t.textContent = v.nombre;
+    b.appendChild(t);
+  }
+  hojaPedirMiniSocial(v.enlace, false, (src) => { img.src = src; });
+  b.addEventListener("click", () => { window.open(v.enlace, "_blank", "noopener,noreferrer"); });
   return b;
 }
 
@@ -7595,7 +7884,7 @@ function canalIrAPagina(n) {
 }
 
 function canalDibujar() {
-  const lista = canalDatos[canalTab] || [];
+  const lista = (canalDatos[canalTab] || []).filter((v) => v.red === canalRed);
   const paginas = Math.max(1, Math.ceil(lista.length / CANAL_POR_PAGINA));
   if (canalPagina > paginas) canalPagina = paginas;
   canalGrid.innerHTML = "";
@@ -7603,9 +7892,8 @@ function canalDibujar() {
   if (!lista.length) {
     const p = document.createElement("p");
     p.className = "em-canal-vacio";
-    p.textContent = canalTab === 1
-      ? "Aún no hay links de videos de YouTube en la hoja principal. Agrégalos con el engrane ⚙."
-      : "Aún no hay links de shorts de YouTube en la hoja secundaria. Agrégalos con el engrane ⚙.";
+    p.textContent = "A\u00FAn no hay links de " + (canalTab === 1 ? "videos" : "shorts") + " de " + (HOJA_RED_NOMBRE[canalRed] || "la red") +
+      " en la hoja " + (canalTab === 1 ? "principal" : "secundaria") + ". Agr\u00E9galos con el engrane \u2699.";
     canalGrid.appendChild(p);
     canalDibujarPags(1);
     return;
@@ -7660,6 +7948,8 @@ function abrirCanal(n) {
   hojaCerrarVideo();
   canalProyecto = emDetActual;
   canalDatos = { 1: null, 2: null };
+  canalRed = "youtube"; // al abrir siempre empieza en YouTube
+  canalPintarRedes();
   canalPintarCabecera();
   emCanal.hidden = false;
   canalScroll.scrollTop = 0;
@@ -7680,6 +7970,40 @@ function canalAlVolverDeHoja(huboCambios) {
 }
 
 canalTabsEl.querySelectorAll(".em-canal-tab").forEach((b) => b.addEventListener("click", () => canalMostrar(+b.dataset.hoja)));
+
+// Botones de redes: YouTube, Facebook, Instagram, TikTok, Threads y X (solo se ven las miniaturas de la red elegida)
+const canalRedesEl = emEl("em-canal-redes");
+function canalPintarRedes() {
+  canalRedesEl.querySelectorAll(".em-canal-red").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.red === canalRed)));
+}
+function canalElegirRed(id) {
+  if (id === canalRed) return;
+  canalRed = id;
+  canalPagina = 1;
+  canalPintarRedes();
+  canalPintarVer();
+  canalPintarMeta();
+  hojaCerrarVideo();
+  if (canalDatos[canalTab]) {
+    setEstado(canalEstado, "");
+    canalDibujar();
+  } else {
+    canalMostrar(canalTab);
+  }
+}
+CANAL_REDES.forEach((r) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "em-canal-red";
+  b.dataset.red = r.id;
+  b.setAttribute("aria-pressed", String(r.id === canalRed));
+  const def = REDES_EM.find((x) => x.id === r.id);
+  const t = document.createElement("span");
+  t.textContent = r.nombre;
+  b.append(emIconoRed(r.id, def ? def.glifo : ""), t);
+  b.addEventListener("click", () => canalElegirRed(r.id));
+  canalRedesEl.appendChild(b);
+});
 emEl("em-canal-volver").addEventListener("click", cerrarCanal);
 emEl("em-canal-ajustes").addEventListener("click", () => abrirHoja(canalTab));
 emEl("em-canal-recargar").addEventListener("click", () => {
@@ -7697,7 +8021,23 @@ function dibujarChipsEm() {
   const enProyectos = emZonaActiva === ZONAS_EM[0].nombre;
   emGruposCaja.hidden = !enProyectos;
   emGruposBtns.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.grupo === emGrupoActivo)));
-  empresas.filter((d) => emZonaDe(d) === emZonaActiva && (!enProyectos || emGrupoDe(d) === emGrupoActivo)).forEach((d) => {
+  // Tercer divisor: las subcategorías del grupo elegido (Personales: Míos/Familiares · Ajenos: Amigos/Clientes)
+  const subActivo = emSubgrupoActivo();
+  emSubgruposCaja.hidden = !enProyectos;
+  emSubgruposCaja.innerHTML = "";
+  if (enProyectos) {
+    SUBGRUPOS_EM[emGrupoActivo].forEach((n) => {
+      const sb = document.createElement("button");
+      sb.type = "button";
+      sb.className = "em-zona-btn em-grupo-btn";
+      sb.setAttribute("role", "tab");
+      sb.setAttribute("aria-selected", String(n === subActivo));
+      sb.textContent = n;
+      sb.addEventListener("click", () => emElegirSubgrupo(n));
+      emSubgruposCaja.appendChild(sb);
+    });
+  }
+  empresas.filter((d) => emZonaDe(d) === emZonaActiva && (!enProyectos || (emGrupoDe(d) === emGrupoActivo && emSubgrupoDe(d) === subActivo))).forEach((d) => {
     const b = document.createElement("button");
     b.type = "button";
     const conImg = imagenValida(d.imagen);
@@ -7745,6 +8085,7 @@ function abrirFormEm(d) {
   emEl("em-url-img").value = ""; // el link pegado en una nota nunca pasa a la siguiente
   emZonaSelect.value = d ? emZonaDe(d) : emZonaActiva; // una nueva nace en la zona que se está viendo
   emGrupoSelect.value = d ? emGrupoDe(d) : emGrupoActivo; // y en el grupo (Personales/Ajenos) que se está viendo
+  emLlenarSubgrupos(emGrupoSelect.value, d ? emSubgrupoDe(d) : emSubgrupoActivo()); // y en su subcategoría
   emActualizarTituloForm();
   emNombre.value = d ? d.nombre : "";
   emFecha.value = d && d.fecha ? d.fecha : ipHoy(); // si es nueva, empieza con la fecha de hoy
@@ -7762,10 +8103,12 @@ function abrirFormEm(d) {
 }
 function emActualizarTituloForm() {
   emGrupoCampo.hidden = emZonaSelect.value !== ZONAS_EM[0].nombre; // «Tipo de proyecto» solo para Proyectos
+  emSubgrupoCampo.hidden = emGrupoCampo.hidden;
   const z = emZonaInfo(emZonaSelect.value);
   emFormTitulo.textContent = emEditando ? z.editar : z.nuevo;
 }
 emZonaSelect.addEventListener("change", emActualizarTituloForm);
+emGrupoSelect.addEventListener("change", () => emLlenarSubgrupos(emGrupoSelect.value)); // al cambiar de grupo cambian las subcategorías
 function cerrarFormEm() {
   emForm.hidden = true;
   emEditando = null;
@@ -7806,17 +8149,18 @@ async function guardarEm() {
       links: enlacesDeTexto(emLinks.value).join("\n"),
       zona: emZonaInfo(emZonaSelect.value).nombre,
       grupo: GRUPOS_EM.indexOf(emGrupoSelect.value) !== -1 ? emGrupoSelect.value : GRUPOS_EM[0],
+      subgrupo: emSubgrupoSelect.value,
       notas: editando && Array.isArray(editando.notas) ? editando.notas : [], // las notas se guardan aparte (columna H)
       notasLargo: editando ? editando.notasLargo || 0 : 0,
     };
     await llamarNotas(editando ? "empresa_editar" : "empresa_agregar", d);
-    emGuardarZonaLocal(d.id, d.zona, d.grupo);
+    emGuardarZonaLocal(d.id, d.zona, d.grupo, d.subgrupo);
     // Se reemplaza solo ESA nota (por posición, no por Id) y luego se vuelve a leer la hoja para mostrar lo que quedó guardado
     const pos = editando ? empresas.indexOf(editando) : -1;
     if (pos !== -1) empresas[pos] = d;
     else empresas.push(d);
     cerrarFormEm();
-    emElegirZona(d.zona, d.grupo); // se muestra la zona donde quedó (si la cambiaste en el formulario, te lleva a ella)
+    emElegirZona(d.zona, d.grupo, d.subgrupo); // se muestra la zona donde quedó (si la cambiaste en el formulario, te lleva a ella)
     if (editando && emDetActual) {
       emDetActual = d;
       dibujarDetalleEm();
@@ -7840,7 +8184,7 @@ async function borrarEm() {
   setEstado(emFormEstado, "Eliminando…");
   try {
     await llamarNotas("empresa_borrar", { id: d.id });
-    empresas = empresas.filter((x) => x !== d);
+    empresas = empresas.filter((x) => String(x.id) !== String(d.id));
     cerrarFormEm();
     cerrarDetalleEm();
     dibujarChipsEm();
@@ -7881,6 +8225,7 @@ async function cargarEmpresas() {
       if (emBackendSinZona || x.p) { // la hoja no lo guardó: se mantiene lo que elegiste y se avisa
         e.zona = x.z;
         e.grupo = x.g;
+        if (x.s) e.subgrupo = x.s;
         emBackendSinZona = true;
       }
     });
@@ -7955,6 +8300,7 @@ emBorrar.addEventListener("click", borrarEm);
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelEm.hidden) return;
   if (!emRedSub.hidden) cerrarSubRed();
+  else if (hojaModoQuitar && !emHoja.hidden) hojaSalirModoQuitar(); // Esc cancela «Quitar columna» sin cerrar la hoja
   else if (!emHoja.hidden) cerrarHoja();
   else if (!emCanal.hidden) cerrarCanal();
   else if (!emForm.hidden) cerrarFormEm();

@@ -1903,11 +1903,11 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 }
 .em-zona-btn {
   flex: 1 1 0; min-width: 0; padding: 10px 8px; font: inherit; font-size: 0.9rem; font-weight: 800; line-height: 1.15;
-  color: #fff; text-align: center; cursor: pointer; background: transparent; border: 0; border-radius: 999px;
+  color: #1c2540; text-align: center; cursor: pointer; background: #fff; border: 0; border-radius: 999px;
   transition: background 0.15s, color 0.15s;
 }
-.em-zona-btn:hover { background: rgba(255, 255, 255, 0.18); }
-.em-zona-btn[aria-selected="true"] { color: #4a2685; background: #fff; box-shadow: 0 2px 8px rgba(40, 10, 80, 0.3); }
+.em-zona-btn:hover { background: #eef4ff; }
+.em-zona-btn[aria-selected="true"] { color: #0b3a78; background: #9fcbff; box-shadow: 0 2px 8px rgba(40, 90, 170, 0.35); }
 .em-zona-btn:focus-visible { outline: 3px solid #8fb8ff; outline-offset: 2px; }
 .em-grupos[hidden] { display: none; }
 @media (max-width: 520px) {
@@ -2833,3 +2833,45 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
 }
 .zona-cal-filtro[hidden] { display: none; }
 .zona-cuadrito-tag { margin-top: auto; font-size: 0.65rem; font-weight: 700; opacity: 0.85; }
+
+/* ---------- Hoja de redes: quitar columna ---------- */
+.em-hoja-herr-btn.activo { color: #fff; background: #c5221f; border-color: #c5221f; }
+.em-hoja-herr-btn.activo:hover { background: #a50e0e; }
+.em-hoja-quitando .em-hoja-celda { pointer-events: none; }
+.em-hoja-quitando .em-hoja-tabla th:not(.em-hoja-num), .em-hoja-quitando .em-hoja-tabla td { cursor: pointer; }
+.em-hoja-tabla th.em-hoja-col-quitar, .em-hoja-tabla td.em-hoja-col-quitar { background: #fce8e6 !important; }
+.em-hoja-col-quitar .em-hoja-celda { background: #fce8e6; }
+.em-hoja-modo-aviso {
+  position: absolute; left: 50%; bottom: 16px; z-index: 9; transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
+  max-width: calc(100% - 24px); padding: 8px 12px; font-size: 0.88rem; font-weight: 700; color: #a50e0e;
+  background: #fce8e6; border: 1px solid #f5b5b0; border-radius: 10px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+.em-hoja-guardar-peligro { background: #c5221f; }
+.em-hoja-guardar-peligro:hover:not(:disabled) { background: #a50e0e; }
+.em-hoja-dialogo-texto { margin: 0; font-size: 0.9rem; line-height: 1.35; color: #3c4043; }
+.em-hoja-mini-tiktok { background: linear-gradient(135deg, #25f4ee, #111 45%, #fe2c55); }
+.em-hoja-mini-threads { background: linear-gradient(135deg, #3a3a3a, #000); }
+.em-hoja-mini-x { background: linear-gradient(135deg, #2b2b2b, #000); }
+
+/* ---------- Perfil del canal: botones de redes ---------- */
+.em-canal-redes { flex: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 16px 0; }
+.em-canal-red {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; font: inherit; font-size: 0.82rem; font-weight: 800;
+  color: #dbe2f5; cursor: pointer; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 999px;
+}
+.em-canal-red:hover { background: rgba(255, 255, 255, 0.16); }
+.em-canal-red[aria-pressed="true"] { color: #1b1f33; background: #fff; border-color: #fff; }
+.em-canal-red:focus-visible { outline: 3px solid #8fb8ff; outline-offset: 2px; }
+.em-canal-red .em-red-ico { display: inline-flex; }
+.em-canal-red .em-red-ico svg { width: 18px; height: 18px; }
+.em-canal-mini-red { color: #fff; }
+.em-canal-mini-red .em-red-ico { display: inline-flex; }
+.em-canal-mini-red .em-red-ico svg { width: 30px; height: 30px; }
+.em-canal-mini-red img { position: absolute; inset: 0; z-index: 1; }
+.em-canal-mini-red img[hidden] { display: none; }
+.em-canal-mini-facebook { background: linear-gradient(135deg, #1877f2, #0b4fb3); }
+.em-canal-mini-instagram { background: linear-gradient(135deg, #f58529, #dd2a7b 55%, #8134af); }
+.em-canal-mini-tiktok { background: linear-gradient(135deg, #25f4ee, #111 45%, #fe2c55); }
+.em-canal-mini-threads { background: linear-gradient(135deg, #3a3a3a, #000); }
+.em-canal-mini-x { background: linear-gradient(135deg, #2b2b2b, #000); }
+@media (max-width: 480px) { .em-canal-redes { margin: 12px 12px 0; gap: 6px; } .em-canal-red { padding: 6px 10px; font-size: 0.78rem; } }
