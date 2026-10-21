@@ -5067,6 +5067,16 @@ const ZONAS_EM = [
   { nombre: "Aplicaciones", icono: "📱", uno: "aplicación", nuevo: "Nueva aplicación", editar: "Editar aplicación" },
 ];
 const CLAVE_ZONA_EM = "polo-ai-empresas-zona";
+// Copia local de la zona de cada elemento: respaldo por si el Apps Script publicado aún es la versión vieja (sin columna «Zona»)
+const CLAVE_ZONAS_LOCAL_EM = "polo-ai-empresas-zonas-local";
+function emZonasLocales() {
+  try { return JSON.parse(localStorage.getItem(CLAVE_ZONAS_LOCAL_EM)) || {}; } catch (e) { return {}; }
+}
+function emGuardarZonaLocal(id, zona) {
+  try { const m = emZonasLocales(); m[id] = zona; localStorage.setItem(CLAVE_ZONAS_LOCAL_EM, JSON.stringify(m)); } catch (e) {}
+}
+let emBackendSinZona = false; // true si la hoja/Apps Script no devuelve la zona (hay que publicar la versión nueva)
+const AVISO_SIN_ZONA_EM = "⚠ El Apps Script publicado es la versión vieja: la zona solo se recuerda en este dispositivo. Publica la nueva versión para guardarla en la hoja.";
 const emZonaInfo = (nombre) => ZONAS_EM.find((z) => z.nombre === nombre) || ZONAS_EM[0];
 const emZonaDe = (d) => emZonaInfo(d && d.zona).nombre;
 let emZonaActiva = (() => {
@@ -7628,6 +7638,7 @@ async function guardarEm() {
       notasLargo: editando ? editando.notasLargo || 0 : 0,
     };
     await llamarNotas(editando ? "empresa_editar" : "empresa_agregar", d);
+    emGuardarZonaLocal(d.id, d.zona);
     // Se reemplaza solo ESA nota (por posición, no por Id) y luego se vuelve a leer la hoja para mostrar lo que quedó guardado
     const pos = editando ? empresas.indexOf(editando) : -1;
     if (pos !== -1) empresas[pos] = d;
@@ -7639,7 +7650,10 @@ async function guardarEm() {
       dibujarDetalleEm();
     }
     setEstado(emEstado, "Guardado ✓", "ok");
-    cargarEmpresas().then(() => setEstado(emEstado, "Guardado ✓", "ok"));
+    cargarEmpresas().then(() => {
+      if (emBackendSinZona) setEstado(emEstado, AVISO_SIN_ZONA_EM, "error");
+      else setEstado(emEstado, "Guardado ✓", "ok");
+    });
   } catch (err) {
     setEstado(emFormEstado, "Error: " + err.message, "error");
   } finally {
@@ -7673,8 +7687,14 @@ async function cargarEmpresas() {
   try {
     const j = await llamarNotas("empresa_listar");
     empresas = Array.isArray(j.empresas) ? j.empresas : [];
+    // La versión nueva del Apps Script devuelve «zona» en todos; si no la devuelve, se usa la copia de este dispositivo
+    emBackendSinZona = empresas.length > 0 && !empresas.some((e) => typeof e.zona === "string");
+    if (emBackendSinZona) {
+      const loc = emZonasLocales();
+      empresas.forEach((e) => { if (loc[e.id]) e.zona = loc[e.id]; });
+    }
     emCargadas = true;
-    setEstado(emEstado, "");
+    setEstado(emEstado, emBackendSinZona ? AVISO_SIN_ZONA_EM : "", emBackendSinZona ? "error" : "");
     dibujarChipsEm();
     if (emDetActual) {
       const nueva = empresas.find((x) => x.id === emDetActual.id);
