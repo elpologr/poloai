@@ -1896,6 +1896,22 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   aspect-ratio: 1 / 1;
   overflow: hidden;
 }
+/* Botón divisor de Empresas/Proyectos: Proyectos | Canales de Contenido | Aplicaciones */
+.em-zonas {
+  display: flex; gap: 4px; padding: 4px; margin: 0 0 12px;
+  background: rgba(255, 255, 255, 0.16); border-radius: 999px;
+}
+.em-zona-btn {
+  flex: 1 1 0; min-width: 0; padding: 10px 8px; font: inherit; font-size: 0.9rem; font-weight: 800; line-height: 1.15;
+  color: #fff; text-align: center; cursor: pointer; background: transparent; border: 0; border-radius: 999px;
+  transition: background 0.15s, color 0.15s;
+}
+.em-zona-btn:hover { background: rgba(255, 255, 255, 0.18); }
+.em-zona-btn[aria-selected="true"] { color: #4a2685; background: #fff; box-shadow: 0 2px 8px rgba(40, 10, 80, 0.3); }
+.em-zona-btn:focus-visible { outline: 3px solid #8fb8ff; outline-offset: 2px; }
+@media (max-width: 520px) {
+  .em-zona-btn { padding: 9px 4px; font-size: 0.76rem; }
+}
 #em-chips .ej-chip-resumen { padding: 10px; }
 #em-chips .ej-chip-nombre { font-size: 0.85rem; }
 #em-chips .ej-chip-desc { font-size: 0.72rem; -webkit-line-clamp: 4; }

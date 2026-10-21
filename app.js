@@ -5058,7 +5058,29 @@ const emGuardar = emEl("em-guardar");
 const emBorrar = emEl("em-borrar");
 const emFormEstado = emEl("em-form-estado");
 
-let empresas = []; // [{ id, nombre, fecha, link, imagen, descripcion, links, notas: [{ id, fecha, texto }] }]
+let empresas = []; // [{ id, nombre, fecha, link, imagen, descripcion, links, zona, notas: [{ id, fecha, texto }] }]
+
+// Zonas dentro de Empresas/Proyectos (columna I «Zona» de la hoja). Lo que no tenga zona cuenta como «Proyectos».
+const ZONAS_EM = [
+  { nombre: "Proyectos", icono: "📁", uno: "proyecto", nuevo: "Nuevo proyecto", editar: "Editar proyecto" },
+  { nombre: "Canales de Contenido", icono: "📺", uno: "canal de contenido", nuevo: "Nuevo canal de contenido", editar: "Editar canal de contenido" },
+  { nombre: "Aplicaciones", icono: "📱", uno: "aplicación", nuevo: "Nueva aplicación", editar: "Editar aplicación" },
+];
+const CLAVE_ZONA_EM = "polo-ai-empresas-zona";
+const emZonaInfo = (nombre) => ZONAS_EM.find((z) => z.nombre === nombre) || ZONAS_EM[0];
+const emZonaDe = (d) => emZonaInfo(d && d.zona).nombre;
+let emZonaActiva = (() => {
+  try { return emZonaInfo(localStorage.getItem(CLAVE_ZONA_EM)).nombre; } catch (e) { return ZONAS_EM[0].nombre; }
+})();
+const emZonasBtns = Array.from(document.querySelectorAll("#em-zonas .em-zona-btn"));
+const emZonaSelect = emEl("em-zona");
+function emElegirZona(nombre) {
+  emZonaActiva = emZonaInfo(nombre).nombre;
+  try { localStorage.setItem(CLAVE_ZONA_EM, emZonaActiva); } catch (e) {}
+  emZonasBtns.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.zona === emZonaActiva)));
+  dibujarChipsEm();
+}
+emZonasBtns.forEach((b) => b.addEventListener("click", () => emElegirZona(b.dataset.zona)));
 let emCargadas = false;
 let emEditando = null; // empresa abierta en la ventana (null = nueva)
 let emImagenUrl = ""; // imagen actual (URL de imgbb)
@@ -7494,7 +7516,9 @@ emEl("em-canal-recargar").addEventListener("click", () => {
 // ----- Mini notas cuadradas -----
 function dibujarChipsEm() {
   emChips.innerHTML = "";
-  empresas.forEach((d) => {
+  const zonaInfo = emZonaInfo(emZonaActiva);
+  emZonasBtns.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.zona === emZonaActiva)));
+  empresas.filter((d) => emZonaDe(d) === emZonaActiva).forEach((d) => {
     const b = document.createElement("button");
     b.type = "button";
     const conImg = imagenValida(d.imagen);
@@ -7513,7 +7537,7 @@ function dibujarChipsEm() {
     }
     const n = document.createElement("span");
     n.className = "ej-chip-nombre";
-    n.textContent = (conImg ? "" : "🏢 ") + d.nombre;
+    n.textContent = (conImg ? "" : zonaInfo.icono + " ") + d.nombre;
     const f = document.createElement("span");
     f.className = "ej-chip-fecha";
     f.textContent = ipFechaCorta(d.fecha);
@@ -7528,7 +7552,7 @@ function dibujarChipsEm() {
   const nuevo = document.createElement("button");
   nuevo.type = "button";
   nuevo.className = "ej-chip ej-chip-nuevo";
-  nuevo.setAttribute("aria-label", "Añadir empresa o proyecto");
+  nuevo.setAttribute("aria-label", "Añadir " + zonaInfo.uno);
   nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
   nuevo.addEventListener("click", () => abrirFormEm(null));
   emChips.appendChild(nuevo);
@@ -7540,7 +7564,8 @@ function abrirFormEm(d) {
   emImagenUrl = d ? d.imagen || "" : "";
   emImagenNueva = null;
   emEl("em-url-img").value = ""; // el link pegado en una nota nunca pasa a la siguiente
-  emFormTitulo.textContent = d ? "Editar empresa / proyecto" : "Nueva empresa / proyecto";
+  emZonaSelect.value = d ? emZonaDe(d) : emZonaActiva; // una nueva nace en la zona que se está viendo
+  emActualizarTituloForm();
   emNombre.value = d ? d.nombre : "";
   emFecha.value = d && d.fecha ? d.fecha : ipHoy(); // si es nueva, empieza con la fecha de hoy
   emLink.value = d ? d.link || "" : "";
@@ -7555,6 +7580,11 @@ function abrirFormEm(d) {
   emForm.scrollTop = 0;
   emNombre.focus();
 }
+function emActualizarTituloForm() {
+  const z = emZonaInfo(emZonaSelect.value);
+  emFormTitulo.textContent = emEditando ? z.editar : z.nuevo;
+}
+emZonaSelect.addEventListener("change", emActualizarTituloForm);
 function cerrarFormEm() {
   emForm.hidden = true;
   emEditando = null;
@@ -7581,7 +7611,7 @@ async function guardarEm() {
       emImagenUrl = j.url;
       emImagenNueva = null; // si el guardado falla, no se vuelve a subir
     }
-    // 2) Se guarda en la hoja «Empresas Proyectos» (columnas A a G)
+    // 2) Se guarda en la hoja «Empresas Proyectos» (columnas A a G, y la I «Zona»)
     setEstado(emFormEstado, "Guardando…");
     const editando = emEditando;
     const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
@@ -7593,6 +7623,7 @@ async function guardarEm() {
       imagen: emImagenUrl,
       descripcion: emDescripcion.value.trim(),
       links: enlacesDeTexto(emLinks.value).join("\n"),
+      zona: emZonaInfo(emZonaSelect.value).nombre,
       notas: editando && Array.isArray(editando.notas) ? editando.notas : [], // las notas se guardan aparte (columna H)
       notasLargo: editando ? editando.notasLargo || 0 : 0,
     };
@@ -7602,7 +7633,7 @@ async function guardarEm() {
     if (pos !== -1) empresas[pos] = d;
     else empresas.push(d);
     cerrarFormEm();
-    dibujarChipsEm();
+    emElegirZona(d.zona); // se muestra la zona donde quedó (si la cambiaste en el formulario, te lleva a ella)
     if (editando && emDetActual) {
       emDetActual = d;
       dibujarDetalleEm();

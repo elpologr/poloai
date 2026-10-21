@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=67" />
+  <link rel="stylesheet" href="styles.css?v=68" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1050,6 +1050,12 @@
         </div>
 
         <div id="em-contenido">
+          <!-- Botón divisor: cambia de zona dentro de Empresas/Proyectos (lo maneja app.js) -->
+          <div id="em-zonas" class="em-zonas" role="tablist" aria-label="Zonas de Empresas/Proyectos">
+            <button type="button" class="em-zona-btn" role="tab" data-zona="Proyectos" aria-selected="true">&#128193; Proyectos</button>
+            <button type="button" class="em-zona-btn" role="tab" data-zona="Canales de Contenido" aria-selected="false">&#128250; Canales de Contenido</button>
+            <button type="button" class="em-zona-btn" role="tab" data-zona="Aplicaciones" aria-selected="false">&#128241; Aplicaciones</button>
+          </div>
           <p id="em-estado" class="notas-estado proy-estado-lista"></p>
           <div id="em-chips" class="ej-chips"></div>
         </div>
@@ -1228,6 +1234,14 @@
               <input id="em-nombre" type="text" maxlength="120" placeholder="Nombre de la empresa o proyecto" autocomplete="off" />
             </label>
             <label class="notas-campo">
+              <span>Zona</span>
+              <select id="em-zona">
+                <option value="Proyectos">Proyectos</option>
+                <option value="Canales de Contenido">Canales de Contenido</option>
+                <option value="Aplicaciones">Aplicaciones</option>
+              </select>
+            </label>
+            <label class="notas-campo">
               <span>Fecha</span>
               <input id="em-fecha" type="date" min="1999-02-02" max="2099-02-02" />
             </label>
@@ -1331,7 +1345,7 @@
   </main>
 
   <script src="config.js?v=64"></script>
-  <script src="app.js?v=67"></script>
+  <script src="app.js?v=68"></script>
   <script src="voz.js?v=64"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>
