@@ -5978,15 +5978,64 @@ function hojaActualizarMiniatura(td, inp, texto) {
 // ----- Varios videos en una misma celda: galería de miniaturas -----
 // Los links se escriben separados por comas («link , link»). Cada uno muestra su miniatura (YouTube, Facebook, Instagram, TikTok, Threads, X)
 // y, en la pared externa de la miniatura, un botón ⋮ con un mini menú para modificar o borrar ese link. El texto de la celda se ve al editarla.
+// Una celda es una lista de elementos separados por comas: links sueltos y secciones «[Nombre: link , link]».
+// Las comas de dentro de los corchetes no separan elementos.
+function hojaSepararPartes(texto) {
+  const t = String(texto || "");
+  const partes = [];
+  let prof = 0;
+  let ini = 0;
+  for (let k = 0; k < t.length; k++) {
+    const c = t[k];
+    if (c === "[") prof++;
+    else if (c === "]") prof = Math.max(0, prof - 1);
+    else if (c === "," && prof === 0) { partes.push(t.slice(ini, k).trim()); ini = k + 1; }
+  }
+  partes.push(t.slice(ini).trim());
+  return partes;
+}
+function hojaLimpiarNombreSeccion(n) {
+  return String(n || "").replace(/:/g, "-").replace(/[\[\],\r\n]/g, "").replace(/\s+/g, " ").trim().slice(0, 40);
+}
+function hojaEscribirSeccion(nombre, enlaces) {
+  return "[" + (hojaLimpiarNombreSeccion(nombre) || "Secci\u00F3n") + ": " + enlaces.join(" , ") + "]";
+}
+// { nombre, enlaces: [texto de cada link] } si la parte es una sección; si no, null
+function hojaLeerSeccion(parte) {
+  const m = /^\[([^:\[\]]*):([\s\S]*)\]$/.exec(String(parte || "").trim());
+  if (!m) return null;
+  return { nombre: m[1].trim() || "Secci\u00F3n", enlaces: m[2].split(",").map((x) => x.trim()).filter(Boolean) };
+}
+// { enlace, red, id } si el texto es un link de video (YouTube, Facebook, Instagram, TikTok, Threads o X); si no, null
+function hojaVideoDe(parte) {
+  const enlace = hojaLinkDe(parte);
+  if (!enlace) return null;
+  const id = hojaIdYoutube(enlace);
+  if (id) return { enlace, red: "youtube", id };
+  const s = hojaVideoSocial(enlace);
+  return s ? { enlace, red: s.red, id: "" } : null;
+}
+// Elementos de la celda en el orden escrito: { i, tipo: "video", enlace, red, id } o { i, tipo: "seccion", nombre, raw, videos }
+function hojaElementosCelda(texto) {
+  const els = [];
+  hojaSepararPartes(texto).forEach((parte, i) => {
+    const sec = hojaLeerSeccion(parte);
+    if (sec) {
+      const videos = sec.enlaces.map(hojaVideoDe).filter(Boolean);
+      if (videos.length) els.push({ i, tipo: "seccion", nombre: sec.nombre, raw: parte, videos });
+      return;
+    }
+    const v = hojaVideoDe(parte);
+    if (v) els.push(Object.assign({ i, tipo: "video" }, v));
+  });
+  return els;
+}
+// Todos los videos de la celda en una lista plana (los de una sección llevan el nombre en «seccion»)
 function hojaPartesVideos(texto) {
   const lista = [];
-  String(texto || "").split(",").forEach((parte, i) => {
-    const enlace = hojaLinkDe(parte);
-    if (!enlace) return;
-    const id = hojaIdYoutube(enlace);
-    if (id) { lista.push({ i, enlace, red: "youtube", id }); return; }
-    const s = hojaVideoSocial(enlace);
-    if (s) lista.push({ i, enlace, red: s.red, id: "" });
+  hojaElementosCelda(texto).forEach((e) => {
+    if (e.tipo === "video") lista.push({ i: e.i, enlace: e.enlace, red: e.red, id: e.id, seccion: "" });
+    else e.videos.forEach((v) => lista.push({ i: e.i, enlace: v.enlace, red: v.red, id: v.id, seccion: e.nombre }));
   });
   return lista;
 }
@@ -6034,25 +6083,82 @@ function hojaCrearItemGaleria(clave, v) {
   return it;
 }
 
-function hojaPintarGaleria(td, videos) {
+// Miniatura de un video dentro de una imagen: YouTube directo; las demás redes la piden al Apps Script (con reintento una vez)
+function hojaPonerMiniatura(img, v) {
+  img.alt = "";
+  img.referrerPolicy = "no-referrer";
+  if (!v) { img.hidden = true; return; }
+  if (v.red === "youtube") {
+    img.src = "https://i.ytimg.com/vi/" + v.id + "/mqdefault.jpg";
+    img.addEventListener("error", () => img.remove());
+    return;
+  }
+  img.hidden = true;
+  let reintento = false;
+  img.addEventListener("load", () => { img.hidden = false; });
+  img.addEventListener("error", () => {
+    img.hidden = true;
+    img.removeAttribute("src");
+    if (reintento) return;
+    reintento = true;
+    hojaPedirMiniSocial(v.enlace, true, (src) => { img.src = src; });
+  });
+  hojaPedirMiniSocial(v.enlace, false, (src) => { img.src = src; });
+}
+
+// Recuadro de una sección: miniatura del primer video, nombre y cantidad; al tocarlo se abre la lista de sus videos
+function hojaCrearItemSeccion(clave, el) {
+  const it = document.createElement("div");
+  it.className = "em-hoja-gal-item em-hoja-gal-seccion";
+  it.dataset.clave = clave;
+  it.dataset.raw = el.raw;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "em-hoja-gal-sec";
+  b.title = "Secci\u00F3n \u00AB" + el.nombre + "\u00BB \u00B7 " + el.videos.length + (el.videos.length === 1 ? " video" : " videos");
+  b.setAttribute("aria-haspopup", "menu");
+  const img = document.createElement("img");
+  hojaPonerMiniatura(img, el.videos[0]);
+  const vel = document.createElement("span");
+  vel.className = "em-hoja-gal-sec-vel";
+  const nom = document.createElement("span");
+  nom.className = "em-hoja-gal-sec-nombre";
+  nom.textContent = "\u{1F4C1} " + el.nombre;
+  const cuenta = document.createElement("span");
+  cuenta.className = "em-hoja-gal-sec-cuenta";
+  cuenta.textContent = "\u25B6 " + el.videos.length;
+  b.append(img, vel, nom, cuenta);
+  const m = document.createElement("button");
+  m.type = "button";
+  m.className = "em-hoja-gal-menu";
+  m.textContent = "\u22EE";
+  m.title = "Modificar o borrar esta secci\u00F3n";
+  m.setAttribute("aria-label", "Opciones de la secci\u00F3n " + el.nombre);
+  m.setAttribute("aria-haspopup", "menu");
+  it.append(b, m);
+  return it;
+}
+
+function hojaPintarGaleria(td, elementos) {
   let gal = td.querySelector(":scope > .em-hoja-gal");
   if (!gal) {
     gal = document.createElement("div");
     gal.className = "em-hoja-gal";
     td.appendChild(gal);
   }
-  // Se reutilizan las miniaturas que ya estaban (así no se vuelven a pedir al escribir)
+  // Se reutilizan los recuadros que ya estaban (así no se vuelven a pedir las miniaturas al escribir)
   const previos = {};
   gal.querySelectorAll(":scope > .em-hoja-gal-item").forEach((el) => { previos[el.dataset.clave] = el; });
   const cuenta = {};
   const orden = [];
-  videos.forEach((v) => {
-    const n = (cuenta[v.enlace] = (cuenta[v.enlace] || 0) + 1);
-    const clave = v.enlace + "|" + n;
+  elementos.forEach((e) => {
+    const base = e.tipo === "seccion" ? "S|" + e.raw : e.enlace;
+    const n = (cuenta[base] = (cuenta[base] || 0) + 1);
+    const clave = base + "|" + n;
     let it = previos[clave];
     if (it) delete previos[clave];
-    else it = hojaCrearItemGaleria(clave, v);
-    it.dataset.indice = String(v.i);
+    else it = e.tipo === "seccion" ? hojaCrearItemSeccion(clave, e) : hojaCrearItemGaleria(clave, e);
+    it.dataset.indice = String(e.i);
     orden.push(it);
   });
   Object.keys(previos).forEach((k) => {
@@ -6065,8 +6171,9 @@ function hojaPintarGaleria(td, videos) {
     mas.type = "button";
     mas.className = "em-hoja-gal-mas";
     mas.textContent = "+";
-    mas.title = "Agregar otro link";
-    mas.setAttribute("aria-label", "Agregar otro link a esta celda");
+    mas.title = "Agregar un link o una secci\u00F3n";
+    mas.setAttribute("aria-label", "Agregar un link o una secci\u00F3n a esta celda");
+    mas.setAttribute("aria-haspopup", "menu");
   }
   orden.forEach((it) => gal.appendChild(it));
   gal.appendChild(mas);
@@ -6124,7 +6231,7 @@ function hojaPedirLink(titulo, inicial, textoBoton) {
 
 // Posición de la parte (separada por comas) que tiene ese link; -1 si ya no está
 function hojaBuscarParte(valor, indice, enlace) {
-  const partes = String(valor || "").split(",");
+  const partes = hojaSepararPartes(valor);
   if (indice >= 0 && indice < partes.length && hojaLinkDe(partes[indice]) === enlace) return indice;
   return partes.findIndex((p) => hojaLinkDe(p) === enlace);
 }
@@ -6149,7 +6256,7 @@ async function hojaModificarLink(td, enlace, indice) {
   if (!nuevo || nuevo === enlace) return;
   const k = hojaBuscarParte(inp.value, indice, enlace);
   if (k < 0) { hojaAviso("Ese link ya no está en la celda", "error"); return; }
-  const partes = inp.value.split(",").map((p) => p.trim());
+  const partes = hojaSepararPartes(inp.value);
   partes[k] = nuevo;
   hojaAplicarValorCelda(td, inp, partes.filter(Boolean).join(" , "));
 }
@@ -6162,7 +6269,7 @@ async function hojaBorrarLink(td, enlace, indice) {
   if (!ok) return;
   const k = hojaBuscarParte(inp.value, indice, enlace);
   if (k < 0) return;
-  const partes = inp.value.split(",").map((p) => p.trim());
+  const partes = hojaSepararPartes(inp.value);
   partes.splice(k, 1);
   hojaAplicarValorCelda(td, inp, partes.filter(Boolean).join(" , "));
 }
@@ -6172,29 +6279,28 @@ async function hojaAgregarLink(td) {
   if (!inp) return;
   const nuevo = await hojaPedirLink("Agregar link", "", "Agregar");
   if (!nuevo) return;
-  const actual = inp.value.split(",").map((p) => p.trim()).filter(Boolean);
+  const actual = hojaSepararPartes(inp.value).filter(Boolean);
   actual.push(nuevo);
   hojaAplicarValorCelda(td, inp, actual.join(" , "));
 }
 
 // Mini menú del botón ⋮ de una miniatura: Modificar o Borrar ese link
-function hojaMenuLink(ancla, td, indice, enlace) {
+// Menú flotante pequeño con opciones [{ texto, accion }] junto a un botón (se cierra al tocar fuera, con Esc o al desplazar)
+function hojaMenuFlotante(ancla, etiqueta, opciones) {
   hojaCerrarMenuVideos();
   const menu = document.createElement("div");
   menu.className = "em-video-menu em-link-menu";
   menu.setAttribute("role", "menu");
-  menu.setAttribute("aria-label", "Opciones del link");
-  const crear = (texto, accion) => {
+  menu.setAttribute("aria-label", etiqueta);
+  opciones.forEach((o) => {
     const it = document.createElement("button");
     it.type = "button";
     it.className = "em-video-menu-item em-link-menu-item";
     it.setAttribute("role", "menuitem");
-    it.textContent = texto;
-    it.addEventListener("click", () => { hojaCerrarMenuVideos(); accion(); });
+    it.textContent = o.texto;
+    it.addEventListener("click", () => { hojaCerrarMenuVideos(); o.accion(); });
     menu.appendChild(it);
-  };
-  crear("\u270F\uFE0F Modificar link", () => hojaModificarLink(td, enlace, indice));
-  crear("\u{1F5D1}\uFE0F Borrar link", () => hojaBorrarLink(td, enlace, indice));
+  });
   document.body.appendChild(menu);
   // Junto al botón (a su derecha, o a la izquierda si no cabe), sin salirse de la pantalla
   const r = ancla.getBoundingClientRect();
@@ -6230,6 +6336,222 @@ function hojaMenuLink(ancla, td, indice, enlace) {
   if (primero) primero.focus();
 }
 
+// Mini menú del botón ⋮ de una miniatura: Modificar o Borrar ese link
+function hojaMenuLink(ancla, td, indice, enlace) {
+  hojaMenuFlotante(ancla, "Opciones del link", [
+    { texto: "\u270F\uFE0F Modificar link", accion: () => hojaModificarLink(td, enlace, indice) },
+    { texto: "\u{1F5D1}\uFE0F Borrar link", accion: () => hojaBorrarLink(td, enlace, indice) },
+  ]);
+}
+// Mini menú del botón ⋮ de una sección
+function hojaMenuSeccion(ancla, td, indice, raw) {
+  hojaMenuFlotante(ancla, "Opciones de la secci\u00F3n", [
+    { texto: "\u270F\uFE0F Modificar secci\u00F3n", accion: () => hojaModificarSeccion(td, indice, raw) },
+    { texto: "\u{1F5D1}\uFE0F Borrar secci\u00F3n", accion: () => hojaBorrarSeccion(td, indice, raw) },
+  ]);
+}
+// Menú del botón +: agregar un link suelto o una sección con varios links
+function hojaMenuMas(ancla, td) {
+  hojaMenuFlotante(ancla, "Agregar a esta celda", [
+    { texto: "\u{1F517} Agregar link", accion: () => hojaAgregarLink(td) },
+    { texto: "\u{1F4C1} Agregar secci\u00F3n", accion: () => hojaAgregarSeccion(td) },
+  ]);
+}
+
+// Cuadro para crear o modificar una sección: barra para el link + botón Agregar, barra del nombre, y debajo la lista de links
+// (con números para mover cada link a otra posición, y flechas ▲ ▼). Devuelve { nombre, enlaces } o null si se cancela.
+function hojaPedirSeccion(inicial) {
+  return new Promise((resolve) => {
+    const enlaces = inicial ? inicial.enlaces.slice() : [];
+    const fondo = document.createElement("div");
+    fondo.className = "em-hoja-dialogo";
+    const caja = document.createElement("form");
+    caja.className = "em-hoja-dialogo-caja em-hoja-seccion-caja";
+    const h = document.createElement("strong");
+    h.textContent = inicial ? "Modificar secci\u00F3n" : "Agregar secci\u00F3n";
+    const filaLink = document.createElement("div");
+    filaLink.className = "em-hoja-seccion-fila";
+    const inLink = document.createElement("input");
+    inLink.type = "text";
+    inLink.autocomplete = "off";
+    inLink.spellcheck = false;
+    inLink.placeholder = "Pega un link de video\u2026";
+    inLink.setAttribute("aria-label", "Link de video");
+    const btnAgregar = document.createElement("button");
+    btnAgregar.type = "button";
+    btnAgregar.className = "em-hoja-guardar";
+    btnAgregar.textContent = "Agregar";
+    filaLink.append(inLink, btnAgregar);
+    const inNombre = document.createElement("input");
+    inNombre.type = "text";
+    inNombre.autocomplete = "off";
+    inNombre.maxLength = 40;
+    inNombre.placeholder = "Nombre de la secci\u00F3n";
+    inNombre.setAttribute("aria-label", "Nombre de la secci\u00F3n");
+    inNombre.value = inicial ? inicial.nombre : "";
+    const msg = document.createElement("p");
+    msg.className = "em-hoja-dialogo-texto";
+    const lista = document.createElement("ol");
+    lista.className = "em-hoja-seccion-lista";
+    const fila = document.createElement("div");
+    fila.className = "em-hoja-dialogo-botones";
+    const cancelar = document.createElement("button");
+    cancelar.type = "button";
+    cancelar.className = "em-hoja-herr-btn";
+    cancelar.textContent = "Cancelar";
+    const ok = document.createElement("button");
+    ok.type = "submit";
+    ok.className = "em-hoja-guardar";
+    ok.textContent = inicial ? "Guardar secci\u00F3n" : "Crear secci\u00F3n";
+    fila.append(cancelar, ok);
+    caja.append(h, filaLink, inNombre, msg, lista, fila);
+    fondo.appendChild(caja);
+    emHoja.appendChild(fondo);
+
+    const decir = (t, error) => { msg.textContent = t || ""; msg.classList.toggle("error", !!error); };
+    const boton = (txt, aria, tipo, fn) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "em-hoja-seccion-btn";
+      b.textContent = txt;
+      b.title = aria;
+      b.setAttribute("aria-label", aria);
+      b.dataset.t = tipo;
+      b.addEventListener("click", fn);
+      return b;
+    };
+    const mover = (de, a, tipo) => {
+      if (a >= 0 && a < enlaces.length && a !== de) {
+        const x = enlaces.splice(de, 1)[0];
+        enlaces.splice(a, 0, x);
+      }
+      pintar();
+      const el = lista.querySelector("li:nth-child(" + (a + 1) + ") [data-t=\"" + tipo + "\"]");
+      if (el && !el.disabled) el.focus();
+      else { const p = lista.querySelector("li:nth-child(" + (a + 1) + ") [data-t=\"pos\"]"); if (p) p.focus(); }
+    };
+    const pintar = () => {
+      lista.innerHTML = "";
+      if (!enlaces.length) {
+        const v = document.createElement("li");
+        v.className = "em-hoja-seccion-vacia";
+        v.textContent = "A\u00FAn no hay links en esta secci\u00F3n";
+        lista.appendChild(v);
+        return;
+      }
+      enlaces.forEach((enl, k) => {
+        const li = document.createElement("li");
+        li.className = "em-hoja-seccion-item";
+        const pos = document.createElement("select");
+        pos.className = "em-hoja-seccion-pos";
+        pos.dataset.t = "pos";
+        pos.title = "Mover este link a otra posici\u00F3n";
+        pos.setAttribute("aria-label", "Posici\u00F3n del link " + (k + 1));
+        for (let n = 1; n <= enlaces.length; n++) pos.add(new Option(String(n), String(n)));
+        pos.value = String(k + 1);
+        pos.addEventListener("change", () => mover(k, +pos.value - 1, "pos"));
+        const mini = document.createElement("span");
+        mini.className = "em-hoja-seccion-mini";
+        const img = document.createElement("img");
+        hojaPonerMiniatura(img, hojaVideoDe(enl));
+        mini.appendChild(img);
+        const txt = document.createElement("span");
+        txt.className = "em-hoja-seccion-txt";
+        txt.textContent = enl.replace(/^https?:\/\/(www\.)?/i, "");
+        txt.title = enl;
+        const sube = boton("\u25B2", "Subir una posici\u00F3n", "sube", () => mover(k, k - 1, "sube"));
+        sube.disabled = k === 0;
+        const baja = boton("\u25BC", "Bajar una posici\u00F3n", "baja", () => mover(k, k + 1, "baja"));
+        baja.disabled = k === enlaces.length - 1;
+        const quita = boton("\u00D7", "Quitar este link de la secci\u00F3n", "quita", () => { enlaces.splice(k, 1); pintar(); });
+        li.append(pos, mini, txt, sube, baja, quita);
+        lista.appendChild(li);
+      });
+    };
+
+    // Agrega a la lista lo que haya en la barra del link (se aceptan varios separados por comas). Devuelve false si algo no sirvió.
+    const agregar = () => {
+      const partes = inLink.value.split(",").map((p) => p.trim()).filter(Boolean);
+      if (!partes.length) { decir("Pega un link de video primero", true); inLink.focus(); return false; }
+      const malos = [];
+      let repetidos = 0;
+      partes.forEach((p) => {
+        const v = hojaVideoDe(p);
+        if (!v) { malos.push(p); return; }
+        if (enlaces.includes(v.enlace)) { repetidos++; return; }
+        enlaces.push(v.enlace);
+      });
+      inLink.value = malos.join(" , ");
+      pintar();
+      lista.scrollTop = lista.scrollHeight;
+      if (malos.length) { decir("Eso no es un link de video (YouTube, Facebook, Instagram, TikTok, Threads o X). Revisa que empiece con https://", true); inLink.focus(); return false; }
+      decir(repetidos ? "Ese link ya estaba en la lista" : "", false);
+      inLink.focus();
+      return true;
+    };
+    btnAgregar.addEventListener("click", agregar);
+    inLink.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); agregar(); } });
+
+    const tecla = (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cerrar(null); } };
+    const cerrar = (valor) => { document.removeEventListener("keydown", tecla, true); fondo.remove(); resolve(valor); };
+    document.addEventListener("keydown", tecla, true);
+    caja.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (inLink.value.trim() && !agregar()) return; // un link escrito que no se pulsó en Agregar se suma solo
+      if (!enlaces.length) { decir("Agrega al menos un link a la secci\u00F3n", true); inLink.focus(); return; }
+      cerrar({ nombre: hojaLimpiarNombreSeccion(inNombre.value) || "Secci\u00F3n", enlaces: enlaces.slice() });
+    });
+    cancelar.addEventListener("click", () => cerrar(null));
+    fondo.addEventListener("pointerdown", (e) => { if (e.target === fondo) cerrar(null); });
+    pintar();
+    setTimeout(() => inLink.focus(), 30);
+  });
+}
+
+async function hojaAgregarSeccion(td) {
+  const inp = td.querySelector(".em-hoja-celda");
+  if (!inp) return;
+  const r = await hojaPedirSeccion(null);
+  if (!r) return;
+  const actual = hojaSepararPartes(inp.value).filter(Boolean);
+  actual.push(hojaEscribirSeccion(r.nombre, r.enlaces));
+  hojaAplicarValorCelda(td, inp, actual.join(" , "));
+}
+
+function hojaBuscarSeccion(valor, indice, raw) {
+  const partes = hojaSepararPartes(valor);
+  if (indice >= 0 && indice < partes.length && partes[indice] === raw) return indice;
+  return partes.indexOf(raw);
+}
+
+async function hojaModificarSeccion(td, indice, raw) {
+  const inp = td.querySelector(".em-hoja-celda");
+  const sec = hojaLeerSeccion(raw);
+  if (!inp || !sec) return;
+  const r = await hojaPedirSeccion({ nombre: sec.nombre, enlaces: sec.enlaces.map((e) => hojaLinkDe(e)).filter(Boolean) });
+  if (!r) return;
+  const k = hojaBuscarSeccion(inp.value, indice, raw);
+  if (k < 0) { hojaAviso("Esa secci\u00F3n ya no est\u00E1 en la celda", "error"); return; }
+  const partes = hojaSepararPartes(inp.value);
+  partes[k] = hojaEscribirSeccion(r.nombre, r.enlaces);
+  hojaAplicarValorCelda(td, inp, partes.filter(Boolean).join(" , "));
+}
+
+async function hojaBorrarSeccion(td, indice, raw) {
+  const inp = td.querySelector(".em-hoja-celda");
+  const sec = hojaLeerSeccion(raw);
+  if (!inp || !sec) return;
+  const n = sec.enlaces.length;
+  const ok = await hojaConfirmar("\u00BFBorrar la secci\u00F3n \u00AB" + sec.nombre + "\u00BB?", "Se quitar\u00E1n tambi\u00E9n sus " + n + (n === 1 ? " link." : " links."), "Borrar secci\u00F3n");
+  if (!ok) return;
+  const k = hojaBuscarSeccion(inp.value, indice, raw);
+  if (k < 0) return;
+  const partes = hojaSepararPartes(inp.value);
+  partes.splice(k, 1);
+  hojaAplicarValorCelda(td, inp, partes.filter(Boolean).join(" , "));
+}
+
+
 // Toques dentro de la galería de una celda
 function hojaClickGaleria(e, gal) {
   const td = gal.parentElement;
@@ -6238,13 +6560,23 @@ function hojaClickGaleria(e, gal) {
   if (boton) {
     e.preventDefault();
     const it = boton.closest(".em-hoja-gal-item");
+    if (it.classList.contains("em-hoja-gal-seccion")) { hojaMenuSeccion(boton, td, +it.dataset.indice, it.dataset.raw); return; }
     const m = it.querySelector(".em-hoja-mini");
     hojaMenuLink(boton, td, +it.dataset.indice, m ? m.dataset.url : "");
     return;
   }
-  if (e.target.closest(".em-hoja-gal-mas")) {
+  const mas = e.target.closest(".em-hoja-gal-mas");
+  if (mas) {
     e.preventDefault();
-    hojaAgregarLink(td);
+    hojaMenuMas(mas, td);
+    return;
+  }
+  const sec = e.target.closest(".em-hoja-gal-sec");
+  if (sec) {
+    e.preventDefault();
+    const it = sec.closest(".em-hoja-gal-item");
+    const el = inp ? hojaElementosCelda(inp.value).find((x) => x.tipo === "seccion" && x.i === +it.dataset.indice) : null;
+    if (el) hojaMenuVideos(el.videos.map((v) => ({ enlace: v.enlace, red: v.red, id: v.id })), sec, emHoja, "\u{1F4C1} " + el.nombre + " \u00B7 " + el.videos.length + (el.videos.length === 1 ? " video" : " videos"));
     return;
   }
   const mini = e.target.closest(".em-hoja-mini");
@@ -6263,15 +6595,15 @@ function hojaActualizarLink(td, texto) {
   const inp = td.querySelector(".em-hoja-celda");
   let a = td.querySelector(".em-hoja-link");
   // Links de video en la celda (uno, o varios separados por comas): una miniatura por cada uno, con su botón de opciones en vez del texto largo
-  const videos = hojaPartesVideos(texto);
-  const partesLlenas = String(texto || "").split(",").filter((p) => p.trim()).length;
-  if (inp && (videos.length > 1 || (videos.length === 1 && partesLlenas === 1))) {
+  const elementos = hojaElementosCelda(texto);
+  const partesLlenas = hojaSepararPartes(texto).filter((p) => p).length;
+  if (inp && (elementos.length > 1 || (elementos.length === 1 && (elementos[0].tipo === "seccion" || partesLlenas === 1)))) {
     const suelta = td.querySelector(":scope > .em-hoja-mini");
     if (suelta) suelta.remove();
     if (a) a.remove();
     inp.classList.remove("em-hoja-celda-mini", "em-hoja-celda-link");
     inp.classList.add("em-hoja-celda-gal");
-    hojaPintarGaleria(td, videos);
+    hojaPintarGaleria(td, elementos);
     return;
   }
   if (inp) {
@@ -7383,7 +7715,7 @@ let hojaMenuVideosLimpiar = null;
 function hojaCerrarMenuVideos() {
   if (hojaMenuVideosLimpiar) hojaMenuVideosLimpiar();
 }
-function hojaMenuVideos(lista, ancla, padre) {
+function hojaMenuVideos(lista, ancla, padre, titulo) {
   hojaCerrarMenuVideos();
   const menu = document.createElement("div");
   menu.className = "em-video-menu";
@@ -7391,9 +7723,18 @@ function hojaMenuVideos(lista, ancla, padre) {
   menu.setAttribute("aria-label", "Videos de esta celda");
   const cab = document.createElement("div");
   cab.className = "em-video-menu-cab";
-  cab.textContent = lista.length + " videos";
+  cab.textContent = titulo || lista.length + " videos";
   menu.appendChild(cab);
+  const haySecciones = lista.some((v) => v.seccion);
+  let seccionPrevia = null;
   lista.forEach((v, i) => {
+    if (haySecciones && (v.seccion || "") !== seccionPrevia) { // los videos de una sección van bajo su nombre
+      seccionPrevia = v.seccion || "";
+      const sc = document.createElement("div");
+      sc.className = "em-video-menu-sec";
+      sc.textContent = seccionPrevia ? "\u{1F4C1} " + seccionPrevia : "Otros videos";
+      menu.appendChild(sc);
+    }
     const it = document.createElement("button");
     it.type = "button";
     it.className = "em-video-menu-item";
@@ -8375,14 +8716,11 @@ const CANAL_REDES = [
 
 // Un link de video de esa red (o null). YouTube lleva su id; las demás, solo el link
 function canalVideoDeRed(red, texto) {
-  if (red === "youtube") {
-    const lista = hojaListaYoutube(texto); // varios links separados por comas: la ficha usa el primero y abre un menú con todos
-    return lista.length ? { red, id: lista[0].id, enlace: lista[0].enlace, lista } : null;
-  }
-  // varios links de la misma celda (separados por comas): la ficha usa el primero y abre un menú con todos
+  // Links sueltos y secciones de la celda (varios, separados por comas): la ficha usa el primero y abre un menú con todos
   const lista = [];
   hojaPartesVideos(texto).forEach((x) => { if (x.red === red && !lista.some((y) => y.enlace === x.enlace)) lista.push(x); });
-  return lista.length ? { red, enlace: lista[0].enlace, lista } : null;
+  if (!lista.length) return null;
+  return red === "youtube" ? { red, id: lista[0].id, enlace: lista[0].enlace, lista } : { red, enlace: lista[0].enlace, lista };
 }
 
 // Una columna puede llevar la etiqueta de una red: «YouTube: Lives», «Facebook: Reels»… Lo que esté escrito en ella no entra en la lista

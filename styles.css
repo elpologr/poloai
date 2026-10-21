@@ -2970,3 +2970,44 @@ button.em-canal-ficha-texto { cursor: pointer; }
 .em-video-menu-mini-tiktok { background: linear-gradient(135deg, #25f4ee, #111 45%, #fe2c55); }
 .em-video-menu-mini-threads { background: linear-gradient(135deg, #3a3a3a, #000); }
 .em-video-menu-mini-x { background: linear-gradient(135deg, #2b2b2b, #000); }
+
+
+/* ---------- Secciones dentro de una celda de la hoja de redes ---------- */
+.em-hoja-gal-sec {
+  position: relative; display: block; flex: none; width: 117px; height: 66px; padding: 0; overflow: hidden; font: inherit; text-align: left;
+  color: #fff; cursor: pointer; background: linear-gradient(135deg, #5b3aa8, #2d1b66); border: 0; border-radius: 4px 0 0 4px;
+}
+.em-hoja-gal-sec img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.em-hoja-gal-sec img[hidden] { display: none; }
+.em-hoja-gal-sec-vel { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.15) 70%); }
+.em-hoja-gal-sec-nombre {
+  position: absolute; left: 5px; right: 5px; top: 5px; overflow: hidden; font-size: 12px; font-weight: 800; line-height: 1.2;
+  text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+.em-hoja-gal-sec-cuenta {
+  position: absolute; right: 4px; bottom: 4px; padding: 1px 7px; font-size: 0.7rem; font-weight: 800; line-height: 1.4;
+  background: rgba(0, 0, 0, 0.78); border-radius: 999px;
+}
+.em-hoja-gal-sec:focus-visible { outline: 2px solid #8fb8ff; outline-offset: -2px; }
+.em-video-menu-sec { padding: 8px 10px 4px; font-size: 0.78rem; font-weight: 800; color: #4a2685; }
+.em-hoja-dialogo-texto.error { color: #c5221f; }
+.em-hoja-seccion-caja { max-width: 480px; max-height: 100%; }
+.em-hoja-seccion-fila { display: flex; gap: 8px; }
+.em-hoja-seccion-fila input { flex: 1 1 auto; min-width: 0; }
+.em-hoja-seccion-fila .em-hoja-guardar { flex: none; }
+.em-hoja-seccion-lista { flex: 1 1 auto; min-height: 56px; max-height: 42vh; margin: 0; padding: 0; overflow-y: auto; list-style: none; border: 1px solid #e2e3e3; border-radius: 8px; }
+.em-hoja-seccion-vacia { padding: 14px 10px; font-size: 0.85rem; text-align: center; color: #80868b; }
+.em-hoja-seccion-item { display: flex; align-items: center; gap: 6px; padding: 5px 6px; border-bottom: 1px solid #f1f3f4; }
+.em-hoja-seccion-item:last-child { border-bottom: 0; }
+.em-hoja-seccion-pos { flex: none; width: 52px; padding: 5px 2px; font: inherit; font-size: 0.9rem; font-weight: 700; color: #202124; background: #fff; border: 1px solid #dadce0; border-radius: 6px; }
+.em-hoja-seccion-mini { position: relative; flex: none; width: 48px; height: 27px; overflow: hidden; background: #e8eaed; border-radius: 3px; }
+.em-hoja-seccion-mini img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.em-hoja-seccion-mini img[hidden] { display: none; }
+.em-hoja-seccion-txt { flex: 1 1 auto; min-width: 0; overflow: hidden; font-size: 0.78rem; color: #3c4043; text-overflow: ellipsis; white-space: nowrap; }
+.em-hoja-seccion-btn {
+  flex: none; width: 30px; height: 30px; padding: 0; font: inherit; font-size: 0.8rem; font-weight: 800; color: #3c4043;
+  cursor: pointer; background: #f1f3f4; border: 0; border-radius: 6px;
+}
+.em-hoja-seccion-btn:hover:not(:disabled), .em-hoja-seccion-btn:focus-visible { background: #dfe3e8; outline: none; }
+.em-hoja-seccion-btn:disabled { opacity: 0.35; cursor: default; }
+.em-hoja-seccion-btn[data-t="quita"] { color: #c5221f; font-size: 1.1rem; }
