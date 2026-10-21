@@ -1903,11 +1903,12 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 }
 .em-zona-btn {
   flex: 1 1 0; min-width: 0; padding: 10px 8px; font: inherit; font-size: 0.9rem; font-weight: 800; line-height: 1.15;
-  color: #fff; text-align: center; cursor: pointer; background: transparent; border: 0; border-radius: 999px;
-  transition: background 0.15s, color 0.15s;
+  color: #1b2a4e; text-align: center; cursor: pointer; background: #fff; border: 0; border-radius: 999px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); transition: background 0.15s, color 0.15s;
 }
-.em-zona-btn:hover { background: rgba(255, 255, 255, 0.18); }
-.em-zona-btn[aria-selected="true"] { color: #4a2685; background: #fff; box-shadow: 0 2px 8px rgba(40, 10, 80, 0.3); }
+.em-zona-btn:hover { background: #e8eeff; }
+.em-zona-btn[aria-selected="true"] { color: #fff; background: #12308a; box-shadow: 0 2px 8px rgba(8, 20, 70, 0.55); }
+.em-zona-btn[aria-selected="true"]:hover { background: #0e2870; }
 .em-zona-btn:focus-visible { outline: 3px solid #8fb8ff; outline-offset: 2px; }
 .em-grupos[hidden] { display: none; }
 @media (max-width: 520px) {
@@ -2900,3 +2901,25 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
 .em-video-menu-txt { display: flex; flex-direction: column; min-width: 0; }
 .em-video-menu-txt b { font-size: 0.88rem; }
 .em-video-menu-txt small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #6f6585; }
+
+/* ---------- Sub botones dentro de una red (columnas con etiqueta: «YouTube: Lives») ---------- */
+.em-canal-subs { flex: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 16px 0; }
+.em-canal-subs[hidden] { display: none; }
+.em-canal-sub {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; font: inherit; font-size: 0.78rem; font-weight: 800;
+  color: #dbe2f5; cursor: pointer; background: rgba(255, 255, 255, 0.05); border: 1px dashed rgba(255, 255, 255, 0.32); border-radius: 8px;
+}
+.em-canal-sub small { font-size: 0.7rem; font-weight: 800; opacity: 0.75; }
+.em-canal-sub:hover { background: rgba(255, 255, 255, 0.14); }
+.em-canal-sub[aria-selected="true"] { color: #fff; background: #7a44d6; border: 1px solid #b79cff; }
+.em-canal-sub:focus-visible { outline: 3px solid #8fb8ff; outline-offset: 2px; }
+.em-canal-ficha-texto { cursor: default; }
+button.em-canal-ficha-texto { cursor: pointer; }
+.em-canal-texto {
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; padding: 8px; font-size: 0.78rem;
+  line-height: 1.3; color: #dbe2f5; text-align: center; overflow-wrap: anywhere;
+}
+.em-hoja-dialogo-caja select {
+  width: 100%; padding: 10px; font: inherit; font-size: 1rem; color: #202124; background: #fff; border: 1px solid #dadce0; border-radius: 8px;
+}
+@media (max-width: 480px) { .em-canal-subs { margin: 8px 12px 0; } }

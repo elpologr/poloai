@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=72" />
+  <link rel="stylesheet" href="styles.css?v=73" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1177,6 +1177,8 @@
         </div>
         <!-- Botones de redes: solo se ven las miniaturas de la red elegida (los arma app.js) -->
         <div id="em-canal-redes" class="em-canal-redes" role="group" aria-label="Red social"></div>
+        <!-- Sub botones de la red elegida: uno por cada columna de la hoja con etiqueta de red («YouTube: Lives»); los arma app.js -->
+        <div id="em-canal-subs" class="em-canal-subs" role="tablist" aria-label="Secciones de la red" hidden></div>
         <p id="em-canal-estado" class="em-canal-estado" role="status"></p>
         <div id="em-canal-grid" class="em-canal-grid"></div>
         <nav id="em-canal-pags" class="em-canal-pags" aria-label="Páginas" hidden></nav>
@@ -1366,7 +1368,7 @@
   </main>
 
   <script src="config.js?v=64"></script>
-  <script src="app.js?v=77"></script>
+  <script src="app.js?v=78"></script>
   <script src="voz.js?v=64"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

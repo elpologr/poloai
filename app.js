@@ -6712,6 +6712,63 @@ function hojaPedirNombre(titulo, ayuda) {
   });
 }
 
+// Diálogo de «Agregar columna»: nombre y, si se quiere, la etiqueta de una red (YouTube, Facebook…).
+// Con etiqueta, la columna se llama «YouTube: nombre» y en el perfil del canal aparece como un sub botón dentro de esa red.
+function hojaPedirColumna() {
+  return new Promise((resolve) => {
+    const fondo = document.createElement("div");
+    fondo.className = "em-hoja-dialogo";
+    const caja = document.createElement("form");
+    caja.className = "em-hoja-dialogo-caja";
+    const h = document.createElement("strong");
+    h.textContent = "Nueva columna";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.autocomplete = "off";
+    const sel = document.createElement("select");
+    sel.setAttribute("aria-label", "Etiqueta de red social");
+    sel.add(new Option("Sin etiqueta de red", ""));
+    CANAL_REDES.forEach((r) => sel.add(new Option("Etiqueta: " + r.nombre, r.nombre)));
+    const ayuda = document.createElement("p");
+    ayuda.className = "em-hoja-dialogo-texto";
+    const fila = document.createElement("div");
+    fila.className = "em-hoja-dialogo-botones";
+    const cancelar = document.createElement("button");
+    cancelar.type = "button";
+    cancelar.className = "em-hoja-herr-btn";
+    cancelar.textContent = "Cancelar";
+    const ok = document.createElement("button");
+    ok.type = "submit";
+    ok.className = "em-hoja-guardar";
+    ok.textContent = "Agregar";
+    fila.append(cancelar, ok);
+    caja.append(h, input, sel, ayuda, fila);
+    fondo.appendChild(caja);
+    emHoja.appendChild(fondo);
+    const actualizar = () => {
+      const red = sel.value;
+      input.maxLength = HOJA_NOMBRE_COL_MAX - (red ? red.length + 2 : 0);
+      input.placeholder = red ? "Nombre del sub bot\u00F3n (ej. Lives)" : "Nombre de la columna (ej. Pinterest)";
+      ayuda.textContent = red
+        ? "Se crea la columna \u00AB" + red + ": \u2026\u00BB y lo que escribas en ella aparece como un sub bot\u00F3n dentro de " + red + ", en el perfil del canal."
+        : "Una columna normal de la hoja.";
+      if (input.value.length > input.maxLength) input.value = input.value.slice(0, input.maxLength);
+    };
+    sel.addEventListener("change", actualizar);
+    actualizar();
+    const cerrar = (valor) => { fondo.remove(); resolve(valor); };
+    caja.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const nombre = input.value.trim();
+      if (!nombre) { input.focus(); return; }
+      cerrar((sel.value ? sel.value + ": " + nombre : nombre).slice(0, HOJA_NOMBRE_COL_MAX));
+    });
+    cancelar.addEventListener("click", () => cerrar(""));
+    fondo.addEventListener("pointerdown", (e) => { if (e.target === fondo) cerrar(""); });
+    setTimeout(() => input.focus(), 30);
+  });
+}
+
 const emHojaColMas = emEl("em-hoja-col-mas");
 if (emHojaColMas) {
   emHojaColMas.addEventListener("click", async () => {
@@ -6727,7 +6784,7 @@ if (emHojaColMas) {
       hojaAviso("Máximo " + HOJA_COL_MAX + " columnas", "error");
       return;
     }
-    const nombre = await hojaPedirNombre("Nombre de la nueva columna", "Ej. Pinterest");
+    const nombre = await hojaPedirColumna();
     if (!nombre) return;
     hojaColumnas.push(nombre);
     hojaAnchos.push(HOJA_ANCHO_NUEVA);
@@ -7791,6 +7848,7 @@ let canalProyecto = null;
 let canalTab = 1; // 1 = Videos (hoja principal), 2 = Shorts (hoja secundaria)
 let canalPagina = 1;
 let canalRed = "youtube"; // red elegida con los botones de redes (solo se ven las miniaturas de esa red)
+let canalSub = ""; // sub botón elegido dentro de esa red ("" = el general, la columna con el nombre de la red)
 let canalDatos = { 1: null, 2: null }; // [{ red, id (solo YouTube), enlace, nombre }] de cada hoja, ya leídos (todas las redes)
 // Columnas de la hoja que corresponden a cada red (se comparan en minúsculas)
 const CANAL_REDES = [
@@ -7812,11 +7870,26 @@ function canalVideoDeRed(red, texto) {
   return v && v.red === red ? { red, enlace: v.url } : null;
 }
 
+// Una columna puede llevar la etiqueta de una red: «YouTube: Lives», «Facebook: Reels»… Lo que esté escrito en ella no entra en la lista
+// general de esa red: aparece en un sub botón con ese nombre (dentro de la zona de la red). Devuelve { red, sub } o null.
+function canalEtiquetaDeColumna(nombre) {
+  const m = String(nombre === undefined || nombre === null ? "" : nombre).match(/^\s*([^:\u00B7|]+?)\s*[:\u00B7|]\s*(.+?)\s*$/);
+  if (!m) return null;
+  const clave = m[1].toLowerCase();
+  const r = CANAL_REDES.find((x) => x.cols.includes(clave) || x.nombre.toLowerCase() === clave);
+  return r ? { red: r.id, sub: m[2] } : null;
+}
+
 function canalFilasDeHoja(j) {
   const cols = (Array.isArray(j.columnas) ? j.columnas : []).map((x) => String(x === undefined || x === null ? "" : x).trim().toLowerCase());
   const redCols = []; // [{ red, i }]: las columnas de la hoja que son de una red
   CANAL_REDES.forEach((r) => cols.forEach((nombre, i) => { if (r.cols.includes(nombre)) redCols.push({ red: r.id, i }); }));
-  if (!redCols.length) throw new Error("no encontré columnas de redes (Youtube, Facebook, Instagram, TikTok, Threads, X) en la hoja");
+  const subCols = []; // [{ red, sub, i }]: columnas con etiqueta de red («YouTube: Lives»), cada una es un sub botón
+  (Array.isArray(j.columnas) ? j.columnas : []).forEach((nombre, i) => {
+    const e = canalEtiquetaDeColumna(nombre);
+    if (e) subCols.push({ red: e.red, sub: e.sub, i });
+  });
+  if (!redCols.length && !subCols.length) throw new Error("no encontré columnas de redes (Youtube, Facebook, Instagram, TikTok, Threads, X) en la hoja");
   const ni = cols.indexOf("nombre");
   const lista = [];
   (Array.isArray(j.filas) ? j.filas : []).forEach((f) => {
@@ -7826,7 +7899,17 @@ function canalFilasDeHoja(j) {
       const v = canalVideoDeRed(red, f[i]); // sin link de un video de esa red no hay miniatura
       if (v) lista.push(Object.assign(v, { nombre }));
     });
+    subCols.forEach(({ red, sub, i }) => {
+      const texto = f[i] === undefined || f[i] === null ? "" : String(f[i]).trim();
+      if (!texto) return;
+      const v = canalVideoDeRed(red, texto);
+      // un video de la red lleva miniatura; cualquier otra cosa (un link, un texto) se muestra tal cual
+      lista.push(v ? Object.assign(v, { nombre, sub }) : { red, sub, nombre, texto, tipo: "texto" });
+    });
   });
+  // Los sub botones existen desde que se crea la columna, aunque todavía no tenga nada escrito
+  lista.subs = [];
+  subCols.forEach(({ red, sub }) => { if (!lista.subs.some((s) => s.red === red && s.sub === sub)) lista.subs.push({ red, sub }); });
   return lista;
 }
 
@@ -7863,7 +7946,7 @@ function canalPintarMeta() {
   if (!d) return;
   const cuenta = (n, uno, varios) => {
     if (!canalDatos[n]) return "\u2026 " + varios;
-    const k = canalDatos[n].filter((v) => v.red === canalRed).length;
+    const k = canalDatos[n].filter((v) => v.red === canalRed && !v.sub).length;
     return k + " " + (k === 1 ? uno : varios);
   };
   const partes = [];
@@ -7904,6 +7987,33 @@ function canalPintarCabecera() {
   canalDesc.hidden = !desc;
   canalPintarVer();
   canalPintarMeta();
+}
+
+// Ficha de algo que no es un video de la red (un link o un texto escrito en la columna de un sub botón)
+function canalCrearFichaTexto(v) {
+  const enlace = hojaLinkDe(v.texto);
+  const b = document.createElement(enlace ? "button" : "div");
+  if (enlace) b.type = "button";
+  b.className = "em-canal-ficha em-canal-ficha-texto";
+  b.title = v.texto;
+  const mini = document.createElement("span");
+  mini.className = "em-canal-mini";
+  const t = document.createElement("span");
+  t.className = "em-canal-texto";
+  t.textContent = (enlace ? "\u{1F517} " : "") + v.texto;
+  mini.appendChild(t);
+  b.appendChild(mini);
+  if (v.nombre) {
+    const n = document.createElement("span");
+    n.className = "em-canal-titulo";
+    n.textContent = v.nombre;
+    b.appendChild(n);
+  }
+  if (enlace) {
+    b.setAttribute("aria-label", "Abrir el link" + (v.nombre ? ": " + v.nombre : ""));
+    b.addEventListener("click", () => { window.open(enlace, "_blank", "noopener,noreferrer"); });
+  }
+  return b;
 }
 
 function canalCrearFichaYoutube(v) {
@@ -7950,6 +8060,7 @@ function canalCrearFichaYoutube(v) {
 // Ficha de un video de Facebook, Instagram, TikTok, Threads o X: fondo de color con el logo; al llegar la miniatura
 // (la pide el Apps Script con «miniatura_link») se muestra encima. Al tocarla se abre el video en otra pestaña.
 function canalCrearFicha(v) {
+  if (v.tipo === "texto") return canalCrearFichaTexto(v);
   if (v.red === "youtube") return canalCrearFichaYoutube(v);
   const nombreRed = HOJA_RED_NOMBRE[v.red] || "la red";
   const b = document.createElement("button");
@@ -8023,8 +8134,42 @@ function canalIrAPagina(n) {
   canalScroll.scrollTo({ top: Math.max(0, canalTabsEl.offsetTop - 70), behavior: "smooth" });
 }
 
+// Sub botones de la red elegida: «General» (la columna con el nombre de la red) y uno por cada columna con su etiqueta
+function canalPintarSubs() {
+  const todos = canalDatos[canalTab] || [];
+  const subs = (todos.subs || []).filter((s) => s.red === canalRed);
+  if (canalSub && !subs.some((s) => s.sub === canalSub)) canalSub = "";
+  canalSubsEl.innerHTML = "";
+  canalSubsEl.hidden = !subs.length;
+  if (!subs.length) return;
+  const nombreRed = HOJA_RED_NOMBRE[canalRed] || "la red";
+  canalSubsEl.setAttribute("aria-label", "Secciones de " + nombreRed);
+  [{ sub: "", texto: "General" }].concat(subs.map((s) => ({ sub: s.sub, texto: s.sub }))).forEach((s) => {
+    const k = todos.filter((v) => v.red === canalRed && (v.sub || "") === s.sub).length;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "em-canal-sub";
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", String(s.sub === canalSub));
+    const t = document.createElement("span");
+    t.textContent = s.texto;
+    const c = document.createElement("small");
+    c.textContent = String(k);
+    b.append(t, c);
+    b.addEventListener("click", () => {
+      if (s.sub === canalSub) return;
+      canalSub = s.sub;
+      canalPagina = 1;
+      hojaCerrarVideo();
+      canalDibujar();
+    });
+    canalSubsEl.appendChild(b);
+  });
+}
+
 function canalDibujar() {
-  const lista = (canalDatos[canalTab] || []).filter((v) => v.red === canalRed);
+  canalPintarSubs();
+  const lista = (canalDatos[canalTab] || []).filter((v) => v.red === canalRed && (v.sub || "") === canalSub);
   const paginas = Math.max(1, Math.ceil(lista.length / CANAL_POR_PAGINA));
   if (canalPagina > paginas) canalPagina = paginas;
   canalGrid.innerHTML = "";
@@ -8032,8 +8177,10 @@ function canalDibujar() {
   if (!lista.length) {
     const p = document.createElement("p");
     p.className = "em-canal-vacio";
-    p.textContent = "A\u00FAn no hay links de " + (canalTab === 1 ? "videos" : "shorts") + " de " + (HOJA_RED_NOMBRE[canalRed] || "la red") +
-      " en la hoja " + (canalTab === 1 ? "principal" : "secundaria") + ". Agr\u00E9galos con el engrane \u2699.";
+    p.textContent = canalSub
+      ? "A\u00FAn no hay nada en \u00AB" + canalSub + "\u00BB. Agr\u00E9galo en la columna \u00AB" + (HOJA_RED_NOMBRE[canalRed] || "") + ": " + canalSub + "\u00BB con el engrane \u2699."
+      : "A\u00FAn no hay links de " + (canalTab === 1 ? "videos" : "shorts") + " de " + (HOJA_RED_NOMBRE[canalRed] || "la red") +
+        " en la hoja " + (canalTab === 1 ? "principal" : "secundaria") + ". Agr\u00E9galos con el engrane \u2699.";
     canalGrid.appendChild(p);
     canalDibujarPags(1);
     return;
@@ -8057,6 +8204,7 @@ async function canalMostrar(n) {
   }
   const leyendo = canalTab;
   setEstado(canalEstado, "Cargando…");
+  canalSubsEl.hidden = true;
   canalGrid.innerHTML = "";
   canalPags.hidden = true;
   try {
@@ -8089,6 +8237,7 @@ function abrirCanal(n) {
   canalProyecto = emDetActual;
   canalDatos = { 1: null, 2: null };
   canalRed = "youtube"; // al abrir siempre empieza en YouTube
+  canalSub = "";
   canalPintarRedes();
   canalPintarCabecera();
   emCanal.hidden = false;
@@ -8113,12 +8262,14 @@ canalTabsEl.querySelectorAll(".em-canal-tab").forEach((b) => b.addEventListener(
 
 // Botones de redes: YouTube, Facebook, Instagram, TikTok, Threads y X (solo se ven las miniaturas de la red elegida)
 const canalRedesEl = emEl("em-canal-redes");
+const canalSubsEl = emEl("em-canal-subs");
 function canalPintarRedes() {
   canalRedesEl.querySelectorAll(".em-canal-red").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.red === canalRed)));
 }
 function canalElegirRed(id) {
   if (id === canalRed) return;
   canalRed = id;
+  canalSub = "";
   canalPagina = 1;
   canalPintarRedes();
   canalPintarVer();
