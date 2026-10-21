@@ -5888,7 +5888,7 @@ function hojaMinisSiguiente() {
 }
 
 // Recuadro de un video de Facebook/Instagram: primero un fondo de color con el logo; al llegar la miniatura se muestra encima
-function hojaMiniSocial(td, m, s) {
+function hojaMiniSocial(td, m, s, destino) {
   if (!m) {
     m = document.createElement("a");
     m.className = "em-hoja-mini em-hoja-mini-red em-hoja-mini-" + s.red;
@@ -5914,7 +5914,7 @@ function hojaMiniSocial(td, m, s) {
       hojaPedirMiniSocial(url, true, (src) => { if (m.dataset.url === url) img.src = src; });
     });
     m.append(img, ins);
-    td.appendChild(m);
+    (destino || td).appendChild(m);
   }
   m.title = "Abrir el video de " + (HOJA_RED_NOMBRE[s.red] || "la red");
   m.href = s.url;
@@ -5975,9 +5975,308 @@ function hojaActualizarMiniatura(td, inp, texto) {
   if (img.getAttribute("src") !== src) img.src = src;
 }
 
+// ----- Varios videos en una misma celda: galería de miniaturas -----
+// Los links se escriben separados por comas («link , link»). Cada uno muestra su miniatura (YouTube, Facebook, Instagram, TikTok, Threads, X)
+// y, en la pared externa de la miniatura, un botón ⋮ con un mini menú para modificar o borrar ese link. El texto de la celda se ve al editarla.
+function hojaPartesVideos(texto) {
+  const lista = [];
+  String(texto || "").split(",").forEach((parte, i) => {
+    const enlace = hojaLinkDe(parte);
+    if (!enlace) return;
+    const id = hojaIdYoutube(enlace);
+    if (id) { lista.push({ i, enlace, red: "youtube", id }); return; }
+    const s = hojaVideoSocial(enlace);
+    if (s) lista.push({ i, enlace, red: s.red, id: "" });
+  });
+  return lista;
+}
+
+function hojaQuitarGaleria(td) {
+  const g = td.querySelector(":scope > .em-hoja-gal");
+  if (!g) return;
+  g.querySelectorAll(".em-hoja-mini").forEach((m) => clearTimeout(m._espera));
+  g.remove();
+}
+
+function hojaCrearItemGaleria(clave, v) {
+  const it = document.createElement("div");
+  it.className = "em-hoja-gal-item";
+  it.dataset.clave = clave;
+  if (v.red === "youtube") {
+    const m = document.createElement("a");
+    m.className = "em-hoja-mini";
+    m.dataset.tipo = "youtube";
+    m.dataset.id = v.id;
+    m.dataset.url = v.enlace;
+    m.href = v.enlace;
+    m.target = "_blank";
+    m.rel = "noopener noreferrer";
+    m.title = "Abrir el video";
+    const img = document.createElement("img");
+    img.alt = "Miniatura del video";
+    img.loading = "lazy";
+    img.referrerPolicy = "no-referrer";
+    img.src = "https://i.ytimg.com/vi/" + v.id + "/mqdefault.jpg";
+    img.addEventListener("error", () => img.remove());
+    m.appendChild(img);
+    it.appendChild(m);
+  } else {
+    hojaMiniSocial(null, null, { red: v.red, url: v.enlace }, it);
+  }
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "em-hoja-gal-menu";
+  b.textContent = "\u22EE";
+  b.title = "Modificar o borrar este link";
+  b.setAttribute("aria-label", "Opciones de este link");
+  b.setAttribute("aria-haspopup", "menu");
+  it.appendChild(b);
+  return it;
+}
+
+function hojaPintarGaleria(td, videos) {
+  let gal = td.querySelector(":scope > .em-hoja-gal");
+  if (!gal) {
+    gal = document.createElement("div");
+    gal.className = "em-hoja-gal";
+    td.appendChild(gal);
+  }
+  // Se reutilizan las miniaturas que ya estaban (así no se vuelven a pedir al escribir)
+  const previos = {};
+  gal.querySelectorAll(":scope > .em-hoja-gal-item").forEach((el) => { previos[el.dataset.clave] = el; });
+  const cuenta = {};
+  const orden = [];
+  videos.forEach((v) => {
+    const n = (cuenta[v.enlace] = (cuenta[v.enlace] || 0) + 1);
+    const clave = v.enlace + "|" + n;
+    let it = previos[clave];
+    if (it) delete previos[clave];
+    else it = hojaCrearItemGaleria(clave, v);
+    it.dataset.indice = String(v.i);
+    orden.push(it);
+  });
+  Object.keys(previos).forEach((k) => {
+    previos[k].querySelectorAll(".em-hoja-mini").forEach((m) => clearTimeout(m._espera));
+    previos[k].remove();
+  });
+  let mas = gal.querySelector(":scope > .em-hoja-gal-mas");
+  if (!mas) {
+    mas = document.createElement("button");
+    mas.type = "button";
+    mas.className = "em-hoja-gal-mas";
+    mas.textContent = "+";
+    mas.title = "Agregar otro link";
+    mas.setAttribute("aria-label", "Agregar otro link a esta celda");
+  }
+  orden.forEach((it) => gal.appendChild(it));
+  gal.appendChild(mas);
+}
+
+// Cuadro para escribir o cambiar un link (window.prompt no funciona en la app instalada); devuelve el texto o "" si se cancela
+function hojaPedirLink(titulo, inicial, textoBoton) {
+  return new Promise((resolve) => {
+    const fondo = document.createElement("div");
+    fondo.className = "em-hoja-dialogo";
+    const caja = document.createElement("form");
+    caja.className = "em-hoja-dialogo-caja";
+    const h = document.createElement("strong");
+    h.textContent = titulo;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.maxLength = HOJA_CELDA_MAX;
+    input.placeholder = "https://\u2026";
+    input.value = inicial || "";
+    const msg = document.createElement("p");
+    msg.className = "em-hoja-dialogo-texto";
+    const fila = document.createElement("div");
+    fila.className = "em-hoja-dialogo-botones";
+    const cancelar = document.createElement("button");
+    cancelar.type = "button";
+    cancelar.className = "em-hoja-herr-btn";
+    cancelar.textContent = "Cancelar";
+    const ok = document.createElement("button");
+    ok.type = "submit";
+    ok.className = "em-hoja-guardar";
+    ok.textContent = textoBoton || "Guardar";
+    fila.append(cancelar, ok);
+    caja.append(h, input, msg, fila);
+    fondo.appendChild(caja);
+    emHoja.appendChild(fondo);
+    const cerrar = (valor) => { fondo.remove(); resolve(valor); };
+    caja.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const partes = input.value.split(",").map((p) => p.trim()).filter(Boolean);
+      if (!partes.length || partes.some((p) => !hojaLinkDe(p))) {
+        msg.textContent = "Escribe un link completo (empieza con https://). Si pones varios, sepáralos con comas.";
+        msg.style.color = "#c5221f";
+        input.focus();
+        return;
+      }
+      cerrar(partes.map((p) => hojaLinkDe(p)).join(" , "));
+    });
+    cancelar.addEventListener("click", () => cerrar(""));
+    fondo.addEventListener("pointerdown", (e) => { if (e.target === fondo) cerrar(""); });
+    setTimeout(() => { input.focus(); input.select(); }, 30);
+  });
+}
+
+// Posición de la parte (separada por comas) que tiene ese link; -1 si ya no está
+function hojaBuscarParte(valor, indice, enlace) {
+  const partes = String(valor || "").split(",");
+  if (indice >= 0 && indice < partes.length && hojaLinkDe(partes[indice]) === enlace) return indice;
+  return partes.findIndex((p) => hojaLinkDe(p) === enlace);
+}
+
+// Guarda un texto nuevo en la celda como si se hubiera escrito en ella
+function hojaAplicarValorCelda(td, inp, valor) {
+  if (valor.length > HOJA_CELDA_MAX) {
+    hojaAviso("La celda quedaría con más de " + HOJA_CELDA_MAX + " caracteres", "error");
+    return false;
+  }
+  inp.value = valor;
+  hojaFilas[+inp.dataset.r][+inp.dataset.c] = valor;
+  hojaActualizarLink(td, valor);
+  hojaMarcarCambio();
+  return true;
+}
+
+async function hojaModificarLink(td, enlace, indice) {
+  const inp = td.querySelector(".em-hoja-celda");
+  if (!inp) return;
+  const nuevo = await hojaPedirLink("Modificar link", enlace, "Guardar");
+  if (!nuevo || nuevo === enlace) return;
+  const k = hojaBuscarParte(inp.value, indice, enlace);
+  if (k < 0) { hojaAviso("Ese link ya no está en la celda", "error"); return; }
+  const partes = inp.value.split(",").map((p) => p.trim());
+  partes[k] = nuevo;
+  hojaAplicarValorCelda(td, inp, partes.filter(Boolean).join(" , "));
+}
+
+async function hojaBorrarLink(td, enlace, indice) {
+  const inp = td.querySelector(".em-hoja-celda");
+  if (!inp) return;
+  const corto = enlace.replace(/^https?:\/\/(www\.)?/i, "");
+  const ok = await hojaConfirmar("\u00BFBorrar este link?", corto.length > 90 ? corto.slice(0, 89) + "\u2026" : corto, "Borrar link");
+  if (!ok) return;
+  const k = hojaBuscarParte(inp.value, indice, enlace);
+  if (k < 0) return;
+  const partes = inp.value.split(",").map((p) => p.trim());
+  partes.splice(k, 1);
+  hojaAplicarValorCelda(td, inp, partes.filter(Boolean).join(" , "));
+}
+
+async function hojaAgregarLink(td) {
+  const inp = td.querySelector(".em-hoja-celda");
+  if (!inp) return;
+  const nuevo = await hojaPedirLink("Agregar link", "", "Agregar");
+  if (!nuevo) return;
+  const actual = inp.value.split(",").map((p) => p.trim()).filter(Boolean);
+  actual.push(nuevo);
+  hojaAplicarValorCelda(td, inp, actual.join(" , "));
+}
+
+// Mini menú del botón ⋮ de una miniatura: Modificar o Borrar ese link
+function hojaMenuLink(ancla, td, indice, enlace) {
+  hojaCerrarMenuVideos();
+  const menu = document.createElement("div");
+  menu.className = "em-video-menu em-link-menu";
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("aria-label", "Opciones del link");
+  const crear = (texto, accion) => {
+    const it = document.createElement("button");
+    it.type = "button";
+    it.className = "em-video-menu-item em-link-menu-item";
+    it.setAttribute("role", "menuitem");
+    it.textContent = texto;
+    it.addEventListener("click", () => { hojaCerrarMenuVideos(); accion(); });
+    menu.appendChild(it);
+  };
+  crear("\u270F\uFE0F Modificar link", () => hojaModificarLink(td, enlace, indice));
+  crear("\u{1F5D1}\uFE0F Borrar link", () => hojaBorrarLink(td, enlace, indice));
+  document.body.appendChild(menu);
+  // Junto al botón (a su derecha, o a la izquierda si no cabe), sin salirse de la pantalla
+  const r = ancla.getBoundingClientRect();
+  const w = menu.offsetWidth;
+  const h = menu.offsetHeight;
+  let left = r.right + 6;
+  if (left + w > window.innerWidth - 8) left = Math.max(8, r.left - w - 6);
+  const top = Math.min(Math.max(8, r.top), Math.max(8, window.innerHeight - h - 8));
+  menu.style.left = left + "px";
+  menu.style.top = top + "px";
+  const fuera = (e) => { if (!menu.contains(e.target)) hojaCerrarMenuVideos(); };
+  const tecla = (e) => {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      hojaCerrarMenuVideos();
+      if (document.contains(ancla)) ancla.focus();
+    }
+  };
+  const mover = (e) => { if (!menu.contains(e.target)) hojaCerrarMenuVideos(); };
+  document.addEventListener("pointerdown", fuera, true);
+  document.addEventListener("keydown", tecla, true);
+  document.addEventListener("scroll", mover, true);
+  window.addEventListener("resize", hojaCerrarMenuVideos);
+  hojaMenuVideosLimpiar = () => {
+    document.removeEventListener("pointerdown", fuera, true);
+    document.removeEventListener("keydown", tecla, true);
+    document.removeEventListener("scroll", mover, true);
+    window.removeEventListener("resize", hojaCerrarMenuVideos);
+    menu.remove();
+    hojaMenuVideosLimpiar = null;
+  };
+  const primero = menu.querySelector(".em-video-menu-item");
+  if (primero) primero.focus();
+}
+
+// Toques dentro de la galería de una celda
+function hojaClickGaleria(e, gal) {
+  const td = gal.parentElement;
+  const inp = td.querySelector(".em-hoja-celda");
+  const boton = e.target.closest(".em-hoja-gal-menu");
+  if (boton) {
+    e.preventDefault();
+    const it = boton.closest(".em-hoja-gal-item");
+    const m = it.querySelector(".em-hoja-mini");
+    hojaMenuLink(boton, td, +it.dataset.indice, m ? m.dataset.url : "");
+    return;
+  }
+  if (e.target.closest(".em-hoja-gal-mas")) {
+    e.preventDefault();
+    hojaAgregarLink(td);
+    return;
+  }
+  const mini = e.target.closest(".em-hoja-mini");
+  if (mini) {
+    // YouTube se ve en el reproductor de la hoja; los demás se abren en otra pestaña (comportamiento normal del link)
+    if (mini.dataset.tipo === "youtube") {
+      e.preventDefault();
+      hojaAbrirVideo(mini.dataset.id, mini.getAttribute("href"));
+    }
+    return;
+  }
+  if (inp) inp.focus(); // espacio vacío: se edita el texto de la celda
+}
+
 function hojaActualizarLink(td, texto) {
   const inp = td.querySelector(".em-hoja-celda");
   let a = td.querySelector(".em-hoja-link");
+  // Dos o más links de video en la celda (separados por comas): una miniatura por cada uno, con su botón de opciones
+  const videos = hojaPartesVideos(texto);
+  if (inp && videos.length > 1) {
+    const suelta = td.querySelector(":scope > .em-hoja-mini");
+    if (suelta) suelta.remove();
+    if (a) a.remove();
+    inp.classList.remove("em-hoja-celda-mini", "em-hoja-celda-link");
+    inp.classList.add("em-hoja-celda-gal");
+    hojaPintarGaleria(td, videos);
+    return;
+  }
+  if (inp) {
+    inp.classList.remove("em-hoja-celda-gal");
+    hojaQuitarGaleria(td);
+  }
   const listaYt = hojaListaYoutube(texto);
   const url = hojaLinkDe(texto) || (listaYt.length ? listaYt[0].enlace : "");
   if (inp) {
@@ -7094,6 +7393,8 @@ document.addEventListener("keydown", (e) => {
   }
 }, true);
 emHojaTabla.addEventListener("click", (e) => {
+  const gal = e.target.closest ? e.target.closest(".em-hoja-gal") : null;
+  if (gal) { hojaClickGaleria(e, gal); return; }
   const a = e.target.closest ? e.target.closest(".em-hoja-mini, .em-hoja-link") : null;
   if (!a) return;
   // Celda con varios videos (separados por comas): se abre el menú para elegir cuál ver

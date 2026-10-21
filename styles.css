@@ -2923,3 +2923,30 @@ button.em-canal-ficha-texto { cursor: pointer; }
   width: 100%; padding: 10px; font: inherit; font-size: 1rem; color: #202124; background: #fff; border: 1px solid #dadce0; border-radius: 8px;
 }
 @media (max-width: 480px) { .em-canal-subs { margin: 8px 12px 0; } }
+
+
+/* ---------- Varios videos en una celda: galería de miniaturas con botón de opciones ---------- */
+.em-hoja-gal {
+  position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 4px 6px;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; -webkit-overflow-scrolling: touch; cursor: text;
+}
+.em-hoja-celda-gal:not(:focus) { color: transparent; text-decoration: none; }
+.em-hoja-celda-gal:focus ~ .em-hoja-gal { display: none; }
+.em-hoja-gal-item {
+  flex: none; display: flex; align-items: stretch; height: 66px; background: #e8eaed; border-radius: 4px; box-shadow: 0 0 0 1px #dadce0; cursor: default;
+}
+.em-hoja-gal .em-hoja-mini {
+  position: relative; top: auto; left: auto; flex: none; width: 117px; max-width: none; height: 66px; border-radius: 4px 0 0 4px; box-shadow: none;
+}
+.em-hoja-gal-menu {
+  flex: none; width: 24px; padding: 0; font: inherit; font-size: 18px; font-weight: 800; line-height: 1; color: #3c4043;
+  cursor: pointer; background: #f1f3f4; border: 0; border-left: 1px solid #dadce0; border-radius: 0 4px 4px 0;
+}
+.em-hoja-gal-menu:hover, .em-hoja-gal-menu:focus-visible { background: #dfe3e8; outline: none; }
+.em-hoja-gal-mas {
+  flex: none; width: 36px; height: 66px; padding: 0; font: inherit; font-size: 22px; font-weight: 700; line-height: 1; color: #5f6368;
+  cursor: pointer; background: transparent; border: 1px dashed #bdc1c6; border-radius: 4px;
+}
+.em-hoja-gal-mas:hover, .em-hoja-gal-mas:focus-visible { color: #1a73e8; border-color: #1a73e8; outline: none; }
+.em-link-menu { width: auto; min-width: 190px; }
+.em-link-menu-item { padding: 10px 12px; font-size: 0.92rem; font-weight: 700; }
