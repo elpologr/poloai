@@ -6346,7 +6346,7 @@ function hojaMenuLink(ancla, td, indice, enlace) {
 // Mini menú del botón ⋮ de una sección
 function hojaMenuSeccion(ancla, td, indice, raw) {
   hojaMenuFlotante(ancla, "Opciones de la secci\u00F3n", [
-    { texto: "\u270F\uFE0F Modificar secci\u00F3n", accion: () => hojaModificarSeccion(td, indice, raw) },
+    { texto: "\u270F\uFE0F Agregar o quitar links", accion: () => hojaModificarSeccion(td, indice, raw) },
     { texto: "\u{1F5D1}\uFE0F Borrar secci\u00F3n", accion: () => hojaBorrarSeccion(td, indice, raw) },
   ]);
 }
@@ -6450,21 +6450,29 @@ function hojaPedirSeccion(inicial) {
         for (let n = 1; n <= enlaces.length; n++) pos.add(new Option(String(n), String(n)));
         pos.value = String(k + 1);
         pos.addEventListener("change", () => mover(k, +pos.value - 1, "pos"));
+        const vid = hojaVideoDe(enl);
+        const col = document.createElement("span");
+        col.className = "em-hoja-seccion-col";
         const mini = document.createElement("span");
-        mini.className = "em-hoja-seccion-mini";
+        mini.className = "em-hoja-seccion-mini em-video-menu-mini-red" + (vid ? " em-video-menu-mini-" + vid.red : "");
+        mini.dataset.etq = vid ? (vid.red === "youtube" ? "YT" : HOJA_RED_ETQ[vid.red] || "") : "";
+        const ins = document.createElement("span");
+        ins.textContent = "\u25B6";
+        mini.appendChild(ins);
         const img = document.createElement("img");
-        hojaPonerMiniatura(img, hojaVideoDe(enl));
+        hojaPonerMiniatura(img, vid);
         mini.appendChild(img);
         const txt = document.createElement("span");
         txt.className = "em-hoja-seccion-txt";
         txt.textContent = enl.replace(/^https?:\/\/(www\.)?/i, "");
         txt.title = enl;
+        col.append(mini, txt);
         const sube = boton("\u25B2", "Subir una posici\u00F3n", "sube", () => mover(k, k - 1, "sube"));
         sube.disabled = k === 0;
         const baja = boton("\u25BC", "Bajar una posici\u00F3n", "baja", () => mover(k, k + 1, "baja"));
         baja.disabled = k === enlaces.length - 1;
         const quita = boton("\u00D7", "Quitar este link de la secci\u00F3n", "quita", () => { enlaces.splice(k, 1); pintar(); });
-        li.append(pos, mini, txt, sube, baja, quita);
+        li.append(pos, col, sube, baja, quita);
         lista.appendChild(li);
       });
     };
@@ -6576,7 +6584,13 @@ function hojaClickGaleria(e, gal) {
     e.preventDefault();
     const it = sec.closest(".em-hoja-gal-item");
     const el = inp ? hojaElementosCelda(inp.value).find((x) => x.tipo === "seccion" && x.i === +it.dataset.indice) : null;
-    if (el) hojaMenuVideos(el.videos.map((v) => ({ enlace: v.enlace, red: v.red, id: v.id })), sec, emHoja, "\u{1F4C1} " + el.nombre + " \u00B7 " + el.videos.length + (el.videos.length === 1 ? " video" : " videos"));
+    if (el) {
+      hojaMenuVideos(
+        el.videos.map((v) => ({ enlace: v.enlace, red: v.red, id: v.id })), sec, emHoja,
+        "\u{1F4C1} " + el.nombre + " \u00B7 " + el.videos.length + (el.videos.length === 1 ? " video" : " videos"),
+        [{ texto: "\u270F\uFE0F Agregar o quitar links", accion: () => hojaModificarSeccion(td, el.i, el.raw) }]
+      );
+    }
     return;
   }
   const mini = e.target.closest(".em-hoja-mini");
@@ -7715,7 +7729,7 @@ let hojaMenuVideosLimpiar = null;
 function hojaCerrarMenuVideos() {
   if (hojaMenuVideosLimpiar) hojaMenuVideosLimpiar();
 }
-function hojaMenuVideos(lista, ancla, padre, titulo) {
+function hojaMenuVideos(lista, ancla, padre, titulo, extras) {
   hojaCerrarMenuVideos();
   const menu = document.createElement("div");
   menu.className = "em-video-menu";
@@ -7783,6 +7797,20 @@ function hojaMenuVideos(lista, ancla, padre, titulo) {
     });
     menu.appendChild(it);
   });
+  if (extras && extras.length) {
+    const pie = document.createElement("div");
+    pie.className = "em-video-menu-pie";
+    extras.forEach((o) => {
+      const it = document.createElement("button");
+      it.type = "button";
+      it.className = "em-video-menu-item em-link-menu-item";
+      it.setAttribute("role", "menuitem");
+      it.textContent = o.texto;
+      it.addEventListener("click", () => { hojaCerrarMenuVideos(); o.accion(); });
+      pie.appendChild(it);
+    });
+    menu.appendChild(pie);
+  }
   document.body.appendChild(menu);
   // Debajo del botón que lo abrió (o arriba si abajo no cabe), sin salirse de la pantalla
   const r = ancla.getBoundingClientRect();

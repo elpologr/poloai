@@ -3011,3 +3011,14 @@ button.em-canal-ficha-texto { cursor: pointer; }
 .em-hoja-seccion-btn:hover:not(:disabled), .em-hoja-seccion-btn:focus-visible { background: #dfe3e8; outline: none; }
 .em-hoja-seccion-btn:disabled { opacity: 0.35; cursor: default; }
 .em-hoja-seccion-btn[data-t="quita"] { color: #c5221f; font-size: 1.1rem; }
+
+
+/* ---------- Secciones: miniaturas más grandes en la lista y acciones al pie del menú ---------- */
+.em-hoja-seccion-item { align-items: flex-start; }
+.em-hoja-seccion-pos { margin-top: 8px; }
+.em-hoja-seccion-btn { margin-top: 8px; }
+.em-hoja-seccion-col { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.em-hoja-seccion-mini { width: 96px; height: 54px; border-radius: 5px; }
+.em-hoja-seccion-mini > span:first-child { font-size: 1rem; }
+.em-video-menu-mini-youtube { background: linear-gradient(135deg, #ff3b30, #8e0b0b); }
+.em-video-menu-pie { position: sticky; bottom: -6px; margin: 4px -6px -6px; padding: 4px 6px 6px; background: #fff; border-top: 1px solid #e3d8f6; }
