@@ -2584,6 +2584,8 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
 .em-hoja-nota-btn:hover { background: #fef7e0; border-color: #f9ab00; }
 @media (max-width: 480px) { .em-hoja-nota-btn { width: 34px; padding: 0; } .em-hoja-nota-btn span { display: none; } }
 .em-nesp { z-index: 85; }
+/* Las tarjetas no se encogen: antes, las de cada red (con overflow:hidden) se aplastaban hasta quedar en 0 de alto y no se podían abrir */
+.em-nesp-cuerpo > * { flex: none; }
 .em-nesp-cuerpo {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px;
   display: flex; flex-direction: column; gap: 12px; background: #f1f3f4;

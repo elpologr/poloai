@@ -6932,57 +6932,6 @@ function nespEnlacesDe(d) {
   return lista;
 }
 
-function nespCrearRedes(d) {
-  const redes = document.createElement("section");
-  redes.className = "em-nesp-tarjeta";
-  const hr = document.createElement("h4");
-  hr.textContent = "\u{1F310} Redes sociales del proyecto";
-  const ayuda = document.createElement("p");
-  ayuda.className = "em-nesp-ayuda-chica";
-  ayuda.textContent = "Vienen de ⚙ Ajustes del proyecto (Link y Zona de links). Toca una para copiar su link.";
-  redes.append(hr, ayuda);
-  const lista = nespEnlacesDe(d);
-  if (!lista.length) {
-    const v = document.createElement("p");
-    v.className = "em-nesp-ayuda-chica";
-    v.textContent = "Este proyecto aún no tiene links. Agrégalos en ⚙ Ajustes → Zona de links.";
-    redes.appendChild(v);
-    return redes;
-  }
-  const grid = document.createElement("div");
-  grid.className = "em-det-links";
-  lista.forEach((l) => {
-    const href = hrefSeguro(l);
-    const red = href ? emRedDeLink(href) : { id: "enlace", nombre: "Texto", glifo: "✎", corto: l.length > 38 ? l.slice(0, 37) + "…" : l };
-    const el = document.createElement("button");
-    el.type = "button";
-    el.className = "em-red" + (href ? "" : " em-red-texto");
-    el.dataset.red = red.id;
-    el.title = "Copiar: " + (href || l);
-    el.setAttribute("aria-label", "Copiar el link de " + red.nombre);
-    const txt = document.createElement("span");
-    txt.className = "em-red-txt";
-    const b = document.createElement("b");
-    b.textContent = red.nombre;
-    const sm = document.createElement("small");
-    sm.textContent = red.corto;
-    txt.append(b, sm);
-    el.append(emIconoRed(red.id, red.glifo), txt);
-    el.addEventListener("click", async () => {
-      await nespCopiar(href || l, sm);
-    });
-    grid.appendChild(el);
-  });
-  redes.appendChild(grid);
-  const todos = document.createElement("button");
-  todos.type = "button";
-  todos.className = "em-nesp-copiar em-nesp-copiar-todo";
-  todos.textContent = "Copiar todos los links";
-  todos.addEventListener("click", () => nespCopiar(lista.join("\n"), todos));
-  redes.appendChild(todos);
-  return redes;
-}
-
 // ----- Zona de texto con links: solo se crea un cuadro de color donde se detecta un link (no uno por línea) -----
 const NESP_TEXTO_MAX = 20000; // esta zona admite más texto que los demás campos
 // Busca links dentro de un texto libre: direcciones http(s) y dominios de redes conocidas escritos sin «https://»
@@ -7146,9 +7095,9 @@ function nespConstruir() {
   ayuda.textContent = "Se guarda sola al escribir. Con «Copiar» pegas el texto directo en cada red.";
   nespCuerpo.appendChild(ayuda);
 
-  nespCuerpo.appendChild(nespCrearRedes(nespProyecto));
-  nespCuerpo.appendChild(nespCrearTextoLinks(nespProyecto));
+  // Lo primero que se puede modificar es la referencia de correo (con la cuenta de COC); después, el texto con links
   nespCuerpo.appendChild(nespCrearCorreo());
+  nespCuerpo.appendChild(nespCrearTextoLinks(nespProyecto));
 
   // Redes que se habían escrito a mano antes de enlazarlas con los ajustes: se conservan hasta que las borres
   if (nespValores.REDES && nespValores.REDES.trim()) {
