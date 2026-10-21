@@ -7729,7 +7729,7 @@ async function cargarEmpresas() {
     emBackendSinZona = empresas.length > 0 && !empresas.some((e) => typeof e.zona === "string" && typeof e.grupo === "string");
     const loc = emZonasLocales();
     let locCambio = false;
-    empresas.forEach((e) => {
+    (emVersionScript ? [] : empresas).forEach((e) => { // con el script nuevo (que informa su versión) manda la hoja
       const x = loc[e.id];
       if (!x) return;
       if (typeof x === "string") { // formato anterior de la copia local
@@ -7747,7 +7747,10 @@ async function cargarEmpresas() {
         emBackendSinZona = true;
       }
     });
-    if (locCambio) emEscribirZonasLocales(loc);
+    if (emVersionScript) { // la hoja ya guarda la zona: se descarta la copia de este dispositivo y no hay aviso
+      emBackendSinZona = false;
+      if (Object.keys(loc).length) emEscribirZonasLocales({});
+    } else if (locCambio) emEscribirZonasLocales(loc);
     emCargadas = true;
     setEstado(emEstado, emBackendSinZona ? emAvisoZona() : "", emBackendSinZona ? "error" : "");
     dibujarChipsEm();
