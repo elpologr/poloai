@@ -7404,20 +7404,41 @@ function hojaMenuVideos(lista, ancla, padre) {
     img.alt = "";
     img.loading = "lazy";
     img.referrerPolicy = "no-referrer";
-    img.src = "https://i.ytimg.com/vi/" + v.id + "/mqdefault.jpg";
-    img.addEventListener("error", () => img.remove());
+    const social = !v.id; // sin id de YouTube: es un video de Facebook, Instagram, TikTok, Threads o X
+    if (!social) {
+      img.src = "https://i.ytimg.com/vi/" + v.id + "/mqdefault.jpg";
+      img.addEventListener("error", () => img.remove());
+    } else {
+      mini.classList.add("em-video-menu-mini-red", "em-video-menu-mini-" + v.red);
+      mini.dataset.etq = HOJA_RED_ETQ[v.red] || "";
+      const ins = document.createElement("span");
+      ins.textContent = "\u25B6";
+      mini.appendChild(ins);
+      img.hidden = true;
+      let reintento = false;
+      img.addEventListener("load", () => { img.hidden = false; });
+      img.addEventListener("error", () => {
+        img.hidden = true;
+        img.removeAttribute("src");
+        if (reintento) return; // la dirección de la imagen pudo caducar: se pide una nueva una sola vez
+        reintento = true;
+        hojaPedirMiniSocial(v.enlace, true, (src) => { img.src = src; });
+      });
+      hojaPedirMiniSocial(v.enlace, false, (src) => { img.src = src; });
+    }
     mini.appendChild(img);
     const txt = document.createElement("span");
     txt.className = "em-video-menu-txt";
     const b = document.createElement("b");
-    b.textContent = "Video " + (i + 1);
+    b.textContent = "Video " + (i + 1) + (v.id ? "" : " \u00B7 " + (HOJA_RED_NOMBRE[v.red] || ""));
     const sm = document.createElement("small");
     sm.textContent = v.enlace.replace(/^https?:\/\/(www\.)?/i, "");
     txt.append(b, sm);
     it.append(mini, txt);
     it.addEventListener("click", () => {
       hojaCerrarMenuVideos();
-      hojaAbrirVideo(v.id, v.enlace, padre);
+      if (v.id) hojaAbrirVideo(v.id, v.enlace, padre);
+      else hojaAbrirVideoSocial(v.red, v.enlace, padre);
     });
     menu.appendChild(it);
   });
@@ -7491,6 +7512,81 @@ function hojaAbrirVideo(id, enlace, padre) {
   iframe.allowFullscreen = true;
   iframe.referrerPolicy = "strict-origin-when-cross-origin";
   marco.appendChild(iframe);
+  caja.append(barra, marco);
+  fondo.appendChild(caja);
+  (padre || emHoja).appendChild(fondo);
+  cerrar.addEventListener("click", hojaCerrarVideo);
+  fondo.addEventListener("pointerdown", (e) => { if (e.target === fondo) hojaCerrarVideo(); });
+  cerrar.focus();
+}
+// ----- Visor de videos de Facebook, Instagram, TikTok, Threads y X dentro de la app -----
+// Facebook e Instagram se ven dentro del cuadro (reproductor incrustado de la propia red; si el video es privado o no deja
+// incrustarse, el enlace «Abrir en…» de arriba lo abre en otra pestaña). Las demás redes muestran su miniatura y un botón para abrirlo.
+function hojaEmbedSocial(red, enlace) {
+  let u;
+  try { u = new URL(enlace); } catch (e) { return ""; }
+  if (red === "facebook") {
+    const esPost = /^\/(share\/p|permalink\.php|story\.php|groups\/|[^/]+\/posts)(\/|$)/.test(u.pathname);
+    return "https://www.facebook.com/plugins/" + (esPost ? "post" : "video") + ".php?href=" + encodeURIComponent(enlace) + "&show_text=false";
+  }
+  if (red === "instagram") return u.origin + u.pathname.replace(/\/?$/, "/") + "embed/";
+  return "";
+}
+function hojaAbrirVideoSocial(red, enlace, padre) {
+  hojaCerrarVideo();
+  const nombre = HOJA_RED_NOMBRE[red] || "la red";
+  const fondo = document.createElement("div");
+  fondo.className = "em-hoja-dialogo em-hoja-video-fondo";
+  const caja = document.createElement("div");
+  caja.className = "em-hoja-video-caja";
+  caja.setAttribute("role", "dialog");
+  caja.setAttribute("aria-modal", "true");
+  caja.setAttribute("aria-label", "Video de " + nombre);
+  const barra = document.createElement("div");
+  barra.className = "em-hoja-video-barra";
+  const abrir = document.createElement("a");
+  abrir.href = enlace;
+  abrir.target = "_blank";
+  abrir.rel = "noopener noreferrer";
+  abrir.textContent = "Abrir en " + nombre + " \u2197";
+  const cerrar = document.createElement("button");
+  cerrar.type = "button";
+  cerrar.className = "em-hoja-icono";
+  cerrar.setAttribute("aria-label", "Cerrar el video");
+  cerrar.textContent = "\u00D7";
+  barra.append(abrir, cerrar);
+  const marco = document.createElement("div");
+  marco.className = "em-hoja-video-marco";
+  // Los reels y los videos de TikTok son verticales
+  let vertical = red === "tiktok";
+  try { if (/^\/(reel|reels)(\/|$)|\/reels?\//.test(new URL(enlace).pathname)) vertical = true; } catch (e) {}
+  if (vertical) marco.classList.add("em-hoja-video-vertical");
+  const src = hojaEmbedSocial(red, enlace);
+  if (src) {
+    const iframe = document.createElement("iframe");
+    iframe.src = src;
+    iframe.title = "Video de " + nombre;
+    iframe.allow = "autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share; fullscreen";
+    iframe.allowFullscreen = true;
+    iframe.referrerPolicy = "strict-origin-when-cross-origin";
+    marco.appendChild(iframe);
+  } else {
+    marco.classList.add("em-hoja-video-sinvisor");
+    const img = document.createElement("img");
+    img.alt = "";
+    img.hidden = true;
+    img.referrerPolicy = "no-referrer";
+    img.addEventListener("load", () => { img.hidden = false; });
+    img.addEventListener("error", () => { img.hidden = true; });
+    hojaPedirMiniSocial(enlace, false, (s) => { img.src = s; });
+    const boton = document.createElement("a");
+    boton.href = enlace;
+    boton.target = "_blank";
+    boton.rel = "noopener noreferrer";
+    boton.className = "em-hoja-guardar";
+    boton.textContent = "Abrir el video en " + nombre + " \u2197";
+    marco.append(img, boton);
+  }
   caja.append(barra, marco);
   fondo.appendChild(caja);
   (padre || emHoja).appendChild(fondo);
@@ -8283,8 +8379,10 @@ function canalVideoDeRed(red, texto) {
     const lista = hojaListaYoutube(texto); // varios links separados por comas: la ficha usa el primero y abre un menú con todos
     return lista.length ? { red, id: lista[0].id, enlace: lista[0].enlace, lista } : null;
   }
-  const v = hojaVideoSocial(texto);
-  return v && v.red === red ? { red, enlace: v.url } : null;
+  // varios links de la misma celda (separados por comas): la ficha usa el primero y abre un menú con todos
+  const lista = [];
+  hojaPartesVideos(texto).forEach((x) => { if (x.red === red && !lista.some((y) => y.enlace === x.enlace)) lista.push(x); });
+  return lista.length ? { red, enlace: lista[0].enlace, lista } : null;
 }
 
 // Una columna puede llevar la etiqueta de una red: «YouTube: Lives», «Facebook: Reels»… Lo que esté escrito en ella no entra en la lista
@@ -8503,6 +8601,17 @@ function canalCrearFicha(v) {
     hojaPedirMiniSocial(v.enlace, true, (src) => { img.src = src; });
   });
   mini.appendChild(img);
+  const varios = v.lista && v.lista.length > 1;
+  if (varios) { // varios videos en la celda: se ve solo el primero con su contador, y al tocarlo se despliega el menú con todos
+    const cuenta = document.createElement("span");
+    cuenta.className = "em-canal-multi";
+    cuenta.setAttribute("aria-hidden", "true");
+    cuenta.textContent = "\u25B6 " + v.lista.length;
+    mini.appendChild(cuenta);
+    b.title = (v.nombre ? v.nombre + " \u00B7 " : "") + v.lista.length + " videos";
+    b.setAttribute("aria-label", "Ver los " + v.lista.length + " videos" + (v.nombre ? " de " + v.nombre : ""));
+    b.setAttribute("aria-haspopup", "menu");
+  }
   b.appendChild(mini);
   if (v.nombre) {
     const t = document.createElement("span");
@@ -8511,7 +8620,10 @@ function canalCrearFicha(v) {
     b.appendChild(t);
   }
   hojaPedirMiniSocial(v.enlace, false, (src) => { img.src = src; });
-  b.addEventListener("click", () => { window.open(v.enlace, "_blank", "noopener,noreferrer"); });
+  b.addEventListener("click", () => {
+    if (varios) hojaMenuVideos(v.lista, b, emCanal);
+    else hojaAbrirVideoSocial(v.red, v.enlace, emCanal);
+  });
   return b;
 }
 
