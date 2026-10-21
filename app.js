@@ -5821,7 +5821,7 @@ function hojaVideoSocial(texto) {
   try { u = new URL(url); } catch (e) { return null; }
   const host = u.hostname.toLowerCase().replace(/^(www|m|web|mbasic|mobile)\./, "");
   if (host === "fb.watch" && u.pathname.length > 1) return { red: "facebook", url };
-  if (host === "facebook.com" && /^\/(reel|reels|watch|video\.php|share\/[vr]|[^/]+\/videos)(\/|$)/.test(u.pathname)) return { red: "facebook", url };
+  if (host === "facebook.com" && /^\/(reel|reels|watch|video\.php|share\/[vrp]|permalink\.php|story\.php|[^/]+\/(videos|posts)|groups\/[^/]+\/(posts|permalink))(\/|$)/.test(u.pathname)) return { red: "facebook", url };
   if (host === "instagram.com" && /^\/(?:[^/]+\/)?(reel|reels|p|tv)\/[\w-]+/.test(u.pathname)) return { red: "instagram", url };
   // TikTok: video completo o link corto (vm. / vt.)
   if (host === "tiktok.com" && /^\/(@[^/]+\/video\/\d+|t\/[\w-]+|v\/\d+)/.test(u.pathname)) return { red: "tiktok", url };
@@ -6262,9 +6262,10 @@ function hojaClickGaleria(e, gal) {
 function hojaActualizarLink(td, texto) {
   const inp = td.querySelector(".em-hoja-celda");
   let a = td.querySelector(".em-hoja-link");
-  // Dos o más links de video en la celda (separados por comas): una miniatura por cada uno, con su botón de opciones
+  // Links de video en la celda (uno, o varios separados por comas): una miniatura por cada uno, con su botón de opciones en vez del texto largo
   const videos = hojaPartesVideos(texto);
-  if (inp && videos.length > 1) {
+  const partesLlenas = String(texto || "").split(",").filter((p) => p.trim()).length;
+  if (inp && (videos.length > 1 || (videos.length === 1 && partesLlenas === 1))) {
     const suelta = td.querySelector(":scope > .em-hoja-mini");
     if (suelta) suelta.remove();
     if (a) a.remove();
@@ -7093,6 +7094,121 @@ if (emHojaColMas) {
     hojaMarcarCambio();
     emHojaScroll.scrollLeft = emHojaScroll.scrollWidth;
     hojaEnfocar(0, hojaColumnas.length - 1);
+  });
+}
+
+// ----- Etiquetar una columna que ya existe: la convierte en sub botón de una red («Facebook: Reels») o le quita la etiqueta -----
+// Lo que esté escrito en una columna etiquetada aparece, en el perfil del canal, como un sub botón dentro de esa red.
+function hojaColumnaReservada(nombre) {
+  return ["nombre", "fecha", "aviso"].includes(String(nombre === undefined || nombre === null ? "" : nombre).trim().toLowerCase());
+}
+function hojaPedirEtiqueta(idxInicial) {
+  return new Promise((resolve) => {
+    const fondo = document.createElement("div");
+    fondo.className = "em-hoja-dialogo";
+    const caja = document.createElement("form");
+    caja.className = "em-hoja-dialogo-caja";
+    const h = document.createElement("strong");
+    h.textContent = "Etiquetar columna";
+    const selCol = document.createElement("select");
+    selCol.setAttribute("aria-label", "Columna");
+    hojaColumnas.forEach((n, i) => {
+      if (hojaColumnaReservada(n)) return;
+      selCol.add(new Option(hojaLetra(i) + " \u00B7 " + (String(n).trim() || "(sin nombre)"), String(i)));
+    });
+    const selRed = document.createElement("select");
+    selRed.setAttribute("aria-label", "Etiqueta de red social");
+    selRed.add(new Option("Sin etiqueta de red", ""));
+    CANAL_REDES.forEach((r) => selRed.add(new Option("Etiqueta: " + r.nombre, r.nombre)));
+    const input = document.createElement("input");
+    input.type = "text";
+    input.autocomplete = "off";
+    const ayuda = document.createElement("p");
+    ayuda.className = "em-hoja-dialogo-texto";
+    const fila = document.createElement("div");
+    fila.className = "em-hoja-dialogo-botones";
+    const cancelar = document.createElement("button");
+    cancelar.type = "button";
+    cancelar.className = "em-hoja-herr-btn";
+    cancelar.textContent = "Cancelar";
+    const ok = document.createElement("button");
+    ok.type = "submit";
+    ok.className = "em-hoja-guardar";
+    ok.textContent = "Aplicar";
+    fila.append(cancelar, ok);
+    caja.append(h, selCol, selRed, input, ayuda, fila);
+    fondo.appendChild(caja);
+    emHoja.appendChild(fondo);
+    if (idxInicial !== undefined && selCol.querySelector('option[value="' + idxInicial + '"]')) selCol.value = String(idxInicial);
+    const ajustar = () => {
+      const red = selRed.value;
+      input.maxLength = HOJA_NOMBRE_COL_MAX - (red ? red.length + 2 : 0);
+      input.placeholder = red ? "Nombre del sub bot\u00F3n (ej. Reels)" : "Nombre de la columna";
+      if (input.value.length > input.maxLength) input.value = input.value.slice(0, input.maxLength);
+      ayuda.textContent = red
+        ? "La columna se llamar\u00E1 \u00AB" + red + ": " + (input.value.trim() || "\u2026") + "\u00BB y lo que haya en ella aparecer\u00E1 como un sub bot\u00F3n dentro de " + red + ", en el perfil del canal."
+        : "Sin etiqueta: es una columna normal con el nombre que escribas.";
+    };
+    // Al elegir una columna se carga su etiqueta y nombre actuales
+    const cargar = () => {
+      const nombre = String(hojaColumnas[+selCol.value] === undefined ? "" : hojaColumnas[+selCol.value]).trim();
+      const e = canalEtiquetaDeColumna(nombre);
+      if (e) {
+        selRed.value = (CANAL_REDES.find((r) => r.id === e.red) || {}).nombre || "";
+        input.value = e.sub;
+      } else {
+        selRed.value = "";
+        // «Facebook», «Instagram»… (la columna general de la red) no se usa como nombre del sub bot\u00F3n
+        input.value = CANAL_REDES.some((r) => r.cols.includes(nombre.toLowerCase())) ? "" : nombre;
+      }
+      ajustar();
+    };
+    selCol.addEventListener("change", cargar);
+    selRed.addEventListener("change", ajustar);
+    input.addEventListener("input", ajustar);
+    cargar();
+    const cerrar = (valor) => { fondo.remove(); resolve(valor); };
+    caja.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (!selCol.options.length) { cerrar(null); return; }
+      const idx = +selCol.value;
+      const nombre = input.value.trim();
+      if (!nombre) { input.focus(); return; }
+      const nuevo = (selRed.value ? selRed.value + ": " + nombre : nombre).slice(0, HOJA_NOMBRE_COL_MAX);
+      if (hojaColumnas.some((c, i) => i !== idx && String(c).trim().toLowerCase() === nuevo.toLowerCase())) {
+        ayuda.textContent = "Ya existe una columna llamada \u00AB" + nuevo + "\u00BB: elige otro nombre.";
+        ayuda.style.color = "#c5221f";
+        input.focus();
+        return;
+      }
+      cerrar({ idx, nuevo });
+    });
+    cancelar.addEventListener("click", () => cerrar(null));
+    fondo.addEventListener("pointerdown", (e) => { if (e.target === fondo) cerrar(null); });
+    setTimeout(() => input.focus(), 30);
+  });
+}
+
+const emHojaColEtiq = emEl("em-hoja-col-etiq");
+if (emHojaColEtiq) {
+  emHojaColEtiq.addEventListener("click", async () => {
+    if (!hojaCargada) {
+      hojaAviso("La hoja todav\u00EDa no carga: espera a que termine o usa \u21BB", "error");
+      return;
+    }
+    if (!hojaDinamico) {
+      hojaAviso("Para etiquetar columnas hay que publicar la nueva versi\u00F3n del Apps Script (Implementar \u2192 Administrar implementaciones \u2192 Nueva versi\u00F3n)", "error");
+      return;
+    }
+    const celda = document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("em-hoja-celda") ? +document.activeElement.dataset.c : undefined;
+    const r = await hojaPedirEtiqueta(celda);
+    if (!r) return;
+    const antes = hojaColumnas[r.idx];
+    if (r.nuevo === antes) return;
+    hojaColumnas[r.idx] = r.nuevo;
+    hojaDibujar();
+    hojaMarcarCambio();
+    hojaAviso("Columna \u00AB" + antes + "\u00BB ahora es \u00AB" + r.nuevo + "\u00BB", "ok");
   });
 }
 
