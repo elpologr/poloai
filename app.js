@@ -5227,6 +5227,48 @@ const emZonaDe = (d) => emZonaInfo(d && d.zona).nombre;
 const GRUPOS_EM = ["Personales", "Ajenos"];
 const CLAVE_GRUPO_EM = "polo-ai-empresas-grupo";
 const emGrupoDe = (d) => (d && GRUPOS_EM.indexOf(d.grupo) !== -1 ? d.grupo : GRUPOS_EM[0]);
+// Cada grupo se divide en dos subtipos (columna K «Subgrupo»; lo vacío cuenta como el primero)
+const SUBGRUPOS_EM = {
+  Personales: [{ nombre: "Míos", icono: "⭐" }, { nombre: "Familiares", icono: "👨‍👩‍👧" }],
+  Ajenos: [{ nombre: "Amigos", icono: "🧑‍🤝‍🧑" }, { nombre: "Clientes", icono: "💼" }],
+};
+const CLAVE_SUBGRUPO_EM = "polo-ai-empresas-subgrupo"; // el subgrupo que estás viendo en cada grupo
+const CLAVE_SUBGRUPOS_LOCAL_EM = "polo-ai-empresas-subgrupos-local"; // respaldo por si el Apps Script publicado es una versión vieja sin la columna K
+const emSubgruposDe = (grupo) => (SUBGRUPOS_EM[grupo] || SUBGRUPOS_EM[GRUPOS_EM[0]]).map((x) => x.nombre);
+const emSubgrupoValido = (grupo, s) => (emSubgruposDe(grupo).indexOf(s) !== -1 ? s : emSubgruposDe(grupo)[0]);
+const emSubgrupoDe = (d) => emSubgrupoValido(emGrupoDe(d), d && d.subgrupo);
+function emSubgruposLocales() {
+  try { return JSON.parse(localStorage.getItem(CLAVE_SUBGRUPOS_LOCAL_EM)) || {}; } catch (e) { return {}; }
+}
+function emGuardarSubgrupoLocal(id, subgrupo) {
+  try { const m = emSubgruposLocales(); m[id] = subgrupo; localStorage.setItem(CLAVE_SUBGRUPOS_LOCAL_EM, JSON.stringify(m)); } catch (e) {}
+}
+let emSubgruposActivos = (() => {
+  let o = {};
+  try { o = JSON.parse(localStorage.getItem(CLAVE_SUBGRUPO_EM)) || {}; } catch (e) {}
+  return { Personales: emSubgrupoValido("Personales", o.Personales), Ajenos: emSubgrupoValido("Ajenos", o.Ajenos) };
+})();
+const emSubgruposCaja = emEl("em-subgrupos");
+function emElegirSubgrupo(nombre) {
+  emSubgruposActivos[emGrupoActivo] = emSubgrupoValido(emGrupoActivo, nombre);
+  try { localStorage.setItem(CLAVE_SUBGRUPO_EM, JSON.stringify(emSubgruposActivos)); } catch (e) {}
+  dibujarChipsEm();
+}
+function emDibujarSubgrupos() {
+  emSubgruposCaja.innerHTML = "";
+  emSubgruposCaja.setAttribute("aria-label", "Subtipo de proyectos " + emGrupoActivo.toLowerCase());
+  SUBGRUPOS_EM[emGrupoActivo].forEach((x) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "em-zona-btn em-subgrupo-btn";
+    b.setAttribute("role", "tab");
+    b.dataset.subgrupo = x.nombre;
+    b.setAttribute("aria-selected", String(x.nombre === emSubgruposActivos[emGrupoActivo]));
+    b.textContent = x.icono + " " + x.nombre;
+    b.addEventListener("click", () => emElegirSubgrupo(x.nombre));
+    emSubgruposCaja.appendChild(b);
+  });
+}
 let emGrupoActivo = (() => {
   try { const g = localStorage.getItem(CLAVE_GRUPO_EM); return GRUPOS_EM.indexOf(g) !== -1 ? g : GRUPOS_EM[0]; } catch (e) { return GRUPOS_EM[0]; }
 })();
@@ -5234,6 +5276,8 @@ const emGruposCaja = emEl("em-grupos");
 const emGruposBtns = Array.from(document.querySelectorAll("#em-grupos .em-grupo-btn"));
 const emGrupoSelect = emEl("em-grupo");
 const emGrupoCampo = emEl("em-grupo-campo");
+const emSubgrupoSelect = emEl("em-subgrupo");
+const emSubgrupoCampo = emEl("em-subgrupo-campo");
 function emElegirGrupo(nombre) {
   emGrupoActivo = GRUPOS_EM.indexOf(nombre) !== -1 ? nombre : GRUPOS_EM[0];
   try { localStorage.setItem(CLAVE_GRUPO_EM, emGrupoActivo); } catch (e) {}
@@ -5245,10 +5289,14 @@ let emZonaActiva = (() => {
 })();
 const emZonasBtns = Array.from(document.querySelectorAll("#em-zonas .em-zona-btn"));
 const emZonaSelect = emEl("em-zona");
-function emElegirZona(nombre, grupo) {
+function emElegirZona(nombre, grupo, subgrupo) {
   emZonaActiva = emZonaInfo(nombre).nombre;
   if (grupo && GRUPOS_EM.indexOf(grupo) !== -1) {
     emGrupoActivo = grupo;
+    if (subgrupo) {
+      emSubgruposActivos[grupo] = emSubgrupoValido(grupo, subgrupo);
+      try { localStorage.setItem(CLAVE_SUBGRUPO_EM, JSON.stringify(emSubgruposActivos)); } catch (e) {}
+    }
     try { localStorage.setItem(CLAVE_GRUPO_EM, emGrupoActivo); } catch (e) {}
   }
   try { localStorage.setItem(CLAVE_ZONA_EM, emZonaActiva); } catch (e) {}
@@ -8113,7 +8161,10 @@ function dibujarChipsEm() {
   const enProyectos = emZonaActiva === ZONAS_EM[0].nombre;
   emGruposCaja.hidden = !enProyectos;
   emGruposBtns.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.grupo === emGrupoActivo)));
-  empresas.filter((d) => emZonaDe(d) === emZonaActiva && (!enProyectos || emGrupoDe(d) === emGrupoActivo)).forEach((d) => {
+  // El tercer divisor (Míos/Familiares o Amigos/Clientes) también solo existe dentro de «Proyectos»
+  emSubgruposCaja.hidden = !enProyectos;
+  if (enProyectos) emDibujarSubgrupos();
+  empresas.filter((d) => emZonaDe(d) === emZonaActiva && (!enProyectos || (emGrupoDe(d) === emGrupoActivo && emSubgrupoDe(d) === emSubgruposActivos[emGrupoActivo]))).forEach((d) => {
     const b = document.createElement("button");
     b.type = "button";
     const conImg = imagenValida(d.imagen);
@@ -8161,6 +8212,7 @@ function abrirFormEm(d) {
   emEl("em-url-img").value = ""; // el link pegado en una nota nunca pasa a la siguiente
   emZonaSelect.value = d ? emZonaDe(d) : emZonaActiva; // una nueva nace en la zona que se está viendo
   emGrupoSelect.value = d ? emGrupoDe(d) : emGrupoActivo; // y en el grupo (Personales/Ajenos) que se está viendo
+  emLlenarSubgrupos(emGrupoSelect.value, d ? emSubgrupoDe(d) : emSubgruposActivos[emGrupoSelect.value]); // y en su subtipo
   emActualizarTituloForm();
   emNombre.value = d ? d.nombre : "";
   emFecha.value = d && d.fecha ? d.fecha : ipHoy(); // si es nueva, empieza con la fecha de hoy
@@ -8176,8 +8228,17 @@ function abrirFormEm(d) {
   emForm.scrollTop = 0;
   emNombre.focus();
 }
+// Rellena las opciones del «Subtipo» según el grupo elegido en el formulario
+function emLlenarSubgrupos(grupo, valor) {
+  const g = GRUPOS_EM.indexOf(grupo) !== -1 ? grupo : GRUPOS_EM[0];
+  emSubgrupoSelect.innerHTML = "";
+  emSubgruposDe(g).forEach((n) => emSubgrupoSelect.add(new Option(n, n)));
+  emSubgrupoSelect.value = emSubgrupoValido(g, valor);
+}
+emGrupoSelect.addEventListener("change", () => emLlenarSubgrupos(emGrupoSelect.value, ""));
 function emActualizarTituloForm() {
   emGrupoCampo.hidden = emZonaSelect.value !== ZONAS_EM[0].nombre; // «Tipo de proyecto» solo para Proyectos
+  emSubgrupoCampo.hidden = emGrupoCampo.hidden; // y su «Subtipo» también
   const z = emZonaInfo(emZonaSelect.value);
   emFormTitulo.textContent = emEditando ? z.editar : z.nuevo;
 }
@@ -8222,17 +8283,19 @@ async function guardarEm() {
       links: enlacesDeTexto(emLinks.value).join("\n"),
       zona: emZonaInfo(emZonaSelect.value).nombre,
       grupo: GRUPOS_EM.indexOf(emGrupoSelect.value) !== -1 ? emGrupoSelect.value : GRUPOS_EM[0],
+      subgrupo: emSubgrupoValido(GRUPOS_EM.indexOf(emGrupoSelect.value) !== -1 ? emGrupoSelect.value : GRUPOS_EM[0], emSubgrupoSelect.value),
       notas: editando && Array.isArray(editando.notas) ? editando.notas : [], // las notas se guardan aparte (columna H)
       notasLargo: editando ? editando.notasLargo || 0 : 0,
     };
     await llamarNotas(editando ? "empresa_editar" : "empresa_agregar", d);
     emGuardarZonaLocal(d.id, d.zona, d.grupo);
+    emGuardarSubgrupoLocal(d.id, d.subgrupo);
     // Se reemplaza solo ESA nota (por posición, no por Id) y luego se vuelve a leer la hoja para mostrar lo que quedó guardado
     const pos = editando ? empresas.indexOf(editando) : -1;
     if (pos !== -1) empresas[pos] = d;
     else empresas.push(d);
     cerrarFormEm();
-    emElegirZona(d.zona, d.grupo); // se muestra la zona donde quedó (si la cambiaste en el formulario, te lleva a ella)
+    emElegirZona(d.zona, d.grupo, d.subgrupo); // se muestra la zona donde quedó (si la cambiaste en el formulario, te lleva a ella)
     if (editando && emDetActual) {
       emDetActual = d;
       dibujarDetalleEm();
@@ -8304,6 +8367,12 @@ async function cargarEmpresas() {
       emBackendSinZona = false;
       if (Object.keys(loc).length) emEscribirZonasLocales({});
     } else if (locCambio) emEscribirZonasLocales(loc);
+    // Un Apps Script sin la columna K no manda «subgrupo»: se usa el recordado en este dispositivo
+    // (después de recuperar el grupo, porque cada grupo tiene sus propios subtipos)
+    const subLoc = emSubgruposLocales();
+    empresas.forEach((e) => {
+      if (typeof e.subgrupo !== "string") e.subgrupo = emSubgrupoValido(emGrupoDe(e), subLoc[e.id]);
+    });
     emCargadas = true;
     setEstado(emEstado, emBackendSinZona ? emAvisoZona() : "", emBackendSinZona ? "error" : "");
     dibujarChipsEm();

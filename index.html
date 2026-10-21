@@ -1061,6 +1061,8 @@
             <button type="button" class="em-zona-btn em-grupo-btn" role="tab" data-grupo="Personales" aria-selected="true">&#128100; Personales</button>
             <button type="button" class="em-zona-btn em-grupo-btn" role="tab" data-grupo="Ajenos" aria-selected="false">&#129309; Ajenos</button>
           </div>
+          <!-- Tercer divisor: Míos | Familiares (dentro de Personales) o Amigos | Clientes (dentro de Ajenos); lo arma app.js -->
+          <div id="em-subgrupos" class="em-zonas em-grupos em-subgrupos" role="tablist" aria-label="Subtipo de proyecto" hidden></div>
           <p id="em-estado" class="notas-estado proy-estado-lista"></p>
           <div id="em-chips" class="ej-chips"></div>
         </div>
@@ -1256,6 +1258,10 @@
                 <option value="Ajenos">Ajenos</option>
               </select>
             </label>
+            <label id="em-subgrupo-campo" class="notas-campo">
+              <span>Subtipo</span>
+              <select id="em-subgrupo"></select>
+            </label>
             <label class="notas-campo">
               <span>Fecha</span>
               <input id="em-fecha" type="date" min="1999-02-02" max="2099-02-02" />
@@ -1360,7 +1366,7 @@
   </main>
 
   <script src="config.js?v=64"></script>
-  <script src="app.js?v=75"></script>
+  <script src="app.js?v=77"></script>
   <script src="voz.js?v=64"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>
