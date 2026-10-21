@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=71" />
+  <link rel="stylesheet" href="styles.css?v=72" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1061,8 +1061,6 @@
             <button type="button" class="em-zona-btn em-grupo-btn" role="tab" data-grupo="Personales" aria-selected="true">&#128100; Personales</button>
             <button type="button" class="em-zona-btn em-grupo-btn" role="tab" data-grupo="Ajenos" aria-selected="false">&#129309; Ajenos</button>
           </div>
-          <!-- Tercer divisor: Personales → Míos | Familiares; Ajenos → Amigos | Clientes (los botones los dibuja app.js) -->
-          <div id="em-subgrupos" class="em-zonas em-grupos em-subgrupos" role="tablist" aria-label="Subcategoría del proyecto" hidden></div>
           <p id="em-estado" class="notas-estado proy-estado-lista"></p>
           <div id="em-chips" class="ej-chips"></div>
         </div>
@@ -1258,10 +1256,6 @@
                 <option value="Ajenos">Ajenos</option>
               </select>
             </label>
-            <label id="em-subgrupo-campo" class="notas-campo">
-              <span>Subcategoría</span>
-              <select id="em-subgrupo"></select>
-            </label>
             <label class="notas-campo">
               <span>Fecha</span>
               <input id="em-fecha" type="date" min="1999-02-02" max="2099-02-02" />
@@ -1366,7 +1360,7 @@
   </main>
 
   <script src="config.js?v=64"></script>
-  <script src="app.js?v=74"></script>
+  <script src="app.js?v=75"></script>
   <script src="voz.js?v=64"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

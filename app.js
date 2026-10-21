@@ -5210,8 +5210,8 @@ function emZonasLocales() {
   try { return JSON.parse(localStorage.getItem(CLAVE_ZONAS_LOCAL_EM)) || {}; } catch (e) { return {}; }
 }
 // p = pendiente: la hoja todavía no confirmó que guardó esa zona (se quita solo cuando la hoja devuelve lo mismo)
-function emGuardarZonaLocal(id, zona, grupo, subgrupo) {
-  try { const m = emZonasLocales(); m[id] = { z: zona, g: grupo, s: subgrupo, p: true }; localStorage.setItem(CLAVE_ZONAS_LOCAL_EM, JSON.stringify(m)); } catch (e) {}
+function emGuardarZonaLocal(id, zona, grupo) {
+  try { const m = emZonasLocales(); m[id] = { z: zona, g: grupo, p: true }; localStorage.setItem(CLAVE_ZONAS_LOCAL_EM, JSON.stringify(m)); } catch (e) {}
 }
 function emEscribirZonasLocales(m) {
   try { localStorage.setItem(CLAVE_ZONAS_LOCAL_EM, JSON.stringify(m)); } catch (e) {}
@@ -5220,7 +5220,7 @@ let emBackendSinZona = false; // true si la hoja/Apps Script no devuelve la zona
 let emVersionScript = ""; // versión del Apps Script que respondió la última lectura (vacía si es una versión vieja que no la informa)
 const emAvisoZona = () => "⚠ La hoja no está guardando la zona ni el tipo (Personales/Ajenos): por ahora solo se recuerdan en este dispositivo. " +
   "Versión del Apps Script que responde: " + (emVersionScript || "ninguna indicada (es una versión vieja o distinta)") +
-  ". Debe decir «drive-y-hoja-redes-8-subgrupos»: publica una nueva versión de esa implementación.";
+  ". Debe decir «drive-y-hoja-redes-7-zonas»: publica una nueva versión de esa implementación.";
 const emZonaInfo = (nombre) => ZONAS_EM.find((z) => z.nombre === nombre) || ZONAS_EM[0];
 const emZonaDe = (d) => emZonaInfo(d && d.zona).nombre;
 // Dentro de «Proyectos» hay dos grupos: Personales y Ajenos (columna J «Grupo»; lo vacío cuenta como Personales)
@@ -5230,35 +5230,6 @@ const emGrupoDe = (d) => (d && GRUPOS_EM.indexOf(d.grupo) !== -1 ? d.grupo : GRU
 let emGrupoActivo = (() => {
   try { const g = localStorage.getItem(CLAVE_GRUPO_EM); return GRUPOS_EM.indexOf(g) !== -1 ? g : GRUPOS_EM[0]; } catch (e) { return GRUPOS_EM[0]; }
 })();
-// Subcategorías de cada grupo (columna K «Subgrupo»; lo vacío cuenta como la primera de su grupo)
-const SUBGRUPOS_EM = { Personales: ["Míos", "Familiares"], Ajenos: ["Amigos", "Clientes"] };
-const CLAVE_SUBGRUPO_EM = "polo-ai-empresas-subgrupo";
-const emSubgrupoDe = (d) => {
-  const lista = SUBGRUPOS_EM[emGrupoDe(d)];
-  return d && lista.indexOf(d.subgrupo) !== -1 ? d.subgrupo : lista[0];
-};
-// Subcategoría elegida en cada grupo (se recuerda por separado: Personales y Ajenos)
-let emSubgruposActivos = (() => {
-  try { return JSON.parse(localStorage.getItem(CLAVE_SUBGRUPO_EM)) || {}; } catch (e) { return {}; }
-})();
-function emSubgrupoActivo() {
-  const lista = SUBGRUPOS_EM[emGrupoActivo];
-  return lista.indexOf(emSubgruposActivos[emGrupoActivo]) !== -1 ? emSubgruposActivos[emGrupoActivo] : lista[0];
-}
-const emSubgruposCaja = emEl("em-subgrupos");
-const emSubgrupoSelect = emEl("em-subgrupo");
-const emSubgrupoCampo = emEl("em-subgrupo-campo");
-function emLlenarSubgrupos(grupo, elegido) {
-  const lista = SUBGRUPOS_EM[GRUPOS_EM.indexOf(grupo) !== -1 ? grupo : GRUPOS_EM[0]];
-  emSubgrupoSelect.innerHTML = "";
-  lista.forEach((n) => emSubgrupoSelect.add(new Option(n, n)));
-  emSubgrupoSelect.value = lista.indexOf(elegido) !== -1 ? elegido : lista[0];
-}
-function emElegirSubgrupo(nombre) {
-  emSubgruposActivos[emGrupoActivo] = nombre;
-  try { localStorage.setItem(CLAVE_SUBGRUPO_EM, JSON.stringify(emSubgruposActivos)); } catch (e) {}
-  dibujarChipsEm();
-}
 const emGruposCaja = emEl("em-grupos");
 const emGruposBtns = Array.from(document.querySelectorAll("#em-grupos .em-grupo-btn"));
 const emGrupoSelect = emEl("em-grupo");
@@ -5274,15 +5245,11 @@ let emZonaActiva = (() => {
 })();
 const emZonasBtns = Array.from(document.querySelectorAll("#em-zonas .em-zona-btn"));
 const emZonaSelect = emEl("em-zona");
-function emElegirZona(nombre, grupo, subgrupo) {
+function emElegirZona(nombre, grupo) {
   emZonaActiva = emZonaInfo(nombre).nombre;
   if (grupo && GRUPOS_EM.indexOf(grupo) !== -1) {
     emGrupoActivo = grupo;
     try { localStorage.setItem(CLAVE_GRUPO_EM, emGrupoActivo); } catch (e) {}
-    if (subgrupo && SUBGRUPOS_EM[grupo].indexOf(subgrupo) !== -1) {
-      emSubgruposActivos[grupo] = subgrupo;
-      try { localStorage.setItem(CLAVE_SUBGRUPO_EM, JSON.stringify(emSubgruposActivos)); } catch (e) {}
-    }
   }
   try { localStorage.setItem(CLAVE_ZONA_EM, emZonaActiva); } catch (e) {}
   emZonasBtns.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.zona === emZonaActiva)));
@@ -5784,6 +5751,20 @@ function hojaIdYoutube(texto) {
   return /^[\w-]{11}$/.test(id) ? id : "";
 }
 
+// Varios links de YouTube en una misma celda, separados por comas: devuelve [{ id, enlace }] en el orden escrito
+// (lo que no sea link de un video de YouTube se ignora y los repetidos se quitan). Con un solo link funciona igual que antes.
+function hojaListaYoutube(texto) {
+  const unico = hojaIdYoutube(texto);
+  if (unico) return [{ id: unico, enlace: hojaLinkDe(texto) }];
+  const lista = [];
+  String(texto || "").split(",").forEach((parte) => {
+    const enlace = hojaLinkDe(parte);
+    const id = enlace ? hojaIdYoutube(enlace) : "";
+    if (id && !lista.some((x) => x.id === id)) lista.push({ id, enlace });
+  });
+  return lista;
+}
+
 // Video de Facebook o Instagram (reel, video, post con video); devuelve { red, url } o null. Perfiles y páginas no cuentan.
 function hojaVideoSocial(texto) {
   const url = hojaLinkDe(texto);
@@ -5907,7 +5888,8 @@ function hojaMiniSocial(td, m, s) {
 // Miniatura dentro de cualquier celda cuyo contenido sea un link de video: YouTube (al tocarla se abre el reproductor),
 // Facebook o Instagram (al tocarla se abre el video en otra pestaña)
 function hojaActualizarMiniatura(td, inp, texto) {
-  const id = hojaIdYoutube(texto);
+  const lista = hojaListaYoutube(texto); // con varios links separados por comas solo se ve el primero
+  const id = lista.length ? lista[0].id : "";
   const social = id ? null : hojaVideoSocial(texto);
   const tipo = id ? "youtube" : social ? social.red : "";
   let m = td.querySelector(".em-hoja-mini");
@@ -5932,7 +5914,14 @@ function hojaActualizarMiniatura(td, inp, texto) {
     m.appendChild(img);
     td.appendChild(m);
   }
-  m.href = hojaLinkDe(texto);
+  m.href = lista[0].enlace;
+  if (lista.length > 1) {
+    m.dataset.multi = String(lista.length); // el recuadro muestra «▶ N» y al tocarlo se abre el menú con todos
+    m.title = "Ver los " + lista.length + " videos";
+  } else {
+    delete m.dataset.multi;
+    m.title = "Abrir el video";
+  }
   const img = m.firstChild;
   const src = "https://i.ytimg.com/vi/" + id + "/mqdefault.jpg";
   if (img.getAttribute("src") !== src) img.src = src;
@@ -5941,7 +5930,8 @@ function hojaActualizarMiniatura(td, inp, texto) {
 function hojaActualizarLink(td, texto) {
   const inp = td.querySelector(".em-hoja-celda");
   let a = td.querySelector(".em-hoja-link");
-  const url = hojaLinkDe(texto);
+  const listaYt = hojaListaYoutube(texto);
+  const url = hojaLinkDe(texto) || (listaYt.length ? listaYt[0].enlace : "");
   if (inp) {
     inp.classList.toggle("em-hoja-celda-link", !!url);
     hojaActualizarMiniatura(td, inp, texto);
@@ -6867,6 +6857,85 @@ if (emHojaColQuitar) {
   }, true);
 }
 
+// ----- Menú con varios videos (una celda con links de YouTube separados por comas) -----
+// Se abre al tocar la miniatura (o el botón ↗) de esa celda y en las fichas del perfil del canal; al elegir uno se abre el reproductor.
+let hojaMenuVideosLimpiar = null;
+function hojaCerrarMenuVideos() {
+  if (hojaMenuVideosLimpiar) hojaMenuVideosLimpiar();
+}
+function hojaMenuVideos(lista, ancla, padre) {
+  hojaCerrarMenuVideos();
+  const menu = document.createElement("div");
+  menu.className = "em-video-menu";
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("aria-label", "Videos de esta celda");
+  const cab = document.createElement("div");
+  cab.className = "em-video-menu-cab";
+  cab.textContent = lista.length + " videos";
+  menu.appendChild(cab);
+  lista.forEach((v, i) => {
+    const it = document.createElement("button");
+    it.type = "button";
+    it.className = "em-video-menu-item";
+    it.setAttribute("role", "menuitem");
+    const mini = document.createElement("span");
+    mini.className = "em-video-menu-mini";
+    const img = document.createElement("img");
+    img.alt = "";
+    img.loading = "lazy";
+    img.referrerPolicy = "no-referrer";
+    img.src = "https://i.ytimg.com/vi/" + v.id + "/mqdefault.jpg";
+    img.addEventListener("error", () => img.remove());
+    mini.appendChild(img);
+    const txt = document.createElement("span");
+    txt.className = "em-video-menu-txt";
+    const b = document.createElement("b");
+    b.textContent = "Video " + (i + 1);
+    const sm = document.createElement("small");
+    sm.textContent = v.enlace.replace(/^https?:\/\/(www\.)?/i, "");
+    txt.append(b, sm);
+    it.append(mini, txt);
+    it.addEventListener("click", () => {
+      hojaCerrarMenuVideos();
+      hojaAbrirVideo(v.id, v.enlace, padre);
+    });
+    menu.appendChild(it);
+  });
+  document.body.appendChild(menu);
+  // Debajo del botón que lo abrió (o arriba si abajo no cabe), sin salirse de la pantalla
+  const r = ancla.getBoundingClientRect();
+  const w = menu.offsetWidth;
+  const h = menu.offsetHeight;
+  const left = Math.min(Math.max(8, r.left), Math.max(8, window.innerWidth - w - 8));
+  let top = r.bottom + 6;
+  if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+  menu.style.left = left + "px";
+  menu.style.top = top + "px";
+  const fuera = (e) => { if (!menu.contains(e.target)) hojaCerrarMenuVideos(); };
+  const tecla = (e) => {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      hojaCerrarMenuVideos();
+      if (document.contains(ancla)) ancla.focus();
+    }
+  };
+  const mover = (e) => { if (!menu.contains(e.target)) hojaCerrarMenuVideos(); };
+  document.addEventListener("pointerdown", fuera, true);
+  document.addEventListener("keydown", tecla, true);
+  document.addEventListener("scroll", mover, true);
+  window.addEventListener("resize", hojaCerrarMenuVideos);
+  hojaMenuVideosLimpiar = () => {
+    document.removeEventListener("pointerdown", fuera, true);
+    document.removeEventListener("keydown", tecla, true);
+    document.removeEventListener("scroll", mover, true);
+    window.removeEventListener("resize", hojaCerrarMenuVideos);
+    menu.remove();
+    hojaMenuVideosLimpiar = null;
+  };
+  const primero = menu.querySelector(".em-video-menu-item");
+  if (primero) primero.focus();
+}
+
 // ----- Reproductor de YouTube dentro de la hoja -----
 // Al tocar una miniatura (o el botón ↗) de un link de YouTube se abre un cuadro con el video PAUSADO:
 // hay que darle play. Al cerrarlo se quita el reproductor, así el video se detiene.
@@ -6922,6 +6991,15 @@ document.addEventListener("keydown", (e) => {
 emHojaTabla.addEventListener("click", (e) => {
   const a = e.target.closest ? e.target.closest(".em-hoja-mini, .em-hoja-link") : null;
   if (!a) return;
+  // Celda con varios videos (separados por comas): se abre el menú para elegir cuál ver
+  const td = a.closest("td");
+  const celda = td ? td.querySelector(".em-hoja-celda") : null;
+  const varios = celda ? hojaListaYoutube(celda.value) : [];
+  if (varios.length > 1) {
+    e.preventDefault();
+    hojaMenuVideos(varios, a, emHoja);
+    return;
+  }
   const id = hojaIdYoutube(a.getAttribute("href"));
   if (!id) return; // otros links se abren como siempre
   e.preventDefault();
@@ -7679,8 +7757,8 @@ const CANAL_REDES = [
 // Un link de video de esa red (o null). YouTube lleva su id; las demás, solo el link
 function canalVideoDeRed(red, texto) {
   if (red === "youtube") {
-    const id = hojaIdYoutube(texto);
-    return id ? { red, id, enlace: hojaLinkDe(texto) } : null;
+    const lista = hojaListaYoutube(texto); // varios links separados por comas: la ficha usa el primero y abre un menú con todos
+    return lista.length ? { red, id: lista[0].id, enlace: lista[0].enlace, lista } : null;
   }
   const v = hojaVideoSocial(texto);
   return v && v.red === red ? { red, enlace: v.url } : null;
@@ -7794,8 +7872,19 @@ function canalCrearFichaYoutube(v) {
   img.referrerPolicy = "no-referrer";
   // Los shorts son verticales: su miniatura se recorta al centro
   img.src = "https://i.ytimg.com/vi/" + v.id + (canalTab === 2 ? "/hqdefault.jpg" : "/mqdefault.jpg");
-  img.addEventListener("error", () => { img.remove(); mini.textContent = "\u25B6"; });
+  img.addEventListener("error", () => { img.remove(); mini.prepend(document.createTextNode("\u25B6")); });
   mini.appendChild(img);
+  const varios = v.lista && v.lista.length > 1;
+  if (varios) { // varios videos en la celda: se ve solo el primero con su contador, y al tocarlo se despliega el menú
+    const cuenta = document.createElement("span");
+    cuenta.className = "em-canal-multi";
+    cuenta.setAttribute("aria-hidden", "true");
+    cuenta.textContent = "\u25B6 " + v.lista.length;
+    mini.appendChild(cuenta);
+    b.title = (v.nombre ? v.nombre + " · " : "") + v.lista.length + " videos";
+    b.setAttribute("aria-label", "Ver los " + v.lista.length + " videos" + (v.nombre ? " de " + v.nombre : ""));
+    b.setAttribute("aria-haspopup", "menu");
+  }
   b.appendChild(mini);
   if (v.nombre) {
     const t = document.createElement("span");
@@ -7803,7 +7892,10 @@ function canalCrearFichaYoutube(v) {
     t.textContent = v.nombre;
     b.appendChild(t);
   }
-  b.addEventListener("click", () => hojaAbrirVideo(v.id, v.enlace || "https://www.youtube.com/watch?v=" + v.id, emCanal));
+  b.addEventListener("click", () => {
+    if (varios) hojaMenuVideos(v.lista, b, emCanal);
+    else hojaAbrirVideo(v.id, v.enlace || "https://www.youtube.com/watch?v=" + v.id, emCanal);
+  });
   return b;
 }
 
@@ -8021,23 +8113,7 @@ function dibujarChipsEm() {
   const enProyectos = emZonaActiva === ZONAS_EM[0].nombre;
   emGruposCaja.hidden = !enProyectos;
   emGruposBtns.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.grupo === emGrupoActivo)));
-  // Tercer divisor: las subcategorías del grupo elegido (Personales: Míos/Familiares · Ajenos: Amigos/Clientes)
-  const subActivo = emSubgrupoActivo();
-  emSubgruposCaja.hidden = !enProyectos;
-  emSubgruposCaja.innerHTML = "";
-  if (enProyectos) {
-    SUBGRUPOS_EM[emGrupoActivo].forEach((n) => {
-      const sb = document.createElement("button");
-      sb.type = "button";
-      sb.className = "em-zona-btn em-grupo-btn";
-      sb.setAttribute("role", "tab");
-      sb.setAttribute("aria-selected", String(n === subActivo));
-      sb.textContent = n;
-      sb.addEventListener("click", () => emElegirSubgrupo(n));
-      emSubgruposCaja.appendChild(sb);
-    });
-  }
-  empresas.filter((d) => emZonaDe(d) === emZonaActiva && (!enProyectos || (emGrupoDe(d) === emGrupoActivo && emSubgrupoDe(d) === subActivo))).forEach((d) => {
+  empresas.filter((d) => emZonaDe(d) === emZonaActiva && (!enProyectos || emGrupoDe(d) === emGrupoActivo)).forEach((d) => {
     const b = document.createElement("button");
     b.type = "button";
     const conImg = imagenValida(d.imagen);
@@ -8085,7 +8161,6 @@ function abrirFormEm(d) {
   emEl("em-url-img").value = ""; // el link pegado en una nota nunca pasa a la siguiente
   emZonaSelect.value = d ? emZonaDe(d) : emZonaActiva; // una nueva nace en la zona que se está viendo
   emGrupoSelect.value = d ? emGrupoDe(d) : emGrupoActivo; // y en el grupo (Personales/Ajenos) que se está viendo
-  emLlenarSubgrupos(emGrupoSelect.value, d ? emSubgrupoDe(d) : emSubgrupoActivo()); // y en su subcategoría
   emActualizarTituloForm();
   emNombre.value = d ? d.nombre : "";
   emFecha.value = d && d.fecha ? d.fecha : ipHoy(); // si es nueva, empieza con la fecha de hoy
@@ -8103,12 +8178,10 @@ function abrirFormEm(d) {
 }
 function emActualizarTituloForm() {
   emGrupoCampo.hidden = emZonaSelect.value !== ZONAS_EM[0].nombre; // «Tipo de proyecto» solo para Proyectos
-  emSubgrupoCampo.hidden = emGrupoCampo.hidden;
   const z = emZonaInfo(emZonaSelect.value);
   emFormTitulo.textContent = emEditando ? z.editar : z.nuevo;
 }
 emZonaSelect.addEventListener("change", emActualizarTituloForm);
-emGrupoSelect.addEventListener("change", () => emLlenarSubgrupos(emGrupoSelect.value)); // al cambiar de grupo cambian las subcategorías
 function cerrarFormEm() {
   emForm.hidden = true;
   emEditando = null;
@@ -8149,18 +8222,17 @@ async function guardarEm() {
       links: enlacesDeTexto(emLinks.value).join("\n"),
       zona: emZonaInfo(emZonaSelect.value).nombre,
       grupo: GRUPOS_EM.indexOf(emGrupoSelect.value) !== -1 ? emGrupoSelect.value : GRUPOS_EM[0],
-      subgrupo: emSubgrupoSelect.value,
       notas: editando && Array.isArray(editando.notas) ? editando.notas : [], // las notas se guardan aparte (columna H)
       notasLargo: editando ? editando.notasLargo || 0 : 0,
     };
     await llamarNotas(editando ? "empresa_editar" : "empresa_agregar", d);
-    emGuardarZonaLocal(d.id, d.zona, d.grupo, d.subgrupo);
+    emGuardarZonaLocal(d.id, d.zona, d.grupo);
     // Se reemplaza solo ESA nota (por posición, no por Id) y luego se vuelve a leer la hoja para mostrar lo que quedó guardado
     const pos = editando ? empresas.indexOf(editando) : -1;
     if (pos !== -1) empresas[pos] = d;
     else empresas.push(d);
     cerrarFormEm();
-    emElegirZona(d.zona, d.grupo, d.subgrupo); // se muestra la zona donde quedó (si la cambiaste en el formulario, te lleva a ella)
+    emElegirZona(d.zona, d.grupo); // se muestra la zona donde quedó (si la cambiaste en el formulario, te lleva a ella)
     if (editando && emDetActual) {
       emDetActual = d;
       dibujarDetalleEm();
@@ -8184,7 +8256,7 @@ async function borrarEm() {
   setEstado(emFormEstado, "Eliminando…");
   try {
     await llamarNotas("empresa_borrar", { id: d.id });
-    empresas = empresas.filter((x) => String(x.id) !== String(d.id));
+    empresas = empresas.filter((x) => x !== d);
     cerrarFormEm();
     cerrarDetalleEm();
     dibujarChipsEm();
@@ -8225,7 +8297,6 @@ async function cargarEmpresas() {
       if (emBackendSinZona || x.p) { // la hoja no lo guardó: se mantiene lo que elegiste y se avisa
         e.zona = x.z;
         e.grupo = x.g;
-        if (x.s) e.subgrupo = x.s;
         emBackendSinZona = true;
       }
     });
