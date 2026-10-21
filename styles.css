@@ -1909,6 +1909,7 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 .em-zona-btn:hover { background: rgba(255, 255, 255, 0.18); }
 .em-zona-btn[aria-selected="true"] { color: #4a2685; background: #fff; box-shadow: 0 2px 8px rgba(40, 10, 80, 0.3); }
 .em-zona-btn:focus-visible { outline: 3px solid #8fb8ff; outline-offset: 2px; }
+.em-grupos[hidden] { display: none; }
 @media (max-width: 520px) {
   .em-zona-btn { padding: 9px 4px; font-size: 0.76rem; }
 }

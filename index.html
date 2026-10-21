@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=68" />
+  <link rel="stylesheet" href="styles.css?v=69" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1056,6 +1056,11 @@
             <button type="button" class="em-zona-btn" role="tab" data-zona="Canales de Contenido" aria-selected="false">&#128250; Canales de Contenido</button>
             <button type="button" class="em-zona-btn" role="tab" data-zona="Aplicaciones" aria-selected="false">&#128241; Aplicaciones</button>
           </div>
+          <!-- Segundo divisor (mismo tamaño y estilo, partido a la mitad): solo se ve dentro de la zona «Proyectos» -->
+          <div id="em-grupos" class="em-zonas em-grupos" role="tablist" aria-label="Proyectos personales o ajenos" hidden>
+            <button type="button" class="em-zona-btn em-grupo-btn" role="tab" data-grupo="Personales" aria-selected="true">&#128100; Personales</button>
+            <button type="button" class="em-zona-btn em-grupo-btn" role="tab" data-grupo="Ajenos" aria-selected="false">&#129309; Ajenos</button>
+          </div>
           <p id="em-estado" class="notas-estado proy-estado-lista"></p>
           <div id="em-chips" class="ej-chips"></div>
         </div>
@@ -1241,6 +1246,13 @@
                 <option value="Aplicaciones">Aplicaciones</option>
               </select>
             </label>
+            <label id="em-grupo-campo" class="notas-campo">
+              <span>Tipo de proyecto</span>
+              <select id="em-grupo">
+                <option value="Personales">Personales</option>
+                <option value="Ajenos">Ajenos</option>
+              </select>
+            </label>
             <label class="notas-campo">
               <span>Fecha</span>
               <input id="em-fecha" type="date" min="1999-02-02" max="2099-02-02" />
@@ -1345,7 +1357,7 @@
   </main>
 
   <script src="config.js?v=64"></script>
-  <script src="app.js?v=69"></script>
+  <script src="app.js?v=70"></script>
   <script src="voz.js?v=64"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

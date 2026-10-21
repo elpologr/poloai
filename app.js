@@ -5072,20 +5072,41 @@ const CLAVE_ZONAS_LOCAL_EM = "polo-ai-empresas-zonas-local";
 function emZonasLocales() {
   try { return JSON.parse(localStorage.getItem(CLAVE_ZONAS_LOCAL_EM)) || {}; } catch (e) { return {}; }
 }
-function emGuardarZonaLocal(id, zona) {
-  try { const m = emZonasLocales(); m[id] = zona; localStorage.setItem(CLAVE_ZONAS_LOCAL_EM, JSON.stringify(m)); } catch (e) {}
+function emGuardarZonaLocal(id, zona, grupo) {
+  try { const m = emZonasLocales(); m[id] = { z: zona, g: grupo }; localStorage.setItem(CLAVE_ZONAS_LOCAL_EM, JSON.stringify(m)); } catch (e) {}
 }
 let emBackendSinZona = false; // true si la hoja/Apps Script no devuelve la zona (hay que publicar la versión nueva)
-const AVISO_SIN_ZONA_EM = "⚠ El Apps Script publicado es la versión vieja: la zona solo se recuerda en este dispositivo. Publica la nueva versión para guardarla en la hoja.";
+const AVISO_SIN_ZONA_EM = "⚠ El Apps Script publicado es la versión vieja: la zona y el tipo (Personales/Ajenos) solo se recuerdan en este dispositivo. Publica la nueva versión para guardarla en la hoja.";
 const emZonaInfo = (nombre) => ZONAS_EM.find((z) => z.nombre === nombre) || ZONAS_EM[0];
 const emZonaDe = (d) => emZonaInfo(d && d.zona).nombre;
+// Dentro de «Proyectos» hay dos grupos: Personales y Ajenos (columna J «Grupo»; lo vacío cuenta como Personales)
+const GRUPOS_EM = ["Personales", "Ajenos"];
+const CLAVE_GRUPO_EM = "polo-ai-empresas-grupo";
+const emGrupoDe = (d) => (d && GRUPOS_EM.indexOf(d.grupo) !== -1 ? d.grupo : GRUPOS_EM[0]);
+let emGrupoActivo = (() => {
+  try { const g = localStorage.getItem(CLAVE_GRUPO_EM); return GRUPOS_EM.indexOf(g) !== -1 ? g : GRUPOS_EM[0]; } catch (e) { return GRUPOS_EM[0]; }
+})();
+const emGruposCaja = emEl("em-grupos");
+const emGruposBtns = Array.from(document.querySelectorAll("#em-grupos .em-grupo-btn"));
+const emGrupoSelect = emEl("em-grupo");
+const emGrupoCampo = emEl("em-grupo-campo");
+function emElegirGrupo(nombre) {
+  emGrupoActivo = GRUPOS_EM.indexOf(nombre) !== -1 ? nombre : GRUPOS_EM[0];
+  try { localStorage.setItem(CLAVE_GRUPO_EM, emGrupoActivo); } catch (e) {}
+  dibujarChipsEm();
+}
+emGruposBtns.forEach((b) => b.addEventListener("click", () => emElegirGrupo(b.dataset.grupo)));
 let emZonaActiva = (() => {
   try { return emZonaInfo(localStorage.getItem(CLAVE_ZONA_EM)).nombre; } catch (e) { return ZONAS_EM[0].nombre; }
 })();
 const emZonasBtns = Array.from(document.querySelectorAll("#em-zonas .em-zona-btn"));
 const emZonaSelect = emEl("em-zona");
-function emElegirZona(nombre) {
+function emElegirZona(nombre, grupo) {
   emZonaActiva = emZonaInfo(nombre).nombre;
+  if (grupo && GRUPOS_EM.indexOf(grupo) !== -1) {
+    emGrupoActivo = grupo;
+    try { localStorage.setItem(CLAVE_GRUPO_EM, emGrupoActivo); } catch (e) {}
+  }
   try { localStorage.setItem(CLAVE_ZONA_EM, emZonaActiva); } catch (e) {}
   emZonasBtns.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.zona === emZonaActiva)));
   dibujarChipsEm();
@@ -7528,7 +7549,11 @@ function dibujarChipsEm() {
   emChips.innerHTML = "";
   const zonaInfo = emZonaInfo(emZonaActiva);
   emZonasBtns.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.zona === emZonaActiva)));
-  empresas.filter((d) => emZonaDe(d) === emZonaActiva).forEach((d) => {
+  // El divisor Personales/Ajenos solo existe dentro de «Proyectos»
+  const enProyectos = emZonaActiva === ZONAS_EM[0].nombre;
+  emGruposCaja.hidden = !enProyectos;
+  emGruposBtns.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.grupo === emGrupoActivo)));
+  empresas.filter((d) => emZonaDe(d) === emZonaActiva && (!enProyectos || emGrupoDe(d) === emGrupoActivo)).forEach((d) => {
     const b = document.createElement("button");
     b.type = "button";
     const conImg = imagenValida(d.imagen);
@@ -7575,6 +7600,7 @@ function abrirFormEm(d) {
   emImagenNueva = null;
   emEl("em-url-img").value = ""; // el link pegado en una nota nunca pasa a la siguiente
   emZonaSelect.value = d ? emZonaDe(d) : emZonaActiva; // una nueva nace en la zona que se está viendo
+  emGrupoSelect.value = d ? emGrupoDe(d) : emGrupoActivo; // y en el grupo (Personales/Ajenos) que se está viendo
   emActualizarTituloForm();
   emNombre.value = d ? d.nombre : "";
   emFecha.value = d && d.fecha ? d.fecha : ipHoy(); // si es nueva, empieza con la fecha de hoy
@@ -7591,6 +7617,7 @@ function abrirFormEm(d) {
   emNombre.focus();
 }
 function emActualizarTituloForm() {
+  emGrupoCampo.hidden = emZonaSelect.value !== ZONAS_EM[0].nombre; // «Tipo de proyecto» solo para Proyectos
   const z = emZonaInfo(emZonaSelect.value);
   emFormTitulo.textContent = emEditando ? z.editar : z.nuevo;
 }
@@ -7634,17 +7661,18 @@ async function guardarEm() {
       descripcion: emDescripcion.value.trim(),
       links: enlacesDeTexto(emLinks.value).join("\n"),
       zona: emZonaInfo(emZonaSelect.value).nombre,
+      grupo: GRUPOS_EM.indexOf(emGrupoSelect.value) !== -1 ? emGrupoSelect.value : GRUPOS_EM[0],
       notas: editando && Array.isArray(editando.notas) ? editando.notas : [], // las notas se guardan aparte (columna H)
       notasLargo: editando ? editando.notasLargo || 0 : 0,
     };
     await llamarNotas(editando ? "empresa_editar" : "empresa_agregar", d);
-    emGuardarZonaLocal(d.id, d.zona);
+    emGuardarZonaLocal(d.id, d.zona, d.grupo);
     // Se reemplaza solo ESA nota (por posición, no por Id) y luego se vuelve a leer la hoja para mostrar lo que quedó guardado
     const pos = editando ? empresas.indexOf(editando) : -1;
     if (pos !== -1) empresas[pos] = d;
     else empresas.push(d);
     cerrarFormEm();
-    emElegirZona(d.zona); // se muestra la zona donde quedó (si la cambiaste en el formulario, te lleva a ella)
+    emElegirZona(d.zona, d.grupo); // se muestra la zona donde quedó (si la cambiaste en el formulario, te lleva a ella)
     if (editando && emDetActual) {
       emDetActual = d;
       dibujarDetalleEm();
@@ -7688,10 +7716,15 @@ async function cargarEmpresas() {
     const j = await llamarNotas("empresa_listar");
     empresas = Array.isArray(j.empresas) ? j.empresas : [];
     // La versión nueva del Apps Script devuelve «zona» en todos; si no la devuelve, se usa la copia de este dispositivo
-    emBackendSinZona = empresas.length > 0 && !empresas.some((e) => typeof e.zona === "string");
+    emBackendSinZona = empresas.length > 0 && !empresas.some((e) => typeof e.zona === "string" && typeof e.grupo === "string");
     if (emBackendSinZona) {
       const loc = emZonasLocales();
-      empresas.forEach((e) => { if (loc[e.id]) e.zona = loc[e.id]; });
+      empresas.forEach((e) => {
+        const x = loc[e.id];
+        if (!x) return;
+        if (typeof x === "string") e.zona = x; // formato anterior de la copia local
+        else { e.zona = x.z; e.grupo = x.g; }
+      });
     }
     emCargadas = true;
     setEstado(emEstado, emBackendSinZona ? AVISO_SIN_ZONA_EM : "", emBackendSinZona ? "error" : "");
