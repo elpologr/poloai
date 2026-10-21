@@ -2823,3 +2823,13 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
   display: block; width: 100%; box-sizing: border-box; margin-top: 4px; padding: 10px; font: inherit; font-weight: 400; color: #2b2140;
   background: #fff; border: 1px solid #e3d8f6; border-radius: 10px; resize: vertical;
 }
+
+/* ---------- Calendario propio de Actividades y Trabajo ---------- */
+.zona-cal { margin-top: 14px; }
+.zona-cal .cal-controles { margin-top: 0; }
+.zona-cal-filtro {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+  margin-top: 10px; font-size: 0.9rem; font-weight: 600;
+}
+.zona-cal-filtro[hidden] { display: none; }
+.zona-cuadrito-tag { margin-top: auto; font-size: 0.65rem; font-weight: 700; opacity: 0.85; }

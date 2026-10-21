@@ -2671,6 +2671,7 @@ const ZONAS_ETIQUETA = [
     guardar: "Guardar actividad", marcador: "Escribe una actividad nueva…",
     vacio: "Aún no hay actividades. ¡Crea la primera! ✨", borrar: "¿Eliminar esta actividad?",
     cuadritos: true, // las tarjetas se ven como cuadritos (igual que en Ejercicio, Diario, etc.)
+    calendario: true, // calendario propio: puntito en los días que tienen actividades; al tocar un día se ven solo esas
     finalizar: true, // cada tarjeta lleva el botón de finalizar (pasa al Diario y le agrega la fecha de término al recuerdo)
     elegirEtiqueta: true, // al crear se elige entre Nota, Actividad o Trabajo
   },
@@ -2683,6 +2684,8 @@ const ZONAS_ETIQUETA = [
     finalizar: true, // cada tarjeta lleva el botón «Marcar tarea como finalizada» (pasa al Diario)
     elegirEtiqueta: true, // al crear se elige entre Nota, Actividad o Trabajo
     cuadritos: true, // las tarjetas se ven como cuadritos (igual que en Ejercicio, Diario, etc.)
+    calendario: true, // calendario propio: puntito en los días que tienen trabajos
+    tambien: ["Pedidos de Yeso"], // etiquetas de otras zonas que también se reflejan en este calendario (en el día en que se creó la nota)
   },
   {
     // Vive dentro de la página de Bazar (debajo de una división; en: «seccion-bazar»). El botón «Pedidos de Yeso» de la barra lateral abre Bazar y baja hasta aquí
@@ -2771,6 +2774,20 @@ function crearZonaEtiqueta(cfg) {
           <span class="notas-estado zona-estado"></span>
         </div>
       </div>
+      ${cfg.calendario ? `<div class="zona-cal">
+        <div class="cal-controles">
+          <button type="button" class="btn-cal zona-cal-ant" aria-label="Mes anterior">&#8249;</button>
+          <select class="zona-cal-mes" aria-label="Mes"></select>
+          <select class="zona-cal-anio" aria-label="Año"></select>
+          <button type="button" class="btn-cal zona-cal-sig" aria-label="Mes siguiente">&#8250;</button>
+          <button type="button" class="btn-cal btn-hoy zona-cal-hoy">Hoy</button>
+        </div>
+        <div class="cal-cuadricula zona-cal-cuad" role="grid"></div>
+        <div class="zona-cal-filtro" hidden>
+          <span class="zona-cal-filtro-texto"></span>
+          <button type="button" class="notas-btn notas-btn-sec zona-cal-todas">Ver todas</button>
+        </div>
+      </div>` : ""}
       <div class="notas-grid zona-lista"></div>
     </div>`;
 
@@ -2804,6 +2821,9 @@ function crearZonaEtiqueta(cfg) {
     editando: null, // nota que se está editando (null = nueva)
     color: "Blanco",
     snap: "", // valores del formulario al abrirlo (para saber si se cambió algo)
+    calMes: new Date().getMonth(), // calendario propio de la zona (solo Actividades y Trabajo)
+    calAnio: new Date().getFullYear(),
+    calDia: null, // día elegido en el calendario (null = se ven todas)
   };
   z.mig = montarMigrar(z.destino, {
     accion: "migrar_drive",
@@ -2892,8 +2912,9 @@ function crearZonaEtiqueta(cfg) {
     vista.hidden = true;
     viendo = null;
   }
-  function abrirVista(n) {
+  function abrirVista(n, soloLectura) {
     viendo = n;
+    vista.querySelector(".zona-vista-tuerca").hidden = !!soloLectura; // las de otra zona (Pedidos de Yeso) no se editan desde aquí
     const caja = vista.querySelector(".zona-vista-caja");
     const hex = hexDeColor(n.color);
     caja.style.setProperty("--fondo", hex);
@@ -2963,7 +2984,8 @@ function crearZonaEtiqueta(cfg) {
     }
     aplicarTipoZona();
     if (mostrar) {
-      z.fecha.value = fechaActualInput();
+      // Si hay un día elegido en el calendario de la zona, la nota nueva nace en ese día
+      z.fecha.value = z.calDia ? z.calDia + fechaActualInput().slice(10) : fechaActualInput();
       setEstado(z.estado, "");
       z.nombre.focus();
       z.snap = z.valores();
@@ -3100,7 +3122,7 @@ function crearZonaEtiqueta(cfg) {
   }
 
   // ----- Cuadrito (misma apariencia que los cuadros de Ejercicio / Diario, con el color de la nota) -----
-  function crearCuadrito(n) {
+  function crearCuadrito(n, soloLectura) {
     const hex = hexDeColor(n.color);
     const c = document.createElement("div");
     c.className = "ej-chip ej-chip-resumen zona-cuadrito";
@@ -3121,6 +3143,26 @@ function crearZonaEtiqueta(cfg) {
     desc.className = "ej-chip-desc";
     desc.textContent = n.texto || "";
     c.appendChild(desc);
+
+    // Nota de otra zona (Pedidos de Yeso en Trabajo): solo se consulta, no se borra ni se finaliza desde aquí
+    if (soloLectura) {
+      c.classList.add("zona-cuadrito-extra");
+      const tag = document.createElement("span");
+      tag.className = "zona-cuadrito-tag";
+      tag.textContent = "📦 " + (n.etiqueta || "");
+      c.appendChild(tag);
+      c.tabIndex = 0;
+      c.setAttribute("role", "button");
+      c.setAttribute("aria-label", "Ver " + (n.nombre || "Sin nombre"));
+      c.addEventListener("click", () => { if (vista) abrirVista(n, true); });
+      c.addEventListener("keydown", (e) => {
+        if (e.target === c && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          if (vista) abrirVista(n, true);
+        }
+      });
+      return c;
+    }
 
     const x = document.createElement("button");
     x.type = "button";
@@ -3261,18 +3303,113 @@ function crearZonaEtiqueta(cfg) {
     return tarjeta;
   }
 
+  // ----- Calendario propio de la zona (solo Actividades y Trabajo) -----
+  // Cada día con notas de esta etiqueta (y de las de cfg.tambien) lleva un puntito; tocar un día filtra la lista.
+  const calCuad = q(".zona-cal-cuad");
+  const calMesSel = q(".zona-cal-mes");
+  const calAnioSel = q(".zona-cal-anio");
+  const calAnt = q(".zona-cal-ant");
+  const calSig = q(".zona-cal-sig");
+  const calFiltro = q(".zona-cal-filtro");
+  if (calCuad) {
+    MESES.forEach((nombre, i) => calMesSel.add(new Option(nombre, i)));
+    for (let a = ANIO_MIN; a <= ANIO_MAX; a++) calAnioSel.add(new Option(a, a));
+  }
+  const etiquetasCal = [cfg.etiqueta].concat(cfg.tambien || []);
+  // "dd/mm/aaaa hh:mm" -> "aaaa-mm-dd" ("" si no se entiende)
+  function claveDeNota(n) {
+    const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(n.fecha || "").trim());
+    return m ? `${m[3]}-${dos(m[2])}-${dos(m[1])}` : "";
+  }
+  function dibujarCalZona() {
+    if (!calCuad) return;
+    const conNotas = new Set();
+    notas.forEach((n) => {
+      if (etiquetasCal.includes(n.etiqueta || "General")) {
+        const k = claveDeNota(n);
+        if (k) conNotas.add(k);
+      }
+    });
+    calMesSel.value = z.calMes;
+    calAnioSel.value = z.calAnio;
+    calAnt.disabled = z.calAnio === ANIO_MIN && z.calMes === 0;
+    calSig.disabled = z.calAnio === ANIO_MAX && z.calMes === 11;
+    calCuad.innerHTML = "";
+    DIAS.forEach((d) => {
+      const el = document.createElement("div");
+      el.className = "cal-dia-semana";
+      el.textContent = d;
+      calCuad.appendChild(el);
+    });
+    const ahora = new Date();
+    const primerDia = (new Date(z.calAnio, z.calMes, 1).getDay() + 6) % 7;
+    const diasEnMes = new Date(z.calAnio, z.calMes + 1, 0).getDate();
+    for (let i = 0; i < primerDia; i++) {
+      const vacio = document.createElement("div");
+      vacio.className = "cal-dia vacio";
+      calCuad.appendChild(vacio);
+    }
+    for (let d = 1; d <= diasEnMes; d++) {
+      const fecha = claveFecha(z.calAnio, z.calMes, d);
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "cal-dia";
+      el.textContent = d;
+      el.dataset.fecha = fecha;
+      if ((primerDia + d - 1) % 7 >= 5) el.classList.add("finde");
+      if (d === ahora.getDate() && z.calMes === ahora.getMonth() && z.calAnio === ahora.getFullYear()) el.classList.add("hoy");
+      if (fecha === z.calDia) el.classList.add("seleccionado");
+      if (conNotas.has(fecha)) el.classList.add("con-datos");
+      el.addEventListener("click", () => {
+        z.calDia = z.calDia === fecha ? null : fecha; // tocar otra vez el mismo día quita el filtro
+        z.dibujar();
+      });
+      calCuad.appendChild(el);
+    }
+    calFiltro.hidden = !z.calDia;
+    if (z.calDia) q(".zona-cal-filtro-texto").textContent = "Mostrando: " + textoFecha(z.calDia);
+  }
+  function calCambiarMes(delta) {
+    z.calMes += delta;
+    if (z.calMes < 0) { z.calMes = 11; z.calAnio--; }
+    if (z.calMes > 11) { z.calMes = 0; z.calAnio++; }
+    z.calAnio = Math.max(ANIO_MIN, Math.min(ANIO_MAX, z.calAnio));
+    dibujarCalZona();
+  }
+  if (calCuad) {
+    calAnt.addEventListener("click", () => calCambiarMes(-1));
+    calSig.addEventListener("click", () => calCambiarMes(1));
+    calMesSel.addEventListener("change", () => { z.calMes = Number(calMesSel.value); dibujarCalZona(); });
+    calAnioSel.addEventListener("change", () => { z.calAnio = Number(calAnioSel.value); dibujarCalZona(); });
+    q(".zona-cal-hoy").addEventListener("click", () => {
+      const h = new Date();
+      z.calMes = h.getMonth();
+      z.calAnio = h.getFullYear();
+      dibujarCalZona();
+    });
+    q(".zona-cal-todas").addEventListener("click", () => { z.calDia = null; z.dibujar(); });
+  }
+
   z.dibujar = function () {
     z.lista.classList.toggle("zona-lista-cuadritos", !!cfg.cuadritos);
     z.lista.innerHTML = "";
-    const lista = notasOrdenadas().filter((n) => (n.etiqueta || "General") === cfg.etiqueta);
-    if (!lista.length) {
+    dibujarCalZona();
+    const ordenadas = notasOrdenadas();
+    let lista = ordenadas.filter((n) => (n.etiqueta || "General") === cfg.etiqueta);
+    let extra = []; // notas de otras zonas que se reflejan aquí (Pedidos de Yeso en Trabajo), solo al elegir su día
+    if (calCuad && z.calDia) {
+      lista = lista.filter((n) => claveDeNota(n) === z.calDia);
+      extra = ordenadas.filter((n) => (cfg.tambien || []).includes(n.etiqueta) && claveDeNota(n) === z.calDia);
+    }
+    if (!lista.length && !extra.length) {
       const p = document.createElement("p");
       p.className = "notas-vacio";
-      p.textContent = cfg.vacio;
+      p.textContent = calCuad && z.calDia ? "No hay nada en este día." : cfg.vacio;
       z.lista.appendChild(p);
       return;
     }
     lista.forEach((n) => z.lista.appendChild(crearTarjeta(n)));
+    extra.forEach((n) => z.lista.appendChild(crearCuadrito(n, true)));
   };
 
   // Aviso de inicio de sesión o contenido, según la sesión (devuelve si hay sesión)
