@@ -3258,14 +3258,20 @@ button.em-canal-ficha-texto { cursor: pointer; }
 .di-cu-pags { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .di-cu-pags[hidden] { display: none; }
 .di-cu-pag-info { font-size: 0.85rem; font-weight: 700; color: #eaf2fc; min-width: 5.5em; text-align: center; }
-#di-cu-chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 190px)); gap: 14px; }
-#di-cu-chips .ej-chip { width: 100%; height: auto; aspect-ratio: 1 / 1; padding: 10px; gap: 6px; }
-#di-cu-chips .ej-chip-nombre { font-size: 1rem; -webkit-line-clamp: 3; }
-#di-cu-chips .ej-chip-fecha { font-size: 0.8rem; }
-#di-cu-chips .ej-chip-desc { font-size: 0.78rem; }
+#di-cu-chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+#di-cu-chips .ej-chip { width: 100%; height: auto; aspect-ratio: 1 / 1; padding: 8px; gap: 4px; }
+#di-cu-chips .ej-chip-nombre { font-size: 0.85rem; -webkit-line-clamp: 3; }
+#di-cu-chips .ej-chip-fecha { font-size: 0.72rem; }
+#di-cu-chips .ej-chip-desc { font-size: 0.68rem; }
 #di-cu-chips .emp-chip-con-img { padding: 0; }
-@media (max-width: 480px) {
-  #di-cu-chips { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 600px) {
+  #di-cu-chips { gap: 6px; }
+  #di-cu-chips .ej-chip { padding: 4px; gap: 2px; }
+  #di-cu-chips .ej-chip-nombre { font-size: 0.62rem; -webkit-line-clamp: 3; }
+  #di-cu-chips .ej-chip-fecha { font-size: 0.55rem; }
+  #di-cu-chips .ej-chip-desc { font-size: 0.55rem; }
+  #di-cu-chips .emp-chip-con-img .ej-chip-nombre { padding: 14px 3px 0; }
+  #di-cu-chips .emp-chip-con-img .ej-chip-fecha { padding: 0 3px 3px; }
 }
 
 /* ---------- Zona de una cuenta (Diario → Cuentas): imagen, 2 textos y un botón ---------- */

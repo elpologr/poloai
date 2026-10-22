@@ -4491,7 +4491,9 @@ let cuEditando = null; // cuenta abierta en la ventana (null = nueva)
 let cuImagenUrl = "";
 let cuImagenNueva = null; // { base64, vista } cuando se eligió una imagen que aún no se sube
 let cuSeleccion = new Set(); // Ids de proyectos marcados en la ventana
-const CU_POR_PAGINA = 5; // cuentas visibles a la vez
+const CU_POR_FILA = 5; // cuentas por fila (debe coincidir con las columnas de #di-cu-chips en styles.css)
+const CU_FILAS_POR_PAGINA = 30; // filas por página
+const CU_POR_PAGINA = CU_POR_FILA * CU_FILAS_POR_PAGINA; // cuentas visibles a la vez (150)
 let cuPagina = 0; // página actual (empieza en 0)
 const cuPags = diEl("di-cu-pags");
 const cuPagInfo = diEl("di-cu-pag-info");
