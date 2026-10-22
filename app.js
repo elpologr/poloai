@@ -8719,41 +8719,161 @@ function notasDeProyecto(d) {
   return (d && Array.isArray(d.notas) ? d.notas : []).filter((n) => n.nombre !== NESP_NOMBRE);
 }
 
+// ----- Orden y notarios de las notas del proyecto -----
+// Las notas y los notarios del proyecto comparten una sola numeración (1, 2, 3...). El orden se guarda en la hoja
+// (columna M «OrdenNotas» del proyecto); además queda una copia en este dispositivo por si el Apps Script publicado
+// es una versión vieja o no hay conexión (se vuelve a intentar al abrir las notas).
+var npRedibujarHook = null; // lo usa la zona de notarios para repintar estos recuadros cuando cambian
+const CLAVE_ORDEN_NP = "polo-ai-notas-proy-orden";
+const npBtnNotario = emEl("em-npag-notario");
+const npBtnMover = emEl("em-npag-mover");
+const npMoverAyuda = emEl("em-npag-mover-ayuda");
+let npMoviendo = false;
+const npZonaNotarios = (d) => "proy-" + d.id; // los notarios de cada proyecto viven en su propia zona
+function npOrdenLocal() {
+  try { return JSON.parse(localStorage.getItem(CLAVE_ORDEN_NP)) || {}; } catch (e) { return {}; }
+}
+function npGuardarOrdenLocal(id, ids, pendiente) {
+  try { const m = npOrdenLocal(); m[id] = { ids: ids, p: !!pendiente }; localStorage.setItem(CLAVE_ORDEN_NP, JSON.stringify(m)); } catch (e) {}
+}
+function npOrdenDe(d) {
+  const loc = npOrdenLocal()[d.id];
+  const srv = Array.isArray(d.ordenNotas) ? d.ordenNotas : String(d.ordenNotas || "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (loc && Array.isArray(loc.ids) && (loc.p || !srv.length)) return loc.ids; // hay un orden sin subir, o la hoja (Apps Script viejo) no lo guarda
+  return srv;
+}
+function npNotariosDe(d) {
+  return typeof NT !== "undefined" && NT && Array.isArray(NT.lista) ? NT.lista.filter((n) => n.zona === npZonaNotarios(d)) : [];
+}
+// Notas y notarios del proyecto, ya en su orden (lo que no tiene posición queda al final)
+function npElementos(d) {
+  const items = notasDeProyecto(d).map((n) => ({ tipo: "nota", id: String(n.id), n }))
+    .concat(npNotariosDe(d).map((n) => ({ tipo: "notario", id: String(n.id), n })));
+  const pos = {};
+  npOrdenDe(d).forEach((id, i) => { if (!(id in pos)) pos[id] = i + 1; });
+  return items
+    .map((it, i) => ({ it, i, k: pos[it.id] || Infinity }))
+    .sort((a, b) => (a.k === b.k ? a.i - b.i : a.k - b.k))
+    .map((x) => x.it);
+}
+async function npSubirOrden(d, ids) {
+  npGuardarOrdenLocal(d.id, ids, true);
+  await llamarNotas("empresa_notas_orden_guardar", { id: d.id, orden: ids });
+  d.ordenNotas = ids.join(",");
+  npGuardarOrdenLocal(d.id, ids, false);
+}
+function npPonerMover(activo) {
+  npMoviendo = !!activo;
+  npBtnMover.setAttribute("aria-pressed", String(npMoviendo));
+  npBtnMover.textContent = npMoviendo ? "✔ Terminar de mover" : "↕ Mover";
+  npMoverAyuda.hidden = !npMoviendo;
+  npChips.classList.toggle("np-moviendo", npMoviendo);
+  dibujarChipsNp();
+}
+function npPreguntarPosicion(d, item) {
+  const lista = npElementos(d);
+  const desde = lista.findIndex((x) => x.id === item.id);
+  if (desde === -1) return;
+  if (lista.length < 2) { setEstado(npEstado, "Hace falta al menos otro recuadro para poder mover.", "error"); return; }
+  const nombre = item.n.nombre || "Sin nombre";
+  const r = window.prompt("«" + nombre + "» está en la posición " + (desde + 1) + " de " + lista.length + ".\n¿A qué posición lo quieres mover? (1 a " + lista.length + ")", String(desde + 1));
+  if (r === null) return;
+  const n = parseInt(String(r).trim(), 10);
+  if (!(n >= 1 && n <= lista.length)) { setEstado(npEstado, "Escribe un número del 1 al " + lista.length + ".", "error"); return; }
+  npMoverA(d, item, n - 1);
+}
+async function npMoverA(d, item, destino) {
+  const lista = npElementos(d);
+  const desde = lista.findIndex((x) => x.id === item.id);
+  if (desde === -1 || desde === destino) return;
+  const nueva = lista.slice();
+  nueva.splice(desde, 1);
+  nueva.splice(destino, 0, item);
+  const ids = nueva.map((x) => x.id);
+  npGuardarOrdenLocal(d.id, ids, true); // se ve el cambio al instante
+  dibujarChipsNp();
+  setEstado(npEstado, "Guardando orden…");
+  try {
+    await npSubirOrden(d, ids);
+    setEstado(npEstado, "Orden guardado ✓", "ok");
+  } catch (err) {
+    setEstado(npEstado, "El orden quedó guardado solo en este dispositivo (" + err.message + "). Se volverá a intentar al abrir las notas.", "error");
+  }
+  dibujarChipsNp();
+}
+npBtnMover.addEventListener("click", () => npPonerMover(!npMoviendo));
+npBtnNotario.addEventListener("click", () => {
+  const d = emDetActual;
+  if (!d) return;
+  if (!sesionVigente()) { setEstado(npEstado, "Inicia sesión para crear un notario.", "error"); return; }
+  ntAbrirNuevo(npZonaNotarios(d));
+});
+// Los notarios se leen la primera vez; un orden que no se pudo subir se reintenta
+function npAsegurarDatos(d) {
+  if (typeof NT !== "undefined" && NT && !NT.cargados && !NT.cargando && sesionVigente()) ntCargar();
+  const loc = npOrdenLocal()[d.id];
+  if (loc && loc.p && sesionVigente()) npSubirOrden(d, loc.ids).catch(() => {});
+}
+npRedibujarHook = () => { if (!npPag.hidden) dibujarChipsNp(); };
+
 function dibujarChipsNp() {
   const d = emDetActual;
   npChips.innerHTML = "";
   if (!d || npPag.hidden) return;
   npProyecto.textContent = d.nombre || "";
-  notasDeProyecto(d).forEach((n) => {
+  npChips.classList.toggle("np-moviendo", npMoviendo);
+  npElementos(d).forEach((item, idx) => {
+    const n = item.n;
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "ej-chip ej-chip-resumen";
     const titulo = n.nombre || "Sin nombre";
-    b.title = titulo + (n.fecha ? " (creada el " + n.fecha + ")" : "");
-    b.setAttribute("aria-label", "Ver o editar la nota " + titulo);
     const nom = document.createElement("span");
     nom.className = "ej-chip-nombre";
-    nom.textContent = "📝 " + titulo;
     const desc = document.createElement("span");
     desc.className = "ej-chip-desc";
-    desc.textContent = resumenCorto(npResumen(n), 70);
-    if (n.fecha) {
-      const f = document.createElement("span");
-      f.className = "ej-chip-fecha";
-      f.textContent = String(n.fecha).split(" ")[0]; // solo el día (dd/mm/aaaa)
-      b.append(nom, f, desc);
-    } else {
-      b.append(nom, desc);
-    }
-    if (n.etiqueta && NP_ETIQ_TEXTO[n.etiqueta]) {
+    if (item.tipo === "notario") {
+      b.className = "ej-chip ej-chip-resumen np-notario";
+      b.title = "Notario: " + titulo;
+      b.setAttribute("aria-label", (npMoviendo ? "Mover el notario " : "Abrir el notario ") + titulo + " (posición " + (idx + 1) + ")");
+      nom.textContent = "📒 " + titulo;
+      desc.textContent = n.descripcion ? resumenCorto(n.descripcion, 70) : "Sin descripción";
+      const k = Array.isArray(n.notas) ? n.notas.length : 0;
       const tag = document.createElement("span");
       tag.className = "zona-cuadrito-tag";
-      tag.textContent = NP_ETIQ_TEXTO[n.etiqueta];
-      b.appendChild(tag);
+      tag.textContent = k + (k === 1 ? " nota dentro" : " notas dentro");
+      b.append(nom, desc, tag);
+      b.addEventListener("click", () => (npMoviendo ? npPreguntarPosicion(d, item) : ntAbrir(n)));
+    } else {
+      b.className = "ej-chip ej-chip-resumen";
+      b.title = titulo + (n.fecha ? " (creada el " + n.fecha + ")" : "");
+      b.setAttribute("aria-label", (npMoviendo ? "Mover la nota " : "Ver o editar la nota ") + titulo + " (posición " + (idx + 1) + ")");
+      nom.textContent = "📝 " + titulo;
+      desc.textContent = resumenCorto(npResumen(n), 70);
+      if (n.fecha) {
+        const f = document.createElement("span");
+        f.className = "ej-chip-fecha";
+        f.textContent = String(n.fecha).split(" ")[0]; // solo el día (dd/mm/aaaa)
+        b.append(nom, f, desc);
+      } else {
+        b.append(nom, desc);
+      }
+      if (n.etiqueta && NP_ETIQ_TEXTO[n.etiqueta]) {
+        const tag = document.createElement("span");
+        tag.className = "zona-cuadrito-tag";
+        tag.textContent = NP_ETIQ_TEXTO[n.etiqueta];
+        b.appendChild(tag);
+      }
+      b.addEventListener("click", () => (npMoviendo ? npPreguntarPosicion(d, item) : abrirFormNp(n)));
     }
-    b.addEventListener("click", () => abrirFormNp(n));
+    // Número de posición (esquina inferior izquierda): las notas y notarios con número menor van primero
+    const num = document.createElement("span");
+    num.className = "np-num";
+    num.setAttribute("aria-hidden", "true");
+    num.textContent = String(idx + 1);
+    b.appendChild(num);
     npChips.appendChild(b);
   });
+  if (npMoviendo) return; // al mover no se muestra «Añadir»
   const nuevo = document.createElement("button");
   nuevo.type = "button";
   nuevo.className = "ej-chip ej-chip-nuevo";
@@ -8768,6 +8888,8 @@ function abrirNotasProy() {
   setEstado(npEstado, "");
   npPag.hidden = false;
   npPag.scrollTop = 0;
+  npPonerMover(false);
+  npAsegurarDatos(emDetActual);
   dibujarChipsNp();
   emEl("em-npag-volver").focus();
 }
@@ -11915,6 +12037,7 @@ function ntDibujarTodo() {
   });
   const n = ntPorId(NT.abierto);
   if (n && !ntModal.hidden && NT.editandoNota === null) ntDibujarNotas();
+  if (typeof npRedibujarHook === "function") npRedibujarHook(); // y los recuadros de «Notas del proyecto»
 }
 
 async function ntCargar() {

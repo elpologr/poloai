@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=82" />
+  <link rel="stylesheet" href="styles.css?v=83" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1243,6 +1243,12 @@
           <small id="em-npag-proyecto" class="em-npag-proyecto"></small>
         </div>
         <div class="em-npag-cuerpo">
+          <!-- Notarios (varias notas dentro) y botón «Mover»: cada recuadro lleva su número de posición abajo a la izquierda -->
+          <div class="em-npag-herr">
+            <button id="em-npag-notario" class="notas-btn" type="button">&#128210; + Notario</button>
+            <button id="em-npag-mover" class="notas-btn em-mover-btn" type="button" aria-pressed="false">&#8597; Mover</button>
+            <p id="em-npag-mover-ayuda" class="em-mover-ayuda" hidden>Toca una nota o un notario y escribe el n&uacute;mero de la posici&oacute;n a la que quieres moverlo.</p>
+          </div>
           <p id="em-npag-estado" class="notas-estado proy-estado-lista"></p>
           <div id="em-npag-chips" class="ej-chips"></div>
         </div>
@@ -1461,7 +1467,7 @@
   </main>
 
   <script src="config.js?v=64"></script>
-  <script src="app.js?v=87"></script>
+  <script src="app.js?v=88"></script>
   <script src="voz.js?v=64"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>
