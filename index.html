@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="60" />
+  <meta name="app-version" content="62" />
   <meta name="theme-color" content="#4a2685" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=79" />
+  <link rel="stylesheet" href="styles.css?v=80" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1252,11 +1252,23 @@
         </label>
         <p id="em-npag-creada" class="notas-estado" hidden></p>
         <label class="notas-campo">
-          <span>Nota</span>
+          <span>Etiqueta</span>
+          <select id="em-npag-etiqueta">
+            <option value="">Sin etiqueta (nota normal)</option>
+            <option value="Actividades">🎯 Actividad</option>
+            <option value="Trabajo">💼 Trabajo</option>
+          </select>
+        </label>
+        <!-- Anotaciones ya hechas en esta nota, cada una con su fecha y separadas por una línea delgada -->
+        <div id="em-npag-hist" class="em-npag-hist" hidden></div>
+        <label class="notas-campo">
+          <span id="em-npag-texto-etq">Nota</span>
           <textarea id="em-npag-texto" rows="6" maxlength="1000000" placeholder="Escribe tu nota del proyecto…"></textarea>
         </label>
+        <p class="em-npag-ayuda"><button id="em-npag-editar-todo" class="em-npag-enlace" type="button" hidden>✏ Editar todo el texto (corregir anotaciones anteriores)</button></p>
         <div class="notas-fila">
           <button id="em-npag-guardar" class="notas-btn" type="button">Guardar</button>
+          <button id="em-npag-finalizar" class="notas-btn hoy-btn-fin" type="button" hidden>✔ Marcar como finalizada</button>
           <button id="em-npag-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
           <button id="em-npag-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
           <span id="em-npag-form-estado" class="notas-estado"></span>
@@ -1392,23 +1404,59 @@
   </div>
     </section>
 
-    <!-- ACTIVIDADES -->
-    <section id="actividades" class="seccion" hidden>
-      <h2>Actividades</h2>
-      <!-- Zona con el formulario de notas y la etiqueta «Actividades» (la arma app.js; usa la hoja «Notas») -->
-      <div id="zona-actividades" class="zona-etiqueta"></div>
+    <!-- ACTIVIDADES (página, como Deudas y Bazar: recuadros + «Añadir»; la zona la arma app.js con la hoja «Notas» y las notas de proyectos con esta etiqueta) -->
+    <section id="actividades" class="seccion seccion-pagina" hidden>
+  <div id="panel-actividades" class="panel-notas panel-pagina">
+    <div class="notas-caja ejercicio-caja deudas-caja" role="region" aria-labelledby="actividades-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#127919;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#128221;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+      </div>
+      <header class="notas-cabecera">
+        <h2 id="actividades-titulo">Actividades</h2>
+        <div class="notas-cab-botones">
+          <button id="actividades-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer de Google Sheets" aria-label="Actualizar Actividades">&#8635;</button>
+        </div>
+      </header>
+      <div class="notas-cuerpo">
+        <div id="zona-actividades" class="zona-etiqueta"></div>
+      </div>
+    </div>
+  </div>
     </section>
 
-    <!-- TRABAJO -->
-    <section id="trabajo" class="seccion" hidden>
-      <h2>Trabajo</h2>
-      <!-- Zona con el formulario de notas y la etiqueta «Trabajo» (la arma app.js; usa la hoja «Notas») -->
-      <div id="zona-trabajo" class="zona-etiqueta"></div>
+    <!-- TRABAJO (página, como Deudas y Bazar: recuadros + «Añadir»; la zona la arma app.js con la hoja «Notas» y las notas de proyectos con esta etiqueta) -->
+    <section id="trabajo" class="seccion seccion-pagina" hidden>
+  <div id="panel-trabajo" class="panel-notas panel-pagina">
+    <div class="notas-caja ejercicio-caja deudas-caja" role="region" aria-labelledby="trabajo-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#128188;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#128221;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+      </div>
+      <header class="notas-cabecera">
+        <h2 id="trabajo-titulo">Trabajo</h2>
+        <div class="notas-cab-botones">
+          <button id="trabajo-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer de Google Sheets" aria-label="Actualizar Trabajo">&#8635;</button>
+        </div>
+      </header>
+      <div class="notas-cuerpo">
+        <div id="zona-trabajo" class="zona-etiqueta"></div>
+      </div>
+    </div>
+  </div>
     </section>
   </main>
 
   <script src="config.js?v=64"></script>
-  <script src="app.js?v=84"></script>
+  <script src="app.js?v=85"></script>
   <script src="voz.js?v=64"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

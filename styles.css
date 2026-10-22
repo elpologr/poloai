@@ -1,5 +1,5 @@
 :root {
-  --app-version: "60"; /* debe coincidir con VERSION en app.js */
+  --app-version: "62"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -3095,3 +3095,28 @@ button.em-canal-ficha-texto { cursor: pointer; }
 @media (max-width: 480px) {
   .em-npag-cab, .em-npag-cuerpo { margin-left: 14px; margin-right: 14px; }
 }
+
+/* Anotaciones con fecha dentro de una misma nota: una línea delgada las separa */
+.em-npag-hist { max-height: 38vh; overflow-y: auto; margin: 0 0 12px; padding: 4px 12px; border: 1px solid var(--nb-borde); border-radius: 10px; background: rgba(255, 255, 255, 0.7); }
+.em-npag-hist[hidden] { display: none; }
+.em-npag-parte { padding: 8px 0; }
+.em-npag-parte + .em-npag-parte { border-top: 1px solid var(--nb-borde); }
+.em-npag-parte-fecha { display: block; margin-bottom: 3px; font-size: 0.72rem; font-weight: 700; color: var(--nb-acento); }
+.em-npag-parte-texto { margin: 0; font-size: 0.92rem; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--nb-texto); }
+.em-npag-ayuda { margin: -4px 0 12px; }
+.em-npag-ayuda:has(button[hidden]) { display: none; }
+.em-npag-enlace { padding: 0; font: inherit; font-size: 0.82rem; font-weight: 600; color: var(--nb-acento-oscuro); background: none; border: 0; text-decoration: underline; cursor: pointer; }
+
+/* ---------- Actividades y Trabajo como página (igual que Deudas y Bazar) ---------- */
+.zona-etiqueta.zona-pagina { padding: 0; background: none; border: 0; border-radius: 0; }
+.zona-pagina .notas-barra { margin: 0; min-height: 0; }
+.zona-pagina .zona-nueva-btn, .zona-pagina .zona-actualizar { display: none; } /* el ↻ va en la cabecera y «Añadir» es el último recuadro */
+.zona-pagina .zona-lista { margin-top: 12px; }
+#zona-actividades .zona-lista .ej-chip-nuevo, #zona-trabajo .zona-lista .ej-chip-nuevo {
+  width: 100%; height: auto; aspect-ratio: 1 / 1; align-items: center; justify-content: center;
+}
+.zona-cuadrito-proy .zona-cuadrito-tag { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+
+/* Etiqueta en los recuadros de «Notas del proyecto» */
+.em-npag .ej-chip { position: relative; }
+.em-npag .zona-cuadrito-tag { margin-top: auto; font-size: 0.65rem; font-weight: 700; color: var(--nb-acento-oscuro); }

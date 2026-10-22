@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "60";
+const VERSION = "62";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -25,7 +25,7 @@ const VERSION = "60";
     "cuenta-nota", "cuenta-dispositivos", "disp-panel", "disp-estado", "disp-lista", "disp-todas",
     "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
-    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp", "em-canal", "em-notas-proy-abrir", "em-npag", "em-npag-chips", "em-npag-form",
+    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp", "em-canal", "em-notas-proy-abrir", "em-npag", "em-npag-chips", "em-npag-form", "em-npag-etiqueta", "em-npag-finalizar", "actividades-actualizar", "trabajo-actualizar",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
   ];
   const problemas = [];
@@ -100,6 +100,11 @@ function mostrarSeccion(id) {
   else cerrarHoy();
   // Tareas Obligatorias Diarias también es una página
   if (id === "seccion-tareas") entrarTareas();
+  // Actividades y Trabajo también muestran las notas de los proyectos que tengan su etiqueta
+  if (id === "actividades" || id === "trabajo") {
+    dibujarZonasEtiqueta();
+    asegurarEmpresasEnZonas();
+  }
   // Los Notarios se leen la primera vez que se ve una zona que los tiene
   if (typeof actualizarNotarios === "function") actualizarNotarios();
 }
@@ -2671,7 +2676,7 @@ const ZONAS_ETIQUETA = [
     guardar: "Guardar actividad", marcador: "Escribe una actividad nueva…",
     vacio: "Aún no hay actividades. ¡Crea la primera! ✨", borrar: "¿Eliminar esta actividad?",
     cuadritos: true, // las tarjetas se ven como cuadritos (igual que en Ejercicio, Diario, etc.)
-    calendario: true, // calendario propio: puntito en los días que tienen actividades; al tocar un día se ven solo esas
+    pagina: true, // se ve como Deudas y Bazar: recuadros con «Añadir» y ventana para escribir (sin calendario)
     finalizar: true, // cada tarjeta lleva el botón de finalizar (pasa al Diario y le agrega la fecha de término al recuerdo)
     elegirEtiqueta: true, // al crear se elige entre Nota, Actividad o Trabajo
   },
@@ -2684,8 +2689,7 @@ const ZONAS_ETIQUETA = [
     finalizar: true, // cada tarjeta lleva el botón «Marcar tarea como finalizada» (pasa al Diario)
     elegirEtiqueta: true, // al crear se elige entre Nota, Actividad o Trabajo
     cuadritos: true, // las tarjetas se ven como cuadritos (igual que en Ejercicio, Diario, etc.)
-    calendario: true, // calendario propio: puntito en los días que tienen trabajos
-    tambien: ["Pedidos de Yeso"], // etiquetas de otras zonas que también se reflejan en este calendario (en el día en que se creó la nota)
+    pagina: true, // se ve como Deudas y Bazar: recuadros con «Añadir» y ventana para escribir (sin calendario)
   },
   {
     // Vive dentro de la página de Bazar (debajo de una división; en: «seccion-bazar»). El botón «Pedidos de Yeso» de la barra lateral abre Bazar y baja hasta aquí
@@ -3390,26 +3394,87 @@ function crearZonaEtiqueta(cfg) {
     q(".zona-cal-todas").addEventListener("click", () => { z.calDia = null; z.dibujar(); });
   }
 
+  // Nota de un proyecto (Empresas/Proyectos) que lleva la etiqueta de esta zona: sale aquí también
+  function crearCuadritoProyecto(d, nota) {
+    const c = document.createElement("div");
+    c.className = "ej-chip ej-chip-resumen zona-cuadrito zona-cuadrito-proy";
+    c.title = (nota.nombre || "Sin nombre") + " — proyecto: " + (d.nombre || "");
+    const nombre = document.createElement("span");
+    nombre.className = "ej-chip-nombre";
+    nombre.textContent = nota.nombre || "Sin nombre";
+    c.appendChild(nombre);
+    if (nota.fecha) {
+      const f = document.createElement("span");
+      f.className = "ej-chip-fecha";
+      f.textContent = String(nota.fecha).split(" ")[0];
+      c.appendChild(f);
+    }
+    const desc = document.createElement("span");
+    desc.className = "ej-chip-desc";
+    desc.textContent = npResumen(nota);
+    c.appendChild(desc);
+    const tag = document.createElement("span");
+    tag.className = "zona-cuadrito-tag";
+    tag.textContent = "🏢 " + (d.nombre || "Proyecto");
+    c.appendChild(tag);
+    const fin = document.createElement("button");
+    fin.type = "button";
+    fin.className = "zona-cuadrito-fin";
+    fin.setAttribute("aria-label", "Marcar " + textoFin + " como finalizada");
+    fin.title = "Marcar " + textoFin + " como finalizada";
+    fin.textContent = "✔";
+    fin.addEventListener("click", (e) => {
+      e.stopPropagation();
+      finalizarNotaProyecto(d, nota, fin, z.estadoLista);
+    });
+    c.appendChild(fin);
+    c.tabIndex = 0;
+    c.setAttribute("role", "button");
+    c.setAttribute("aria-label", "Abrir " + (nota.nombre || "Sin nombre") + " en el proyecto " + (d.nombre || ""));
+    c.addEventListener("click", (e) => {
+      if (e.target.closest("button, input")) return;
+      irANotaProyecto(d, nota);
+    });
+    c.addEventListener("keydown", (e) => {
+      if (e.target === c && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        irANotaProyecto(d, nota);
+      }
+    });
+    return c;
+  }
+
   z.dibujar = function () {
     z.lista.classList.toggle("zona-lista-cuadritos", !!cfg.cuadritos);
     z.lista.innerHTML = "";
     dibujarCalZona();
     const ordenadas = notasOrdenadas();
     let lista = ordenadas.filter((n) => (n.etiqueta || "General") === cfg.etiqueta);
-    let extra = []; // notas de otras zonas que se reflejan aquí (Pedidos de Yeso en Trabajo), solo al elegir su día
+    let extra = []; // notas de otras zonas que se reflejan aquí (solo con calendario y «tambien»; ya no se usa)
     if (calCuad && z.calDia) {
       lista = lista.filter((n) => claveDeNota(n) === z.calDia);
       extra = ordenadas.filter((n) => (cfg.tambien || []).includes(n.etiqueta) && claveDeNota(n) === z.calDia);
     }
-    if (!lista.length && !extra.length) {
+    const deProyectos = cfg.pagina ? notasDeProyectosConEtiqueta(cfg.etiqueta) : [];
+    if (!lista.length && !extra.length && !deProyectos.length) {
       const p = document.createElement("p");
       p.className = "notas-vacio";
       p.textContent = calCuad && z.calDia ? "No hay nada en este día." : cfg.vacio;
       z.lista.appendChild(p);
-      return;
     }
     lista.forEach((n) => z.lista.appendChild(crearTarjeta(n)));
+    deProyectos.forEach((x) => z.lista.appendChild(crearCuadritoProyecto(x.d, x.n)));
     extra.forEach((n) => z.lista.appendChild(crearCuadrito(n, true)));
+    if (cfg.pagina) {
+      // Último recuadro «Añadir», igual que en Deudas y Bazar
+      const nuevo = document.createElement("button");
+      nuevo.type = "button";
+      nuevo.className = "ej-chip ej-chip-nuevo";
+      nuevo.setAttribute("aria-label", cfg.crear.replace(/^\+\s*/, ""));
+      nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
+      nuevo.addEventListener("click", () => mostrarForm(true));
+      z.lista.appendChild(nuevo);
+    }
   };
 
   // Aviso de inicio de sesión o contenido, según la sesión (devuelve si hay sesión)
@@ -3438,14 +3503,55 @@ function crearZonaEtiqueta(cfg) {
     if (e.key === "Escape") cancelarConAviso();
   });
   q(".zona-actualizar").addEventListener("click", () => {
-    if (sesionVigente()) cargarNotasZonas();
-    else z.actualizar();
+    if (sesionVigente()) {
+      cargarNotasZonas();
+      if (cfg.pagina) cargarEmpresas(); // las notas de proyectos con esta etiqueta también se vuelven a leer
+    } else z.actualizar();
   });
+  z.recargar = () => q(".zona-actualizar").click();
+  // Como Deudas y Bazar: la ventana para escribir flota sobre la caja de la página
+  if (cfg.pagina) {
+    cont.classList.add("zona-pagina");
+    z.form.classList.add("modo-editar");
+    const caja = cont.closest(".notas-caja");
+    if (caja) caja.appendChild(z.form);
+  }
   q(".zona-ir-login").addEventListener("click", abrirLateral);
   return z;
 }
 
 const zonas = ZONAS_ETIQUETA.map(crearZonaEtiqueta);
+
+// Notas de los proyectos (Empresas/Proyectos) que llevan una etiqueta: [{ d: proyecto, n: nota }]
+function notasDeProyectosConEtiqueta(etiqueta) {
+  let lista;
+  try { lista = empresas; } catch (e) { return []; } // la lista de proyectos aún no se crea
+  const r = [];
+  (Array.isArray(lista) ? lista : []).forEach((d) => {
+    (Array.isArray(d.notas) ? d.notas : []).forEach((n) => {
+      if (n.etiqueta === etiqueta) r.push({ d, n });
+    });
+  });
+  return r;
+}
+// Si los proyectos aún no se leyeron, se leen para que sus notas con etiqueta salgan en Actividades y Trabajo
+let zonasLeyendoEmpresas = false;
+async function asegurarEmpresasEnZonas() {
+  if (!sesionVigente() || zonasLeyendoEmpresas) return;
+  let ya = false;
+  try { ya = emCargadas; } catch (e) {}
+  if (ya) return;
+  zonasLeyendoEmpresas = true;
+  try { await cargarEmpresas(); } finally { zonasLeyendoEmpresas = false; }
+}
+// Tocar una nota de proyecto en Actividades/Trabajo: se abre en su proyecto, lista para modificarla
+function irANotaProyecto(d, nota) {
+  mostrarSeccion("seccion-empresas");
+  if (document.getElementById("seccion-empresas").hidden) return; // el usuario decidió no salir
+  abrirDetalleEm(d);
+  abrirNotasProy();
+  abrirFormNp(nota);
+}
 let cargandoZonas = false;
 
 // Lee las notas de la hoja (las mismas que usa el panel de Notas) y redibuja todo
@@ -8417,7 +8523,47 @@ const npTexto = emEl("em-npag-texto");
 const npGuardar = emEl("em-npag-guardar");
 const npBorrar = emEl("em-npag-borrar");
 const npFormEstado = emEl("em-npag-form-estado");
+const npEtiqueta = emEl("em-npag-etiqueta");
+const npFinalizar = emEl("em-npag-finalizar");
+const NP_ETIQ_TEXTO = { Actividades: "🎯 Actividad", Trabajo: "💼 Trabajo" };
 let npEditando = null; // nota abierta en la ventana (null = nota nueva)
+let npModoTodo = false; // true = se edita TODO el texto (anotaciones anteriores incluidas)
+const npHist = emEl("em-npag-hist");
+const npTextoEtq = emEl("em-npag-texto-etq");
+const npEditarTodo = emEl("em-npag-editar-todo");
+
+// Anotaciones con fecha dentro de una misma nota. Cada anotación se guarda en el texto así:
+//   — 22/10/2026 21:35 —
+//   lo que escribiste
+// y se separan con una línea en blanco. Las notas hechas antes (sin esas marcas) cuentan como UNA anotación
+// con la fecha de creación de la nota.
+const NP_MARCA = /^— (\d{1,2}\/\d{1,2}\/\d{4} \d{1,2}:\d{2}) —[ \t]*$/;
+function npPartes(n) {
+  const partes = [];
+  let act = null;
+  String((n && n.texto) || "")
+    .split(/\r?\n/)
+    .forEach((l) => {
+      const m = NP_MARCA.exec(l);
+      if (m) {
+        act = { fecha: m[1], lineas: [] };
+        partes.push(act);
+      } else {
+        if (!act) {
+          act = { fecha: (n && n.fecha) || "", lineas: [] };
+          partes.push(act);
+        }
+        act.lineas.push(l);
+      }
+    });
+  return partes.map((p) => ({ fecha: p.fecha, texto: p.lineas.join("\n").trim() })).filter((p) => p.texto);
+}
+function npArmar(partes) {
+  return partes.map((p) => "— " + (p.fecha || selloFechaHora()) + " —\n" + p.texto).join("\n\n");
+}
+function npResumen(n) {
+  return npPartes(n).map((p) => p.texto).join(" · ");
+}
 
 function notasDeProyecto(d) {
   // La nota especial (redes) tiene su propio botón en la hoja de redes: aquí no sale
@@ -8441,7 +8587,7 @@ function dibujarChipsNp() {
     nom.textContent = "📝 " + titulo;
     const desc = document.createElement("span");
     desc.className = "ej-chip-desc";
-    desc.textContent = resumenCorto(n.texto, 70);
+    desc.textContent = resumenCorto(npResumen(n), 70);
     if (n.fecha) {
       const f = document.createElement("span");
       f.className = "ej-chip-fecha";
@@ -8449,6 +8595,12 @@ function dibujarChipsNp() {
       b.append(nom, f, desc);
     } else {
       b.append(nom, desc);
+    }
+    if (n.etiqueta && NP_ETIQ_TEXTO[n.etiqueta]) {
+      const tag = document.createElement("span");
+      tag.className = "zona-cuadrito-tag";
+      tag.textContent = NP_ETIQ_TEXTO[n.etiqueta];
+      b.appendChild(tag);
     }
     b.addEventListener("click", () => abrirFormNp(n));
     npChips.appendChild(b);
@@ -8475,38 +8627,100 @@ function cerrarNotasProy() {
   npEditando = null;
   npPag.hidden = true;
 }
+function npDibujarHist(partes) {
+  npHist.innerHTML = "";
+  partes.forEach((p) => {
+    const d = document.createElement("div");
+    d.className = "em-npag-parte";
+    const f = document.createElement("span");
+    f.className = "em-npag-parte-fecha";
+    f.textContent = p.fecha || "Sin fecha";
+    const t = document.createElement("p");
+    t.className = "em-npag-parte-texto";
+    t.textContent = p.texto;
+    d.append(f, t);
+    npHist.appendChild(d);
+  });
+}
+function npPonerModo(todo) {
+  npModoTodo = todo;
+  const n = npEditando;
+  if (!n) {
+    npHist.hidden = true;
+    npEditarTodo.hidden = true;
+    npTextoEtq.textContent = "Nota (se anota con la fecha y hora de ahora)";
+    return;
+  }
+  if (todo) {
+    npHist.hidden = true;
+    npEditarTodo.hidden = true;
+    npTextoEtq.textContent = "Texto completo (cada anotación empieza con su fecha entre — —)";
+    npTexto.value = npArmar(npPartes(n));
+  } else {
+    const partes = npPartes(n);
+    npDibujarHist(partes);
+    npHist.hidden = !partes.length;
+    npEditarTodo.hidden = false;
+    npTextoEtq.textContent = "Nueva anotación (se anota con la fecha y hora de ahora)";
+    npTexto.value = "";
+  }
+}
 function abrirFormNp(n) {
   npEditando = n;
   npFormTitulo.textContent = n ? "Editar nota" : "Nueva nota";
   npNombre.value = n ? n.nombre || "" : "";
-  npTexto.value = n ? n.texto || "" : "";
   // La fecha de creación se anota sola al guardar una nota nueva y no se cambia al editarla
   npCreada.hidden = !(n && n.fecha);
-  npCreada.textContent = n && n.fecha ? "Creada el " + n.fecha + (n.modificada ? " · Modificada: " + n.modificada : "") : "";
+  npCreada.textContent = n && n.fecha ? "Creada el " + n.fecha + (n.modificada ? " · Última anotación: " + n.modificada : "") : "";
   npBorrar.hidden = !n;
+  npEtiqueta.value = n && n.etiqueta ? n.etiqueta : "";
+  npFinalizar.hidden = !(n && n.etiqueta); // solo las notas con etiqueta de Actividad o Trabajo se pueden dar por finalizadas
+  npFinalizar.disabled = false;
   setEstado(npFormEstado, "");
+  npTexto.value = "";
+  npPonerModo(false);
   npForm.hidden = false;
-  npNombre.focus();
+  (n ? npTexto : npNombre).focus();
 }
+npEditarTodo.addEventListener("click", () => npPonerModo(true));
 function cerrarFormNp() {
   npForm.hidden = true;
   npEditando = null;
+  npModoTodo = false;
 }
 
 async function guardarNp() {
   const d = emDetActual;
   if (!d) return;
-  const texto = ntLimpiar(npTexto.value);
-  if (!texto) {
-    setEstado(npFormEstado, "Escribe algo primero", "error");
-    return;
-  }
   const editando = npEditando;
+  const escrito = ntLimpiar(npTexto.value);
+  const ahora = selloFechaHora();
   const nombre = npNombre.value.replace(/[|\r\n]+/g, " ").trim().slice(0, 80);
+  let texto;
+  if (!editando) {
+    if (!escrito) {
+      setEstado(npFormEstado, "Escribe algo primero", "error");
+      return;
+    }
+    texto = npArmar([{ fecha: ahora, texto: escrito }]); // primera anotación: lleva la fecha y hora de creación
+  } else if (npModoTodo) {
+    if (!escrito) {
+      setEstado(npFormEstado, "El texto no puede quedar vacío (para quitar la nota usa «Eliminar»)", "error");
+      return;
+    }
+    texto = escrito;
+  } else if (escrito) {
+    const partes = npPartes(editando);
+    partes.push({ fecha: ahora, texto: escrito }); // anotación nueva: con la fecha y hora de AHORA
+    texto = npArmar(partes);
+  } else {
+    texto = editando.texto; // sin anotación nueva: solo pudo cambiar el nombre
+  }
   // Nota nueva: va a Google Drive (hasta 1,000,000 de caracteres). Al editar se respeta dónde ya estaba guardada.
   const destino = editando ? (editando.destino === "drive" ? "drive" : "sheets") : "drive";
-  const fecha = editando ? editando.fecha || selloFechaHora() : selloFechaHora();
-  if (editando && editando.nombre === nombre && editando.texto === texto) {
+  const fecha = editando ? editando.fecha || ahora : ahora;
+  const etiqueta = npEtiqueta.value === "Actividades" || npEtiqueta.value === "Trabajo" ? npEtiqueta.value : "";
+  if (editando && editando.nombre === nombre && editando.texto === texto && (editando.etiqueta || "") === etiqueta) {
     cerrarFormNp();
     return;
   }
@@ -8514,8 +8728,9 @@ async function guardarNp() {
     id: editando ? editando.id : ntNuevoId(),
     nombre,
     fecha,
-    modificada: editando ? selloFechaHora() : "",
+    modificada: editando ? ahora : "",
     destino,
+    etiqueta,
     texto,
   };
   npGuardar.disabled = true;
@@ -8528,15 +8743,24 @@ async function guardarNp() {
       fecha: nota.fecha,
       modificada: nota.modificada,
       destino: nota.destino,
+      etiqueta: nota.etiqueta,
       texto: nota.texto,
     });
     nota.largo = typeof j.notaLargo === "number" ? j.notaLargo : 0;
     if (typeof j.largo === "number") d.notasLargo = j.largo;
+    // Un Apps Script sin actualizar guarda la nota pero no la etiqueta: se avisa y no se finge que quedó
+    const etiquetaNoGuardada = !!etiqueta && j.etiqueta !== etiqueta;
+    if (etiquetaNoGuardada) nota.etiqueta = editando ? editando.etiqueta || "" : "";
     const actuales = Array.isArray(d.notas) ? d.notas : [];
     d.notas = editando ? actuales.map((n) => (n.id === nota.id ? nota : n)) : actuales.concat([nota]);
     cerrarFormNp();
     dibujarNotasEm();
-    setEstado(npEstado, editando ? "Cambios guardados ✓" : "Nota agregada ✓", "ok");
+    dibujarZonasEtiqueta();
+    if (etiquetaNoGuardada) {
+      setEstado(npEstado, "La nota se guardó, pero la etiqueta NO: falta actualizar el Apps Script (google-apps-script.gs) y volver a implementarlo.", "error");
+    } else {
+      setEstado(npEstado, editando ? "Cambios guardados ✓" : "Nota agregada ✓", "ok");
+    }
   } catch (err) {
     setEstado(npFormEstado, "Error: " + err.message, "error");
   } finally {
@@ -8555,6 +8779,7 @@ async function borrarNp() {
     d.notas = (Array.isArray(d.notas) ? d.notas : []).filter((x) => x.id !== n.id);
     cerrarFormNp();
     dibujarNotasEm();
+    dibujarZonasEtiqueta();
     setEstado(npEstado, "Nota eliminada", "ok");
   } catch (err) {
     setEstado(npFormEstado, "Error: " + err.message, "error");
@@ -8563,8 +8788,51 @@ async function borrarNp() {
   }
 }
 
+// «Marcar como finalizada» (solo notas con etiqueta de Actividad o Trabajo): la nota se quita del proyecto y pasa al
+// Diario con la fecha de hoy como «Tarea finalizada». Primero se agrega al Diario y después se quita del proyecto;
+// si algo falla a medias se puede volver a intentar sin que quede repetida (el Diario no repite un mismo Id).
+async function finalizarNotaProyecto(d, n, boton, estadoEl) {
+  if (!d || !n || !n.etiqueta) return false; // sin etiqueta no hay finalizar
+  const nombre = (n.nombre || hyNombreDeTexto(npResumen(n), "Nota del proyecto")).slice(0, 80);
+  if (!window.confirm("¿Marcar «" + nombre + "» como finalizada? Se quitará del proyecto «" + (d.nombre || "") + "» y pasará al Diario con la fecha de hoy.")) return false;
+  const hoy = ipHoy();
+  const ahora = selloFechaHora();
+  const inicio = (/^\d{1,2}\/\d{1,2}\/\d{4}/.exec(String(n.fecha || "")) || [""])[0];
+  const descripcion =
+    "🏢 Proyecto: " + (d.nombre || "") + "\n\n" + String(n.texto || "").trim() + "\n\n" +
+    (inicio ? "📅 Iniciada el " + inicio + " · " : "") + "✅ Terminada el " + ipFechaCorta(hoy) + " a las " + (ahora.split(" ")[1] || "");
+  const copiaId = String(Number(n.id) + 1000000000);
+  if (boton) boton.disabled = true;
+  const decir = (t, tipo) => { if (estadoEl) setEstado(estadoEl, t, tipo); };
+  decir("Finalizando…");
+  try {
+    await llamarNotas("diario_agregar", { id: copiaId, nombre, fecha: hoy, descripcion, destino: "drive", terminado: "Tarea finalizada" });
+    await llamarNotas("empresa_nota_borrar", { id: d.id, notaId: n.id });
+    d.notas = (Array.isArray(d.notas) ? d.notas : []).filter((x) => x.id !== n.id);
+    registrarTerminadoEnDiario({ id: copiaId, nombre, fecha: hoy, descripcion, marca: "Tarea finalizada", destino: "drive", terminado: true });
+    if (!npForm.hidden) cerrarFormNp();
+    dibujarNotasEm();
+    dibujarZonasEtiqueta();
+    decir("Nota finalizada ✓ (ya está en el Diario)", "ok");
+    if (estadoEl !== npEstado) setEstado(npEstado, "Nota finalizada ✓ (ya está en el Diario)", "ok");
+    return true;
+  } catch (err) {
+    if (boton) boton.disabled = false;
+    decir("Error: " + err.message + " — puedes volver a intentarlo", "error");
+    return false;
+  }
+}
+npFinalizar.addEventListener("click", () => {
+  if (npEditando) finalizarNotaProyecto(emDetActual, npEditando, npFinalizar, npFormEstado);
+});
+
 emEl("em-notas-proy-abrir").addEventListener("click", abrirNotasProy);
 emEl("em-npag-volver").addEventListener("click", cerrarNotasProy);
+["actividades", "trabajo"].forEach((clave) => {
+  const b = document.getElementById(clave + "-actualizar");
+  const z = zonas.find((x) => x.cfg.seccion === clave);
+  if (b && z) b.addEventListener("click", () => z.recargar());
+});
 emEl("em-npag-cancelar").addEventListener("click", cerrarFormNp);
 npGuardar.addEventListener("click", guardarNp);
 npBorrar.addEventListener("click", borrarNp);
@@ -9709,6 +9977,7 @@ async function cargarEmpresas() {
     emCargadas = true;
     setEstado(emEstado, emBackendSinZona ? emAvisoZona() : "", emBackendSinZona ? "error" : "");
     dibujarChipsEm();
+    dibujarZonasEtiqueta(); // Actividades y Trabajo muestran las notas de proyectos con su etiqueta
     if (emDetActual) {
       const nueva = empresas.find((x) => x.id === emDetActual.id);
       if (nueva) {
