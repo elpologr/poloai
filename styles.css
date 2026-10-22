@@ -1,5 +1,5 @@
 :root {
-  --app-version: "62"; /* debe coincidir con VERSION en app.js */
+  --app-version: "63"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -1896,6 +1896,24 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   aspect-ratio: 1 / 1;
   overflow: hidden;
 }
+/* Botón «Mover Proyectos»: número de posición en la esquina superior izquierda de cada recuadro */
+.em-mover-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 10px; }
+.em-mover-btn[aria-pressed="true"] { background: #12308a; color: #fff; }
+.em-mover-ayuda { flex: 1 1 200px; margin: 0; font-size: 0.8rem; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.em-mover-ayuda[hidden] { display: none; }
+#em-chips .em-chip-num {
+  position: absolute; top: 5px; left: 5px; z-index: 3;
+  min-width: 24px; height: 24px; padding: 0 6px; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 800; line-height: 1;
+  color: #fff; background: #12308a; border: 2px solid #fff; border-radius: 999px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55); pointer-events: none;
+}
+#em-chips.em-moviendo .ej-chip { outline: 2px dashed rgba(255, 255, 255, 0.85); outline-offset: -3px; cursor: pointer; }
+@media (max-width: 480px) {
+  #em-chips .em-chip-num { top: 3px; left: 3px; min-width: 20px; height: 20px; font-size: 0.7rem; }
+}
+
 /* Botón divisor de Empresas/Proyectos: Proyectos | Canales de Contenido | Aplicaciones */
 .em-zonas {
   display: flex; gap: 4px; padding: 4px; margin: 0 0 12px;

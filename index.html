@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="62" />
+  <meta name="app-version" content="63" />
   <meta name="theme-color" content="#4a2685" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=80" />
+  <link rel="stylesheet" href="styles.css?v=81" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1063,6 +1063,11 @@
           </div>
           <!-- Tercer divisor: Míos | Familiares (dentro de Personales) o Amigos | Clientes (dentro de Ajenos); lo arma app.js -->
           <div id="em-subgrupos" class="em-zonas em-grupos em-subgrupos" role="tablist" aria-label="Subtipo de proyecto" hidden></div>
+          <!-- Botón «Mover Proyectos»: muestra el número de posición en cada recuadro y deja cambiarlo (lo maneja app.js) -->
+          <div class="em-mover-barra">
+            <button id="em-mover" class="notas-btn em-mover-btn" type="button" aria-pressed="false">&#8597; Mover Proyectos</button>
+            <p id="em-mover-ayuda" class="em-mover-ayuda" hidden>Toca un recuadro y escribe el n&uacute;mero de la posici&oacute;n a la que quieres moverlo.</p>
+          </div>
           <p id="em-estado" class="notas-estado proy-estado-lista"></p>
           <div id="em-chips" class="ej-chips"></div>
         </div>
@@ -1456,7 +1461,7 @@
   </main>
 
   <script src="config.js?v=64"></script>
-  <script src="app.js?v=85"></script>
+  <script src="app.js?v=86"></script>
   <script src="voz.js?v=64"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

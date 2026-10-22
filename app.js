@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "62";
+const VERSION = "63";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -25,7 +25,7 @@ const VERSION = "62";
     "cuenta-nota", "cuenta-dispositivos", "disp-panel", "disp-estado", "disp-lista", "disp-todas",
     "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
-    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp", "em-canal", "em-notas-proy-abrir", "em-npag", "em-npag-chips", "em-npag-form", "em-npag-etiqueta", "em-npag-finalizar", "actividades-actualizar", "trabajo-actualizar",
+    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-mover", "em-mover-ayuda", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp", "em-canal", "em-notas-proy-abrir", "em-npag", "em-npag-chips", "em-npag-form", "em-npag-etiqueta", "em-npag-finalizar", "actividades-actualizar", "trabajo-actualizar",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
   ];
   const problemas = [];
@@ -5303,6 +5303,90 @@ const emFormEstado = emEl("em-form-estado");
 
 let empresas = []; // [{ id, nombre, fecha, link, imagen, descripcion, links, zona, notas: [{ id, fecha, texto }] }]
 
+// ----- Mover proyectos: botón «Mover Proyectos» (cada recuadro muestra su número de posición: 1, 2, 3...) -----
+// El orden se guarda en la hoja (columna L «Orden»); además queda una copia en este dispositivo por si el Apps Script
+// publicado es una versión vieja o no hay conexión (se vuelve a intentar al actualizar).
+const CLAVE_ORDEN_LOCAL_EM = "polo-ai-empresas-orden-local";
+const emBtnMover = emEl("em-mover");
+const emMoverAyuda = emEl("em-mover-ayuda");
+let emMoviendo = false;
+function emOrdenLocal() {
+  try { const o = JSON.parse(localStorage.getItem(CLAVE_ORDEN_LOCAL_EM)); return o && Array.isArray(o.ids) ? o : null; } catch (e) { return null; }
+}
+function emGuardarOrdenLocal(ids, pendiente) {
+  try { localStorage.setItem(CLAVE_ORDEN_LOCAL_EM, JSON.stringify({ ids: ids, p: !!pendiente })); } catch (e) {}
+}
+// Ordena «empresas» (la lista completa) por su posición; lo que no tiene posición queda al final, en el orden de la hoja
+function emAplicarOrden() {
+  const loc = emOrdenLocal();
+  const hojaTiene = empresas.some((e) => typeof e.orden === "number" && e.orden > 0);
+  let clave;
+  if (loc && (loc.p || !hojaTiene)) { // hay un orden sin subir, o la hoja (Apps Script viejo) no guarda el orden
+    const pos = {};
+    loc.ids.forEach((id, i) => { if (!(id in pos)) pos[id] = i + 1; });
+    clave = (e) => pos[e.id] || 0;
+  } else {
+    clave = (e) => (typeof e.orden === "number" && e.orden > 0 ? e.orden : 0);
+  }
+  empresas = empresas
+    .map((e, i) => ({ e, i, k: clave(e) || Infinity }))
+    .sort((a, b) => (a.k === b.k ? a.i - b.i : a.k - b.k))
+    .map((x) => x.e);
+}
+async function emSubirOrden() {
+  const ids = empresas.map((d) => d.id);
+  emGuardarOrdenLocal(ids, true);
+  await llamarNotas("empresa_orden_guardar", { orden: ids });
+  emGuardarOrdenLocal(ids, false);
+}
+function emPonerMover(activo) {
+  emMoviendo = !!activo;
+  emBtnMover.setAttribute("aria-pressed", String(emMoviendo));
+  emBtnMover.textContent = emMoviendo ? "✔ Terminar de mover" : "↕ Mover Proyectos";
+  emMoverAyuda.hidden = !emMoviendo;
+  emChips.classList.toggle("em-moviendo", emMoviendo);
+  dibujarChipsEm();
+}
+// Los recuadros que se ven ahora (zona, tipo y subtipo elegidos), en su orden
+function emListaVisible() {
+  const enProyectos = emZonaActiva === ZONAS_EM[0].nombre;
+  return empresas.filter((d) => emZonaDe(d) === emZonaActiva && (!enProyectos || (emGrupoDe(d) === emGrupoActivo && emSubgrupoDe(d) === emSubgruposActivos[emGrupoActivo])));
+}
+function emPreguntarPosicion(d, total) {
+  const desde = emListaVisible().indexOf(d);
+  if (desde === -1) return;
+  if (total < 2) { setEstado(emEstado, "Hace falta al menos otro recuadro para poder mover.", "error"); return; }
+  const r = window.prompt("«" + d.nombre + "» está en la posición " + (desde + 1) + " de " + total + ".\n¿A qué posición lo quieres mover? (1 a " + total + ")", String(desde + 1));
+  if (r === null) return;
+  const n = parseInt(String(r).trim(), 10);
+  if (!(n >= 1 && n <= total)) { setEstado(emEstado, "Escribe un número del 1 al " + total + ".", "error"); return; }
+  emMoverA(d, n - 1);
+}
+async function emMoverA(d, destino) {
+  const vis = emListaVisible();
+  const desde = vis.indexOf(d);
+  if (desde === -1 || desde === destino) return;
+  const nuevaVis = vis.slice();
+  nuevaVis.splice(desde, 1);
+  nuevaVis.splice(destino, 0, d);
+  // Los lugares que ocupaban estos recuadros dentro de la lista completa se reparten en el nuevo orden
+  // (así los de otras zonas, tipos y subtipos no cambian de lugar entre ellos)
+  const enVis = new Set(vis);
+  const todas = empresas.slice();
+  let k = 0;
+  empresas.forEach((e, i) => { if (enVis.has(e)) todas[i] = nuevaVis[k++]; });
+  empresas = todas;
+  dibujarChipsEm();
+  setEstado(emEstado, "Guardando orden…");
+  try {
+    await emSubirOrden();
+    setEstado(emEstado, "Orden guardado ✓", "ok");
+  } catch (err) {
+    setEstado(emEstado, "El orden quedó guardado solo en este dispositivo (" + err.message + "). Se volverá a intentar al actualizar.", "error");
+  }
+}
+emBtnMover.addEventListener("click", () => emPonerMover(!emMoviendo));
+
 // Zonas dentro de Empresas/Proyectos (columna I «Zona» de la hoja). Lo que no tenga zona cuenta como «Proyectos».
 const ZONAS_EM = [
   { nombre: "Proyectos", icono: "📁", uno: "proyecto", nuevo: "Nuevo proyecto", editar: "Editar proyecto" },
@@ -9765,13 +9849,14 @@ function dibujarChipsEm() {
   // El tercer divisor (Míos/Familiares o Amigos/Clientes) también solo existe dentro de «Proyectos»
   emSubgruposCaja.hidden = !enProyectos;
   if (enProyectos) emDibujarSubgrupos();
-  empresas.filter((d) => emZonaDe(d) === emZonaActiva && (!enProyectos || (emGrupoDe(d) === emGrupoActivo && emSubgrupoDe(d) === emSubgruposActivos[emGrupoActivo]))).forEach((d) => {
+  const visibles = emListaVisible();
+  visibles.forEach((d, idx) => {
     const b = document.createElement("button");
     b.type = "button";
     const conImg = imagenValida(d.imagen);
     b.className = "ej-chip ej-chip-resumen" + (conImg ? " emp-chip-con-img" : "");
     b.title = d.nombre + (d.fecha ? " (" + ipFechaCorta(d.fecha) + ")" : "");
-    b.setAttribute("aria-label", "Abrir " + d.nombre);
+    b.setAttribute("aria-label", emMoviendo ? "Mover " + d.nombre + " (posición " + (idx + 1) + ")" : "Abrir " + d.nombre);
     if (conImg) {
       const img = document.createElement("img");
       img.className = "emp-chip-img";
@@ -9793,9 +9878,18 @@ function dibujarChipsEm() {
     t.textContent = resumenCorto(d.descripcion, 70);
     if (conImg) b.append(n, f); // con imagen: la foto ocupa el cuadro y no se muestra la vista previa del texto
     else b.append(n, f, t);
-    b.addEventListener("click", () => abrirDetalleEm(d));
+    if (emMoviendo) { // modo mover: número de posición en la esquina superior izquierda; tocar el recuadro pide la posición nueva
+      const num = document.createElement("span");
+      num.className = "em-chip-num";
+      num.textContent = String(idx + 1);
+      b.appendChild(num);
+      b.addEventListener("click", () => emPreguntarPosicion(d, visibles.length));
+    } else {
+      b.addEventListener("click", () => abrirDetalleEm(d));
+    }
     emChips.appendChild(b);
   });
+  if (emMoviendo) return; // al mover no se muestra «Añadir»
   const nuevo = document.createElement("button");
   nuevo.type = "button";
   nuevo.className = "ej-chip ej-chip-nuevo";
@@ -9941,6 +10035,9 @@ async function cargarEmpresas() {
     empresas = Array.isArray(j.empresas) ? j.empresas : [];
     // La versión nueva del Apps Script devuelve «zona» en todos; si no la devuelve, se usa la copia de este dispositivo
     emVersionScript = typeof j.version === "string" ? j.version : "";
+    emAplicarOrden(); // posición elegida con «Mover Proyectos»
+    const ordenPend = emOrdenLocal();
+    if (ordenPend && ordenPend.p) emSubirOrden().catch(() => {}); // un orden que no se pudo subir se reintenta
     // Una hoja con el Apps Script nuevo devuelve «zona» y «grupo» en todos. Además se comprueba cada cambio hecho aquí:
     // si la hoja devuelve otra zona que la que se guardó, se avisa y se respeta lo elegido en este dispositivo.
     emBackendSinZona = empresas.length > 0 && !empresas.some((e) => typeof e.zona === "string" && typeof e.grupo === "string");
@@ -10017,6 +10114,7 @@ function entrarEmpresas() {
   cerrarFormEm();
   cerrarDetalleEm();
   panelEm.hidden = false;
+  if (emMoviendo) emPonerMover(false);
   dibujarChipsEm();
   actualizarPanelEmpresas();
 }
@@ -10024,6 +10122,7 @@ function entrarEmpresas() {
 function cerrarEmpresas() {
   cerrarFormEm();
   cerrarDetalleEm();
+  if (emMoviendo) emPonerMover(false);
 }
 
 emEl("em-cerrar").addEventListener("click", cerrarEmpresas);
