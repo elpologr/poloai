@@ -2059,6 +2059,26 @@ function hrefSeguro(s) {
   if (!/^[a-z][a-z0-9+.-]*:/i.test(s) && /^[^\s\/]+\.[^\s\/]{2,}(\/\S*)?$/.test(s)) return "https://" + s;
   return "";
 }
+// Busca los links dentro de una línea (con o sin «https://»); lo que no es un link se ignora
+const EM_EXT_ARCHIVO = /\.(txt|pdf|docx?|xlsx?|pptx?|png|jpe?g|gif|webp|mp[34]|zip|rar|csv|json|js|css)$/i;
+function emLinksDeLinea(linea) {
+  const lista = [];
+  String(linea || "").split(/\s+/).forEach((tok) => {
+    const t = tok.replace(/^[(\[{<"'\u201C\u2018]+/, "").replace(/[.,;:!?)\]}>"'\u201D\u2019\u2026]+$/, "");
+    if (!t || t.charAt(0) === "#") return;
+    let href = "";
+    if (/^https?:\/\/\S+$/i.test(t)) {
+      href = t;
+    } else if (
+      /^(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:[\/?#]\S*)?$/i.test(t) &&
+      !EM_EXT_ARCHIVO.test(t.split(/[\/?#]/)[0])
+    ) {
+      href = "https://" + t;
+    }
+    if (href && !lista.includes(href)) lista.push(href);
+  });
+  return lista;
+}
 function dibujarLinksProyecto() {
   proyLinksVista.innerHTML = "";
   enlacesDeTexto(proyLinks.value).forEach((l) => {
@@ -4879,8 +4899,9 @@ function cuRedesDeProyecto(d) {
   const vistos = new Set();
   const lista = [];
   [d.link].concat(enlacesDeTexto(d.links)).forEach((l) => {
-    const href = hrefSeguro(String(l || "").trim());
-    if (href && !vistos.has(href)) { vistos.add(href); lista.push(href); }
+    emLinksDeLinea(l).forEach((href) => {
+      if (!vistos.has(href)) { vistos.add(href); lista.push(href); }
+    });
   });
   return lista.map((href) => {
     const red = emRedDeLink(href);
@@ -6302,22 +6323,20 @@ function dibujarDetalleEm() {
   const desc = String(d.descripcion || "").trim();
   emDetDesc.textContent = desc || "Sin descripción todavía. Puedes añadirla desde los ajustes (⚙).";
   emDetDesc.classList.toggle("vacia", !desc);
-  // Botones de enlaces: el link principal y los de la zona de links, sin repetir
+  // Botones de enlaces: se detectan los links del principal y de la zona de links (aunque la línea tenga más texto), sin repetir
   const lista = [];
   [d.link].concat(enlacesDeTexto(d.links)).forEach((l) => {
-    const t = String(l || "").trim();
-    if (t && !lista.includes(t)) lista.push(t);
+    emLinksDeLinea(l).forEach((h) => { if (!lista.includes(h)) lista.push(h); });
   });
   emDetLinks.innerHTML = "";
-  lista.forEach((l) => {
-    const href = hrefSeguro(l);
-    const red = href ? emRedDeLink(href) : { id: "enlace", nombre: "Texto", glifo: "✎", corto: l.length > 38 ? l.slice(0, 37) + "…" : l };
+  lista.forEach((href) => {
+    const red = emRedDeLink(href);
     // Cada recuadro es un botón: al presionarlo se abre el submenú de esa red (el enlace se abre desde ahí)
     const el = document.createElement("button");
     el.type = "button";
-    el.className = "em-red" + (href ? "" : " em-red-texto");
+    el.className = "em-red";
     el.dataset.red = red.id;
-    el.title = href || l;
+    el.title = href;
     el.setAttribute("aria-label", "Abrir el submenú de " + red.nombre);
     el.setAttribute("aria-haspopup", "dialog");
     const txt = document.createElement("span");
@@ -6328,7 +6347,7 @@ function dibujarDetalleEm() {
     sm.textContent = red.corto;
     txt.append(b, sm);
     el.append(emIconoRed(red.id, red.glifo), txt);
-    el.addEventListener("click", () => abrirSubRed(red, href, l, el));
+    el.addEventListener("click", () => abrirSubRed(red, href, href, el));
     emDetLinks.appendChild(el);
   });
   emDetLinksZona.hidden = lista.length === 0;
@@ -9497,12 +9516,11 @@ function nvDibujar() {
       b.setAttribute("aria-label", "Ver o editar esta nota del notario " + nt.nombre);
       b.addEventListener("click", () => {
         ntAbrir(nt); // abre el notario y deja esta nota lista para modificarla
-        NT.editandoNota = nota.id;
-        ntDibujarNotas();
+        ntAbrirEditor(nt, nota);
       });
       g.appendChild(b);
     });
-    g.appendChild(nvCrearAnadir("Añadir una nota al notario " + nt.nombre, () => ntAbrir(nt)));
+    g.appendChild(nvCrearAnadir("Añadir una nota al notario " + nt.nombre, () => { ntAbrir(nt); ntAbrirEditor(nt, null); }));
     s.appendChild(g);
     nvSecciones.appendChild(s);
   });
@@ -10350,7 +10368,7 @@ function canalPintarTabs() {
 function canalEnlaceRed() {
   const d = canalProyecto;
   if (!d) return "";
-  return nespEnlacesDe(d).map(hrefSeguro).filter(Boolean).find((h) => emRedDeLink(h).id === canalRed) || "";
+  return nespEnlacesDe(d).reduce((t, l) => t.concat(emLinksDeLinea(l)), []).find((h) => emRedDeLink(h).id === canalRed) || "";
 }
 
 // Botón «Ver canal» / «Ver perfil»: lleva al perfil de la red elegida (si el proyecto tiene ese enlace)
@@ -12254,7 +12272,7 @@ const NT_CRITICO = 980000; // desde aquí: «casi lleno» (98 %)
 const NT_SEPARADOR = "\n~~~✂~~~\n";
 const NT_MARCA = "~~~✂~~~";
 
-var NT = { lista: [], cargados: false, cargando: false, montajes: [], abierto: null, zonaNueva: null, editandoNota: null };
+var NT = { lista: [], cargados: false, cargando: false, montajes: [], abierto: null, zonaNueva: null, editor: null };
 
 const ntFmt = (n) => Number(n).toLocaleString("es-MX");
 const ntLimpiar = (t) => String(t || "").split(NT_MARCA).join("~~✂~~").trim();
@@ -12313,16 +12331,6 @@ ntModal.innerHTML = `
         <div class="nt-medidor-barra"><i></i></div>
         <p class="nt-mensaje" hidden></p>
       </div>
-      <div class="nt-nueva">
-        <textarea class="nt-texto" rows="4" placeholder="Escribe una nota nueva…" aria-label="Nueva nota del notario"></textarea>
-        <div class="nt-fila">
-          <button type="button" class="notas-btn nt-agregar">Agregar nota</button>
-          <span class="nt-contador"></span>
-        </div>
-        <span class="notas-estado nt-estado-nota"></span>
-      </div>
-      <h4 class="nt-lista-titulo"></h4>
-      <div class="nt-lista"></div>
     </div>
   </div>`;
 document.body.appendChild(ntModal);
@@ -12342,12 +12350,6 @@ const ntEl = {
   resta: ntq(".nt-resta"),
   barra: ntq(".nt-medidor-barra i"),
   aviso: ntq(".nt-mensaje"),
-  texto: ntq(".nt-texto"),
-  agregar: ntq(".nt-agregar"),
-  contador: ntq(".nt-contador"),
-  estadoNota: ntq(".nt-estado-nota"),
-  listaTitulo: ntq(".nt-lista-titulo"),
-  lista: ntq(".nt-lista"),
 };
 
 const migNt = montarMigrar(ntEl.destino, {
@@ -12385,157 +12387,209 @@ function ntDibujarMedidor(n) {
   }
 }
 
-// Contador de la nota que se está escribiendo: cuánto ocupará y si cabe
-function ntActualizarContador() {
-  const n = ntPorId(NT.abierto);
-  if (!n) return;
-  const texto = ntLimpiar(ntEl.texto.value);
-  if (!texto) {
-    ntEl.contador.textContent = "";
-    ntEl.contador.className = "nt-contador";
-    ntEl.agregar.disabled = false;
-    return;
-  }
-  const total = ntLargo(n.notas.concat([{ id: "0000000000000000", fecha: selloFechaHora(), texto }]));
+// ----- Página del notario: fondo oscuro, cuadros azules con las notas y un cuadro para añadir otra -----
+// (la ventana de arriba es ahora la zona de ajustes: se abre con el engrane de esta página)
+const ntPag = document.createElement("div");
+ntPag.className = "nt-pagina em-npag";
+ntPag.hidden = true;
+ntPag.setAttribute("role", "dialog");
+ntPag.setAttribute("aria-modal", "true");
+ntPag.setAttribute("aria-labelledby", "nt-pag-titulo");
+ntPag.innerHTML = `
+  <div class="em-det-barra">
+    <button type="button" class="em-det-btn nt-pag-volver" aria-label="Volver" title="Volver">&#8592;</button>
+    <button type="button" class="em-det-btn nt-pag-ajustes" aria-label="Ajustes del notario" title="Ajustes">&#9881;&#xFE0E;</button>
+  </div>
+  <div class="em-npag-cab">
+    <h3 id="nt-pag-titulo" class="em-npag-titulo nt-pag-titulo"></h3>
+    <small class="em-npag-proyecto nt-pag-desc"></small>
+  </div>
+  <div class="em-npag-cuerpo">
+    <p class="nt-pag-uso"></p>
+    <p class="nt-pag-aviso" hidden></p>
+    <div class="ej-chips nv-grid nt-pag-grid"></div>
+  </div>`;
+document.body.appendChild(ntPag);
+const ntP = {
+  titulo: ntPag.querySelector(".nt-pag-titulo"),
+  desc: ntPag.querySelector(".nt-pag-desc"),
+  uso: ntPag.querySelector(".nt-pag-uso"),
+  aviso: ntPag.querySelector(".nt-pag-aviso"),
+  grid: ntPag.querySelector(".nt-pag-grid"),
+};
+
+// Ventana pequeña para escribir o corregir UNA nota del notario
+const ntNotaModal = document.createElement("div");
+ntNotaModal.className = "nt-modal nt-modal-nota";
+ntNotaModal.hidden = true;
+ntNotaModal.innerHTML = `
+  <div class="nt-caja" role="dialog" aria-modal="true" aria-labelledby="nt-ed-titulo">
+    <div class="nt-cab">
+      <h3 id="nt-ed-titulo" class="nt-titulo nt-ed-titulo">Nueva nota</h3>
+      <button type="button" class="nt-cerrar nt-ed-cerrar" aria-label="Cerrar" title="Cerrar">&times;</button>
+    </div>
+    <div class="nt-ed-fecha" hidden></div>
+    <textarea class="nt-texto nt-ed-texto" rows="9" placeholder="Escribe tu nota…" aria-label="Texto de la nota"></textarea>
+    <div class="nt-contador nt-ed-contador"></div>
+    <div class="nt-fila">
+      <button type="button" class="notas-btn nt-ed-guardar">Guardar</button>
+      <button type="button" class="notas-btn notas-btn-sec nt-ed-cancelar">Cancelar</button>
+      <button type="button" class="notas-btn proy-btn-borrar nt-ed-borrar" hidden>Eliminar</button>
+      <span class="notas-estado nt-ed-estado"></span>
+    </div>
+  </div>`;
+document.body.appendChild(ntNotaModal);
+const ntEd = {
+  titulo: ntNotaModal.querySelector(".nt-ed-titulo"),
+  fecha: ntNotaModal.querySelector(".nt-ed-fecha"),
+  texto: ntNotaModal.querySelector(".nt-ed-texto"),
+  contador: ntNotaModal.querySelector(".nt-ed-contador"),
+  guardar: ntNotaModal.querySelector(".nt-ed-guardar"),
+  borrar: ntNotaModal.querySelector(".nt-ed-borrar"),
+  estado: ntNotaModal.querySelector(".nt-ed-estado"),
+};
+
+// Cuánto espacio queda en el notario (se ve arriba de los cuadros)
+function ntDibujarMedidorPag(n) {
+  const largo = ntLargo(n.notas);
   const lim = ntLimiteDe(n);
-  const sobran = total - lim;
-  if (sobran > 0) {
-    ntEl.contador.textContent = "No cabe: te pasas por " + ntFmt(sobran) + " caracteres";
-    ntEl.contador.className = "nt-contador nt-contador-error";
-    ntEl.agregar.disabled = true;
+  const resta = Math.max(0, lim - largo);
+  const nivel = ntNivel(largo, lim);
+  ntP.uso.className = "nt-pag-uso nt-pag-uso-" + nivel;
+  ntP.uso.textContent = ntFmt(largo) + " / " + ntFmt(lim) + " caracteres · " + ntNombreDestino(n) + " · quedan " + ntFmt(resta);
+  if (nivel === "ok") {
+    ntP.aviso.hidden = true;
   } else {
-    ntEl.contador.textContent = "Con esta nota: " + ntFmt(total) + " / " + ntFmt(lim);
-    ntEl.contador.className = "nt-contador" + (ntNivel(total, lim) === "ok" ? "" : " nt-contador-aviso");
-    ntEl.agregar.disabled = false;
+    ntP.aviso.hidden = false;
+    ntP.aviso.textContent =
+      resta === 0
+        ? "🚫 Este notario está lleno. Ya no caben más notas: elimina o acorta alguna, o crea otro notario."
+        : nivel === "critico"
+        ? "🚫 Casi lleno: solo quedan " + ntFmt(resta) + " caracteres. Crea otro notario para seguir anotando."
+        : "⚠️ Queda poco espacio: solo quedan " + ntFmt(resta) + " caracteres en este notario.";
   }
 }
 
-// Lista de notas del notario abierto (la más reciente arriba)
-function ntDibujarNotas() {
+// Dibuja los cuadros azules (la nota más reciente primero) y al final el cuadro para añadir otra
+function ntDibujarPagina() {
+  if (ntPag.hidden) return;
   const n = ntPorId(NT.abierto);
-  if (!n) return;
-  ntDibujarMedidor(n);
-  ntActualizarContador();
-  ntEl.listaTitulo.textContent = n.notas.length ? "Notas (" + n.notas.length + ")" : "";
-  ntEl.lista.innerHTML = "";
-  if (!n.notas.length) {
-    const p = document.createElement("p");
-    p.className = "notas-vacio";
-    p.textContent = "Aún no hay notas en este notario. ¡Agrega la primera! ✨";
-    ntEl.lista.appendChild(p);
+  if (!n) { ntPag.hidden = true; return; } // el notario ya no existe
+  ntP.titulo.textContent = "📒 " + (n.nombre || "Notario");
+  ntP.desc.textContent = n.descripcion ? resumenCorto(n.descripcion, 160) : "";
+  ntP.desc.hidden = !n.descripcion;
+  ntDibujarMedidorPag(n);
+  ntP.grid.innerHTML = "";
+  n.notas.slice().reverse().forEach((nota) => {
+    const primera = String(nota.texto || "").split(/\r?\n/).map((x) => x.trim()).find(Boolean) || "Sin texto";
+    const titulo = primera.length > 40 ? primera.slice(0, 40) + "…" : primera;
+    const b = nvCrearChip(titulo, nota.fecha ? String(nota.fecha).split(" ")[0] : "", resumenCorto(String(nota.texto || ""), 90), "", "nt-pag-chip");
+    b.setAttribute("aria-label", "Ver o editar esta nota del notario " + n.nombre);
+    b.addEventListener("click", () => ntAbrirEditor(n, nota));
+    ntP.grid.appendChild(b);
+  });
+  ntP.grid.appendChild(nvCrearAnadir("Añadir una nota al notario " + n.nombre, () => ntAbrirEditor(n, null)));
+}
+
+// ----- Escribir o corregir una nota -----
+function ntEdRevisar() {
+  const e = NT.editor;
+  if (!e) return;
+  const t = ntLimpiar(ntEd.texto.value);
+  const lista = e.nota
+    ? e.n.notas.map((x) => (x.id === e.nota.id ? { id: x.id, fecha: x.fecha, texto: t } : x))
+    : e.n.notas.concat([{ id: "0000000000000000", fecha: selloFechaHora(), texto: t }]);
+  const total = ntLargo(lista);
+  const lim = ntLimiteDe(e.n);
+  const sobran = total - lim;
+  if (!t) {
+    ntEd.contador.textContent = "";
+    ntEd.contador.className = "nt-contador nt-ed-contador";
+    ntEd.guardar.disabled = true;
+  } else if (sobran > 0) {
+    ntEd.contador.textContent = "No cabe: te pasas por " + ntFmt(sobran) + " caracteres";
+    ntEd.contador.className = "nt-contador nt-ed-contador nt-contador-error";
+    ntEd.guardar.disabled = true;
+  } else {
+    ntEd.contador.textContent = "Con esta nota: " + ntFmt(total) + " / " + ntFmt(lim);
+    ntEd.contador.className = "nt-contador nt-ed-contador" + (ntNivel(total, lim) === "ok" ? "" : " nt-contador-aviso");
+    ntEd.guardar.disabled = false;
+  }
+}
+function ntAbrirEditor(n, nota) {
+  NT.editor = { n, nota };
+  ntEd.titulo.textContent = nota ? "Editar nota" : "Nueva nota";
+  ntEd.fecha.textContent = nota ? nota.fecha || "" : "";
+  ntEd.fecha.hidden = !nota;
+  ntEd.texto.value = nota ? nota.texto : "";
+  ntEd.borrar.hidden = !nota;
+  setEstado(ntEd.estado, "");
+  ntNotaModal.hidden = false;
+  ntEdRevisar();
+  setTimeout(() => ntEd.texto.focus(), 0);
+}
+function ntCerrarEditor(preguntar) {
+  if (ntNotaModal.hidden) return;
+  const e = NT.editor;
+  const original = e && e.nota ? e.nota.texto : "";
+  const escrito = ntEd.texto.value.trim();
+  if (preguntar && escrito && escrito !== String(original).trim() && !window.confirm("Tienes cambios sin guardar. ¿Cerrar y descartarlos?")) return;
+  ntNotaModal.hidden = true;
+  NT.editor = null;
+  ntEd.texto.value = "";
+}
+async function ntEdGuardar() {
+  const e = NT.editor;
+  if (!e) return;
+  const t = ntLimpiar(ntEd.texto.value);
+  if (!t) {
+    setEstado(ntEd.estado, "Escribe algo primero", "error");
     return;
   }
-  n.notas
-    .slice()
-    .reverse()
-    .forEach((nota) => ntEl.lista.appendChild(ntCrearNota(n, nota)));
-}
-
-function ntCrearNota(n, nota) {
-  const caja = document.createElement("div");
-  caja.className = "nt-nota";
-  const fecha = document.createElement("div");
-  fecha.className = "nt-nota-fecha";
-  fecha.textContent = nota.fecha || "";
-
-  if (NT.editandoNota === nota.id) {
-    const ta = document.createElement("textarea");
-    ta.className = "nt-nota-edit";
-    ta.rows = 4;
-    ta.value = nota.texto;
-    const estado = document.createElement("span");
-    estado.className = "notas-estado";
-    const fila = document.createElement("div");
-    fila.className = "nt-fila";
-    const ok = document.createElement("button");
-    ok.type = "button";
-    ok.className = "notas-btn";
-    ok.textContent = "Guardar cambios";
-    const no = document.createElement("button");
-    no.type = "button";
-    no.className = "notas-btn notas-btn-sec";
-    no.textContent = "Cancelar";
-    fila.append(ok, no, estado);
-    const contador = document.createElement("div");
-    contador.className = "nt-contador";
-    const revisar = () => {
-      const t = ntLimpiar(ta.value);
-      const otras = n.notas.map((x) => (x.id === nota.id ? { id: x.id, fecha: x.fecha, texto: t } : x));
-      const sobran = ntLargo(otras) - ntLimiteDe(n);
-      ok.disabled = !t || sobran > 0;
-      contador.textContent = sobran > 0 ? "No cabe: te pasas por " + ntFmt(sobran) + " caracteres" : "";
-      contador.className = "nt-contador" + (sobran > 0 ? " nt-contador-error" : "");
-    };
-    ta.addEventListener("input", revisar);
-    no.addEventListener("click", () => {
-      NT.editandoNota = null;
-      ntDibujarNotas();
-    });
-    ok.addEventListener("click", async () => {
-      const t = ntLimpiar(ta.value);
-      if (!t) return;
-      ok.disabled = true;
-      setEstado(estado, "Guardando…");
-      try {
-        await llamarNotas("notario_nota_guardar", { id: n.id, notaId: nota.id, fecha: nota.fecha, texto: t });
-        nota.texto = t;
-        NT.editandoNota = null;
-        ntDibujarNotas();
-        ntDibujarTodo();
-      } catch (e) {
-        setEstado(estado, "Error: " + e.message, "error");
-        ok.disabled = false;
-      }
-    });
-    caja.append(fecha, ta, contador, fila);
-    setTimeout(() => ta.focus(), 0);
-    return caja;
+  const nota = e.nota || { id: ntNuevoId(), fecha: selloFechaHora(), texto: t };
+  const lista = e.nota
+    ? e.n.notas.map((x) => (x.id === nota.id ? { id: x.id, fecha: x.fecha, texto: t } : x))
+    : e.n.notas.concat([{ id: nota.id, fecha: nota.fecha, texto: t }]);
+  const sobran = ntLargo(lista) - ntLimiteDe(e.n);
+  if (sobran > 0) {
+    setEstado(ntEd.estado, "No cabe: te pasas por " + ntFmt(sobran) + " caracteres", "error");
+    return;
   }
-
-  const texto = document.createElement("p");
-  texto.className = "nt-nota-texto";
-  texto.textContent = nota.texto;
-  const botones = document.createElement("div");
-  botones.className = "nt-nota-botones";
-  const editar = document.createElement("button");
-  editar.type = "button";
-  editar.className = "nt-nota-btn";
-  editar.title = "Editar nota";
-  editar.setAttribute("aria-label", "Editar nota");
-  editar.textContent = "✎";
-  editar.addEventListener("click", () => {
-    NT.editandoNota = nota.id;
-    ntDibujarNotas();
-  });
-  const borrar = document.createElement("button");
-  borrar.type = "button";
-  borrar.className = "nt-nota-btn";
-  borrar.title = "Eliminar nota";
-  borrar.setAttribute("aria-label", "Eliminar nota");
-  borrar.textContent = "×";
-  borrar.addEventListener("click", async () => {
-    if (!window.confirm("¿Eliminar esta nota del notario?")) return;
-    setEstado(ntEl.estadoNota, "Eliminando…");
-    try {
-      await llamarNotas("notario_nota_borrar", { id: n.id, notaId: nota.id });
-      n.notas = n.notas.filter((x) => x.id !== nota.id);
-      setEstado(ntEl.estadoNota, "Nota eliminada", "ok");
-      ntDibujarNotas();
-      ntDibujarTodo();
-    } catch (e) {
-      setEstado(ntEl.estadoNota, "Error: " + e.message, "error");
-    }
-  });
-  botones.append(editar, borrar);
-  caja.append(fecha, texto, botones);
-  return caja;
+  ntEd.guardar.disabled = true;
+  setEstado(ntEd.estado, "Guardando…");
+  try {
+    await llamarNotas("notario_nota_guardar", { id: e.n.id, notaId: nota.id, fecha: nota.fecha, texto: t });
+    if (e.nota) e.nota.texto = t;
+    else e.n.notas.push({ id: nota.id, fecha: nota.fecha, texto: t });
+    ntCerrarEditor(false);
+    ntDibujarTodo();
+  } catch (err) {
+    setEstado(ntEd.estado, "Error: " + err.message, "error");
+    ntEd.guardar.disabled = false;
+  }
+}
+async function ntEdBorrar() {
+  const e = NT.editor;
+  if (!e || !e.nota) return;
+  if (!window.confirm("¿Eliminar esta nota del notario?")) return;
+  ntEd.borrar.disabled = true;
+  setEstado(ntEd.estado, "Eliminando…");
+  try {
+    await llamarNotas("notario_nota_borrar", { id: e.n.id, notaId: e.nota.id });
+    e.n.notas = e.n.notas.filter((x) => x.id !== e.nota.id);
+    ntCerrarEditor(false);
+    ntDibujarTodo();
+  } catch (err) {
+    setEstado(ntEd.estado, "Error: " + err.message, "error");
+  } finally {
+    ntEd.borrar.disabled = false;
+  }
 }
 
 // ----- Abrir / cerrar la ventana -----
 function ntAbrirNuevo(zona) {
   NT.abierto = null;
   NT.zonaNueva = zona;
-  NT.editandoNota = null;
   ntEl.titulo.textContent = "Nuevo notario";
   ntEl.nombre.value = "";
   ntEl.desc.value = "";
@@ -12549,11 +12603,11 @@ function ntAbrirNuevo(zona) {
   ntModal.hidden = false;
   ntEl.nombre.focus();
 }
-function ntAbrir(n) {
+// Zona de ajustes: nombre, descripción, espacio usado y eliminar (se abre con el engrane de la página del notario)
+function ntAbrirAjustes(n) {
   NT.abierto = n.id;
   NT.zonaNueva = null;
-  NT.editandoNota = null;
-  ntEl.titulo.textContent = "📒 Notario";
+  ntEl.titulo.textContent = "⚙️ Ajustes del notario";
   ntEl.nombre.value = n.nombre === "Sin nombre" ? "" : n.nombre;
   ntEl.desc.value = n.descripcion || "";
   ntEl.destino.value = n.destino === "sheets" ? "sheets" : "drive";
@@ -12562,21 +12616,40 @@ function ntAbrir(n) {
   ntEl.guardarDatos.textContent = "Guardar nombre y descripción";
   ntEl.borrarNotario.hidden = false;
   ntEl.notas.hidden = false;
-  ntEl.texto.value = "";
+  ntDibujarMedidor(n);
   setEstado(ntEl.estadoDatos, "");
-  setEstado(ntEl.estadoNota, "");
   ntModal.hidden = false;
-  ntDibujarNotas();
-  if (!n.notas.length) ntEl.texto.focus();
 }
-function ntCerrar(forzar) {
-  if (ntModal.hidden) return;
-  if (!forzar && ntEl.texto.value.trim() && !window.confirm("Tienes una nota sin agregar. ¿Cerrar y descartarla?")) return;
+// Entrar a un notario: página oscura con sus notas en cuadros azules
+function ntAbrir(n) {
+  NT.abierto = n.id;
+  NT.zonaNueva = null;
   ntModal.hidden = true;
+  ntPag.hidden = false;
+  ntPag.scrollTop = 0;
+  ntDibujarPagina();
+  const v = ntPag.querySelector(".nt-pag-volver");
+  if (v) v.focus();
+}
+function ntCerrarAjustes() {
+  ntModal.hidden = true;
+  NT.zonaNueva = null;
+}
+function ntCerrarPagina() {
+  ntCerrarEditor(false);
+  ntModal.hidden = true;
+  ntPag.hidden = true;
+  NT.abierto = null;
+}
+// Cierra todo lo del notario (ajustes, nota y página)
+function ntCerrar(forzar) {
+  ntNotaModal.hidden = true;
+  NT.editor = null;
+  ntEd.texto.value = "";
+  ntModal.hidden = true;
+  ntPag.hidden = true;
   NT.abierto = null;
   NT.zonaNueva = null;
-  NT.editandoNota = null;
-  ntEl.texto.value = "";
 }
 
 // ----- Crear el notario / cambiar nombre y descripción -----
@@ -12602,8 +12675,8 @@ async function ntGuardarDatos() {
       const nuevo = { id: ntNuevoId(), zona: NT.zonaNueva, nombre, descripcion, fecha: selloFechaHora(), destino, limite: destino === "sheets" ? NT_LIMITE_SHEETS : NT_LIMITE, notas: [] };
       await llamarNotas("notario_agregar", { id: nuevo.id, zona: nuevo.zona, nombre, descripcion, fecha: nuevo.fecha, destino });
       NT.lista.push(nuevo);
-      ntAbrir(nuevo); // ya creado: ahora se pueden agregar notas dentro
-      setEstado(ntEl.estadoDatos, "Notario creado ✓", "ok");
+      ntCerrarAjustes();
+      ntAbrir(nuevo); // ya creado: se abre su página para agregarle notas
     }
     ntDibujarTodo();
   } catch (e) {
@@ -12636,54 +12709,31 @@ async function ntBorrarNotario() {
   }
 }
 
-// ----- Agregar una nota dentro del notario abierto -----
-async function ntAgregarNota() {
-  const n = ntPorId(NT.abierto);
-  if (!n) return;
-  const texto = ntLimpiar(ntEl.texto.value);
-  if (!texto) {
-    setEstado(ntEl.estadoNota, "Escribe algo primero", "error");
-    return;
-  }
-  const nota = { id: ntNuevoId(), fecha: selloFechaHora(), texto };
-  const sobran = ntLargo(n.notas.concat([nota])) - ntLimiteDe(n);
-  if (sobran > 0) {
-    setEstado(ntEl.estadoNota, "No cabe: te pasas por " + ntFmt(sobran) + " caracteres", "error");
-    return;
-  }
-  ntEl.agregar.disabled = true;
-  setEstado(ntEl.estadoNota, "Guardando…");
-  try {
-    await llamarNotas("notario_nota_guardar", { id: n.id, notaId: nota.id, fecha: nota.fecha, texto: nota.texto });
-    n.notas.push(nota);
-    ntEl.texto.value = "";
-    ntDibujarNotas();
-    ntDibujarTodo();
-    const restan = ntLimiteDe(n) - ntLargo(n.notas);
-    setEstado(
-      ntEl.estadoNota,
-      ntNivel(ntLargo(n.notas), ntLimiteDe(n)) === "ok" ? "Nota agregada ✓" : "Nota agregada ✓ — ¡queda poco espacio! (" + ntFmt(restan) + " caracteres)",
-      "ok"
-    );
-  } catch (e) {
-    setEstado(ntEl.estadoNota, "Error: " + e.message, "error");
-  } finally {
-    ntEl.agregar.disabled = false;
-    ntActualizarContador();
-  }
-}
-
-ntq(".nt-cerrar").addEventListener("click", () => ntCerrar(false));
+ntq(".nt-cerrar").addEventListener("click", ntCerrarAjustes);
 ntModal.addEventListener("click", (e) => {
-  if (e.target === ntModal) ntCerrar(false);
+  if (e.target === ntModal) ntCerrarAjustes();
 });
+ntNotaModal.addEventListener("click", (e) => {
+  if (e.target === ntNotaModal) ntCerrarEditor(true);
+});
+ntNotaModal.querySelector(".nt-ed-cerrar").addEventListener("click", () => ntCerrarEditor(true));
+ntNotaModal.querySelector(".nt-ed-cancelar").addEventListener("click", () => ntCerrarEditor(true));
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && !ntModal.hidden) ntCerrar(false);
+  if (e.key !== "Escape") return;
+  if (!ntNotaModal.hidden) ntCerrarEditor(true);
+  else if (!ntModal.hidden) ntCerrarAjustes();
+  else if (!ntPag.hidden) ntCerrarPagina();
 });
+ntPag.querySelector(".nt-pag-volver").addEventListener("click", ntCerrarPagina);
+ntPag.querySelector(".nt-pag-ajustes").addEventListener("click", () => {
+  const n = ntPorId(NT.abierto);
+  if (n) ntAbrirAjustes(n);
+});
+ntEd.guardar.addEventListener("click", ntEdGuardar);
+ntEd.borrar.addEventListener("click", ntEdBorrar);
+ntEd.texto.addEventListener("input", ntEdRevisar);
 ntEl.guardarDatos.addEventListener("click", ntGuardarDatos);
 ntEl.borrarNotario.addEventListener("click", ntBorrarNotario);
-ntEl.agregar.addEventListener("click", ntAgregarNota);
-ntEl.texto.addEventListener("input", ntActualizarContador);
 ntEl.nombre.addEventListener("keydown", (e) => {
   if (e.key === "Enter") ntGuardarDatos();
 });
@@ -12785,8 +12835,8 @@ function ntDibujarTodo() {
     m.grid.innerHTML = "";
     NT.lista.filter((n) => n.zona === m.zona).forEach((n) => m.grid.appendChild(ntCrearCuadro(n)));
   });
-  const n = ntPorId(NT.abierto);
-  if (n && !ntModal.hidden && NT.editandoNota === null) ntDibujarNotas();
+  ntDibujarPagina();
+  if (!ntModal.hidden) { const abierto = ntPorId(NT.abierto); if (abierto && !ntEl.notas.hidden) ntDibujarMedidor(abierto); }
   if (typeof npRedibujarHook === "function") npRedibujarHook(); // y los recuadros de «Notas del proyecto»
 }
 

@@ -1692,6 +1692,41 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 .nt-nota:has(.nt-nota-edit) { padding-right: 12px; }
 @media (max-width: 480px) { .nt-grid { grid-template-columns: 1fr 1fr; } }
 
+/* ---------- Página del notario: fondo oscuro, cuadros azules con las notas y un cuadro para añadir (como Deudas y Bazar) ---------- */
+.nt-pagina {
+  position: fixed; inset: 0; z-index: 75; display: flex; flex-direction: column; overflow-y: auto;
+  color: #f2f4fa; background-color: #07080c;
+  background-image:
+    radial-gradient(circle at 12% 0%, rgba(120, 150, 255, 0.16) 0, transparent 42%),
+    radial-gradient(circle at 100% 32%, rgba(255, 255, 255, 0.07) 0, transparent 36%);
+}
+.nt-pagina[hidden] { display: none; }
+.nt-pagina .em-npag-titulo { color: #fff; overflow-wrap: anywhere; }
+.nt-pagina .em-npag-proyecto[hidden] { display: none; }
+.nt-pag-uso { margin: 0 0 6px; font-size: 0.82rem; font-weight: 600; color: #aab4d4; }
+.nt-pag-uso-aviso { color: #ffd479; }
+.nt-pag-uso-critico { color: #ff8f84; }
+.nt-pag-aviso { margin: 0 0 8px; font-size: 0.86rem; font-weight: 600; color: #ffd479; }
+.nt-pag-aviso[hidden] { display: none; }
+.nt-pag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 12px; }
+.nt-pagina .nt-pag-grid .ej-chip { width: 100%; height: auto; aspect-ratio: 1 / 1; overflow: hidden; }
+.nt-pagina .ej-chip:not(.ej-chip-nuevo) {
+  color: #fff; background: linear-gradient(160deg, #2f7be0, #1b4fa8);
+  border: 1px solid #7fb2f5; box-shadow: 0 6px 16px rgba(20, 60, 140, 0.5);
+}
+.nt-pagina .ej-chip:not(.ej-chip-nuevo) .ej-chip-nombre { color: #fff; }
+.nt-pagina .ej-chip:not(.ej-chip-nuevo) .ej-chip-fecha { color: #cfe3ff; }
+.nt-pagina .ej-chip:not(.ej-chip-nuevo) .ej-chip-desc { color: #e3efff; }
+.nt-pagina .ej-chip-nuevo { align-items: center; justify-content: center; color: #8fc0ff; background: rgba(47, 123, 224, 0.14); border: 2px dashed #5fa0f0; }
+.nt-pagina .ej-chip-nuevo:hover { background: rgba(47, 123, 224, 0.26); }
+@media (max-width: 480px) { .nt-pag-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
+
+/* Ventana para escribir o corregir una nota (queda por encima de la página y de los ajustes) */
+.nt-modal-nota { z-index: 90; }
+.nt-ed-fecha { margin-bottom: 6px; font-size: 0.78rem; color: var(--nb-suave); }
+.nt-ed-fecha[hidden] { display: none; }
+.nt-ed-contador { min-height: 1.2em; margin-top: 4px; }
+
 /* ---------- Día de Hoy: Diario separado y «Dar por finalizado» (v37) ---------- */
 .hoy-separador {
   height: 4px;
