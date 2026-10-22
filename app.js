@@ -5663,12 +5663,14 @@ function emRedDeLink(href) {
     resto = (u.pathname + u.search).replace(/\/$/, "");
   } catch (e) {}
   const red = REDES_EM.find((r) => r.hosts.some((h) => host === h || host.endsWith("." + h)));
+  // Si no coincidió exacto, se busca el nombre de la red dentro del dominio (p. ej. «youtube.com.mx»)
+  const redAprox = red || REDES_EM.find((r) => r.hosts.some((h) => h.split(".")[0].length > 3 && host.includes(h.split(".")[0])));
   let corto = host + (resto && resto !== "/" ? resto : "");
   if (corto.length > 38) corto = corto.slice(0, 37) + "…";
   return {
-    id: red ? red.id : "enlace",
-    nombre: red ? red.nombre : "Enlace",
-    glifo: red ? red.glifo : "🔗",
+    id: redAprox ? redAprox.id : "enlace",
+    nombre: redAprox ? redAprox.nombre : "Enlace",
+    glifo: redAprox ? redAprox.glifo : "🔗",
     corto: corto || href,
   };
 }
@@ -5696,13 +5698,25 @@ function dibujarDetalleEm() {
     v.textContent = "🏢";
     emDetImagen.appendChild(v);
   };
+  const quitarClic = () => {
+    emDetImagen.classList.remove("em-det-hero-click");
+    emDetImagen.removeAttribute("role");
+    emDetImagen.removeAttribute("tabindex");
+    emDetImagen.removeAttribute("aria-label");
+  };
+  quitarClic();
   if (imagenValida(d.imagen)) {
     const img = document.createElement("img");
     img.alt = "Imagen de " + d.nombre;
     img.referrerPolicy = "no-referrer";
-    img.addEventListener("error", vacio);
+    img.addEventListener("error", () => { vacio(); quitarClic(); });
     img.src = d.imagen;
     emDetImagen.appendChild(img);
+    // Al presionar el banner se abre la imagen completa
+    emDetImagen.classList.add("em-det-hero-click");
+    emDetImagen.setAttribute("role", "button");
+    emDetImagen.setAttribute("tabindex", "0");
+    emDetImagen.setAttribute("aria-label", "Ver la imagen de " + d.nombre + " en grande");
   } else {
     vacio();
   }
@@ -5745,6 +5759,57 @@ function dibujarDetalleEm() {
   emDetLinksZona.hidden = lista.length === 0;
   dibujarNotasEm();
 }
+
+// ----- Visor de imagen: se abre al presionar el banner del proyecto -----
+let emVisor = null;
+function cerrarVisorEm() {
+  if (!emVisor) return;
+  emVisor.hidden = true;
+  emVisor.querySelector("img").removeAttribute("src");
+  if (emDetImagen.classList.contains("em-det-hero-click")) emDetImagen.focus({ preventScroll: true });
+}
+function abrirVisorEm() {
+  const d = emDetActual;
+  if (!d || !imagenValida(d.imagen)) return;
+  if (!emVisor) {
+    emVisor = document.createElement("div");
+    emVisor.className = "em-visor";
+    emVisor.hidden = true;
+    emVisor.setAttribute("role", "dialog");
+    emVisor.setAttribute("aria-modal", "true");
+    emVisor.setAttribute("aria-label", "Imagen del proyecto");
+    const im = document.createElement("img");
+    im.referrerPolicy = "no-referrer";
+    const x = document.createElement("button");
+    x.type = "button";
+    x.className = "em-visor-cerrar";
+    x.setAttribute("aria-label", "Cerrar la imagen");
+    x.textContent = "×";
+    emVisor.append(im, x);
+    emVisor.addEventListener("click", cerrarVisorEm); // tocar en cualquier parte lo cierra
+    document.body.appendChild(emVisor);
+    // Esc cierra solo el visor (sin cerrar el proyecto que está detrás)
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && emVisor && !emVisor.hidden) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        cerrarVisorEm();
+      }
+    }, true);
+  }
+  const im = emVisor.querySelector("img");
+  im.alt = "Imagen de " + d.nombre;
+  im.src = d.imagen;
+  emVisor.hidden = false;
+  emVisor.querySelector("button").focus({ preventScroll: true });
+}
+emDetImagen.addEventListener("click", abrirVisorEm);
+emDetImagen.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " ") && emDetImagen.classList.contains("em-det-hero-click")) {
+    e.preventDefault();
+    abrirVisorEm();
+  }
+});
 
 // ----- Submenú de una red (se abre al presionar un recuadro de enlace). De momento está vacío: aquí irán sus opciones -----
 const emRedSub = emEl("em-red-sub");

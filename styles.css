@@ -2037,6 +2037,39 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
 }
 .em-det-hero img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.em-det-hero.em-det-hero-click { cursor: zoom-in; transition: filter 0.12s; }
+.em-det-hero.em-det-hero-click:hover { filter: brightness(1.08); }
+.em-det-hero.em-det-hero-click:focus-visible { outline: 3px solid #8fb8ff; outline-offset: 3px; }
+
+/* Visor de imagen (se abre al tocar el banner de un proyecto) */
+.em-visor {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.92);
+  cursor: zoom-out;
+}
+.em-visor[hidden] { display: none; }
+.em-visor img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6); }
+.em-visor-cerrar {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  right: 14px;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  font-size: 1.7rem;
+  line-height: 1;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.em-visor-cerrar:hover { background: rgba(255, 255, 255, 0.28); }
 .em-det-hero-vacio { font-size: 3.4rem; opacity: 0.6; }
 
 .em-det-titulo-fila {
@@ -2130,7 +2163,10 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
 .em-red[data-red="whatsapp"] { --red-fondo: #1faa59; }
 .em-red[data-red="telegram"] { --red-fondo: #2a9ad6; }
 .em-red[data-red="linkedin"] { --red-fondo: #0a66c2; }
-.em-red[data-red="github"] { --red-fondo: #24292f; }
+.em-red[data-red="github"] { --red-fondo: #ffffff; color: #1f2328; border-color: #d0d7de; }
+.em-red[data-red="github"] .em-red-ico { background: rgba(31, 35, 40, 0.1); }
+.em-red-sub-cab[data-red="github"] { --red-fondo: #ffffff; color: #1f2328; border-color: #d0d7de; }
+.em-red-sub-cab[data-red="github"] .em-red-ico { background: rgba(31, 35, 40, 0.1); }
 .em-red[data-red="twitch"] { --red-fondo: #7c46d6; }
 .em-red[data-red="spotify"] { --red-fondo: #1db954; }
 .em-red[data-red="pinterest"] { --red-fondo: #d42027; }
@@ -2794,45 +2830,45 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
 .em-nesp-campo textarea { line-height: 1.4; overflow-wrap: anywhere; }
 
 /* ---------- Cuadrículas de 4 por fila: Deudas, Actividades, Trabajo, Información Primordial, Comandos y Bazar ---------- */
-#de-chips, #ip-chips, #cm-chips, #bz-chips, #bz-chips-yeso, #bz-chips-ventas,
+#de-chips, #em-npag-chips, #ip-chips, #cm-chips, #bz-chips, #bz-chips-yeso, #bz-chips-ventas,
 #zona-actividades .zona-lista.zona-lista-cuadritos,
 #zona-trabajo .zona-lista.zona-lista-cuadritos {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
-#de-chips .ej-chip, #ip-chips .ej-chip, #cm-chips .ej-chip, #bz-chips .ej-chip, #bz-chips-yeso .ej-chip, #bz-chips-ventas .ej-chip,
+#de-chips .ej-chip, #em-npag-chips .ej-chip, #ip-chips .ej-chip, #cm-chips .ej-chip, #bz-chips .ej-chip, #bz-chips-yeso .ej-chip, #bz-chips-ventas .ej-chip,
 #zona-actividades .zona-cuadrito, #zona-trabajo .zona-cuadrito {
   width: 100%;
   height: auto;
   aspect-ratio: 1 / 1;
   overflow: hidden;
 }
-#de-chips .ej-chip-resumen, #ip-chips .ej-chip-resumen, #cm-chips .ej-chip-resumen, #bz-chips .ej-chip-resumen,
+#de-chips .ej-chip-resumen, #em-npag-chips .ej-chip-resumen, #ip-chips .ej-chip-resumen, #cm-chips .ej-chip-resumen, #bz-chips .ej-chip-resumen,
 #bz-chips-yeso .ej-chip-resumen, #bz-chips-ventas .ej-chip-resumen,
 #zona-actividades .ej-chip-resumen, #zona-trabajo .ej-chip-resumen { padding: 10px; }
-#de-chips .ej-chip-nombre, #ip-chips .ej-chip-nombre, #cm-chips .ej-chip-nombre, #bz-chips .ej-chip-nombre,
+#de-chips .ej-chip-nombre, #em-npag-chips .ej-chip-nombre, #ip-chips .ej-chip-nombre, #cm-chips .ej-chip-nombre, #bz-chips .ej-chip-nombre,
 #bz-chips-yeso .ej-chip-nombre, #bz-chips-ventas .ej-chip-nombre,
 #zona-actividades .ej-chip-nombre, #zona-trabajo .ej-chip-nombre { font-size: 0.85rem; }
-#de-chips .ej-chip-desc, #ip-chips .ej-chip-desc, #cm-chips .ej-chip-desc, #bz-chips .ej-chip-desc,
+#de-chips .ej-chip-desc, #em-npag-chips .ej-chip-desc, #ip-chips .ej-chip-desc, #cm-chips .ej-chip-desc, #bz-chips .ej-chip-desc,
 #bz-chips-yeso .ej-chip-desc, #bz-chips-ventas .ej-chip-desc,
 #zona-actividades .ej-chip-desc, #zona-trabajo .ej-chip-desc { font-size: 0.72rem; -webkit-line-clamp: 4; }
-#de-chips .ej-chip-nuevo, #ip-chips .ej-chip-nuevo, #cm-chips .ej-chip-nuevo, #bz-chips .ej-chip-nuevo,
+#de-chips .ej-chip-nuevo, #em-npag-chips .ej-chip-nuevo, #ip-chips .ej-chip-nuevo, #cm-chips .ej-chip-nuevo, #bz-chips .ej-chip-nuevo,
 #bz-chips-yeso .ej-chip-nuevo, #bz-chips-ventas .ej-chip-nuevo { align-items: center; justify-content: center; }
 #zona-actividades .zona-lista-cuadritos .notas-vacio, #zona-trabajo .zona-lista-cuadritos .notas-vacio { grid-column: 1 / -1; }
 @media (max-width: 480px) {
-  #de-chips, #ip-chips, #cm-chips, #bz-chips, #bz-chips-yeso, #bz-chips-ventas,
+  #de-chips, #em-npag-chips, #ip-chips, #cm-chips, #bz-chips, #bz-chips-yeso, #bz-chips-ventas,
   #zona-actividades .zona-lista.zona-lista-cuadritos,
   #zona-trabajo .zona-lista.zona-lista-cuadritos { gap: 8px; }
-  #de-chips .ej-chip, #ip-chips .ej-chip, #cm-chips .ej-chip, #bz-chips .ej-chip, #bz-chips-yeso .ej-chip, #bz-chips-ventas .ej-chip,
+  #de-chips .ej-chip, #em-npag-chips .ej-chip, #ip-chips .ej-chip, #cm-chips .ej-chip, #bz-chips .ej-chip, #bz-chips-yeso .ej-chip, #bz-chips-ventas .ej-chip,
   #zona-actividades .zona-cuadrito, #zona-trabajo .zona-cuadrito { width: 100%; height: auto; }
-  #de-chips .ej-chip-resumen, #ip-chips .ej-chip-resumen, #cm-chips .ej-chip-resumen, #bz-chips .ej-chip-resumen,
+  #de-chips .ej-chip-resumen, #em-npag-chips .ej-chip-resumen, #ip-chips .ej-chip-resumen, #cm-chips .ej-chip-resumen, #bz-chips .ej-chip-resumen,
   #bz-chips-yeso .ej-chip-resumen, #bz-chips-ventas .ej-chip-resumen,
   #zona-actividades .ej-chip-resumen, #zona-trabajo .ej-chip-resumen { padding: 6px; }
-  #de-chips .ej-chip-nombre, #ip-chips .ej-chip-nombre, #cm-chips .ej-chip-nombre, #bz-chips .ej-chip-nombre,
+  #de-chips .ej-chip-nombre, #em-npag-chips .ej-chip-nombre, #ip-chips .ej-chip-nombre, #cm-chips .ej-chip-nombre, #bz-chips .ej-chip-nombre,
   #bz-chips-yeso .ej-chip-nombre, #bz-chips-ventas .ej-chip-nombre,
   #zona-actividades .ej-chip-nombre, #zona-trabajo .ej-chip-nombre { font-size: 0.7rem; }
-  #de-chips .ej-chip-desc, #ip-chips .ej-chip-desc, #cm-chips .ej-chip-desc, #bz-chips .ej-chip-desc,
+  #de-chips .ej-chip-desc, #em-npag-chips .ej-chip-desc, #ip-chips .ej-chip-desc, #cm-chips .ej-chip-desc, #bz-chips .ej-chip-desc,
   #bz-chips-yeso .ej-chip-desc, #bz-chips-ventas .ej-chip-desc,
   #zona-actividades .ej-chip-desc, #zona-trabajo .ej-chip-desc { font-size: 0.6rem; -webkit-line-clamp: 3; }
 }
