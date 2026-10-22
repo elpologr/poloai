@@ -2154,25 +2154,27 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
   white-space: nowrap;
 }
 .em-red-texto { --red-fondo: #262b3d; border-style: dashed; }
-.em-red[data-red="youtube"] { --red-fondo: #d6201a; }
-.em-red[data-red="facebook"] { --red-fondo: #1877f2; }
-.em-red[data-red="x"] { --red-fondo: #111; }
-.em-red[data-red="instagram"] { --red-fondo: linear-gradient(45deg, #f2a23c, #e1306c 55%, #7b3fe4); }
-.em-red[data-red="threads"] { --red-fondo: #1c1c1f; }
-.em-red[data-red="tiktok"] { --red-fondo: #050505; border-color: #fe2c55; }
-.em-red[data-red="whatsapp"] { --red-fondo: #1faa59; }
-.em-red[data-red="telegram"] { --red-fondo: #2a9ad6; }
-.em-red[data-red="linkedin"] { --red-fondo: #0a66c2; }
+.em-red[data-red="youtube"], .em-red-sub-cab[data-red="youtube"] { --red-fondo: #d6201a; }
+.em-red[data-red="facebook"], .em-red-sub-cab[data-red="facebook"] { --red-fondo: #1877f2; }
+.em-red[data-red="x"], .em-red-sub-cab[data-red="x"] { --red-fondo: #111; }
+.em-red[data-red="instagram"], .em-red-sub-cab[data-red="instagram"] { --red-fondo: linear-gradient(45deg, #f2a23c, #e1306c 55%, #7b3fe4); }
+.em-red[data-red="threads"], .em-red-sub-cab[data-red="threads"] { --red-fondo: #1c1c1f; }
+.em-red[data-red="tiktok"], .em-red-sub-cab[data-red="tiktok"] { --red-fondo: #050505; border-color: #fe2c55; }
+.em-red[data-red="whatsapp"], .em-red-sub-cab[data-red="whatsapp"] { --red-fondo: #1faa59; }
+.em-red[data-red="telegram"], .em-red-sub-cab[data-red="telegram"] { --red-fondo: #2a9ad6; }
+.em-red[data-red="linkedin"], .em-red-sub-cab[data-red="linkedin"] { --red-fondo: #0a66c2; }
 .em-red[data-red="github"] { --red-fondo: #ffffff; color: #1f2328; border-color: #d0d7de; }
 .em-red[data-red="github"] .em-red-ico { background: rgba(31, 35, 40, 0.1); }
 .em-red-sub-cab[data-red="github"] { --red-fondo: #ffffff; color: #1f2328; border-color: #d0d7de; }
 .em-red-sub-cab[data-red="github"] .em-red-ico { background: rgba(31, 35, 40, 0.1); }
-.em-red[data-red="twitch"] { --red-fondo: #7c46d6; }
-.em-red[data-red="spotify"] { --red-fondo: #1db954; }
-.em-red[data-red="pinterest"] { --red-fondo: #d42027; }
-.em-red[data-red="reddit"] { --red-fondo: #e8480c; }
-.em-red[data-red="discord"] { --red-fondo: #5865f2; }
-.em-red[data-red="drive"] { --red-fondo: #2f7d4f; }
+.em-red[data-red="enlace"], .em-red-sub-cab[data-red="enlace"] { --red-fondo: #ffffff; color: #1f2328; border-color: #d0d7de; }
+.em-red[data-red="enlace"] .em-red-ico, .em-red-sub-cab[data-red="enlace"] .em-red-ico { background: rgba(31, 35, 40, 0.1); }
+.em-red[data-red="twitch"], .em-red-sub-cab[data-red="twitch"] { --red-fondo: #7c46d6; }
+.em-red[data-red="spotify"], .em-red-sub-cab[data-red="spotify"] { --red-fondo: #1db954; }
+.em-red[data-red="pinterest"], .em-red-sub-cab[data-red="pinterest"] { --red-fondo: #d42027; }
+.em-red[data-red="reddit"], .em-red-sub-cab[data-red="reddit"] { --red-fondo: #e8480c; }
+.em-red[data-red="discord"], .em-red-sub-cab[data-red="discord"] { --red-fondo: #5865f2; }
+.em-red[data-red="drive"], .em-red-sub-cab[data-red="drive"] { --red-fondo: #2f7d4f; }
 @media (max-width: 480px) {
   .em-det-barra { padding: 10px 12px; }
   .em-det-hero { margin: 0 12px; border-radius: 14px; }
@@ -3180,6 +3182,7 @@ button.em-canal-ficha-texto { cursor: pointer; }
 .em-npag-herr { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 10px; }
 .em-npag-herr .notas-btn { margin: 0; }
 .em-npag-herr .em-mover-ayuda[hidden] { display: none; }
+.nv-herr { margin-bottom: 6px; }
 #em-npag-chips .ej-chip-resumen { padding-bottom: 28px; }
 #em-npag-chips .zona-cuadrito-tag { align-self: flex-end; max-width: 100%; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .np-num {

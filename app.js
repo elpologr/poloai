@@ -9383,6 +9383,13 @@ npBtnNotario.addEventListener("click", () => {
   if (!sesionVigente()) { setEstado(npEstado, "Inicia sesión para crear un notario.", "error"); return; }
   ntAbrirNuevo(npZonaNotarios(d));
 });
+// Mismo botón «+ Notario» en la primera vista de notas del proyecto (antes solo estaba en el engrane)
+emEl("em-nv-notario").addEventListener("click", () => {
+  const d = emDetActual;
+  if (!d) return;
+  if (!sesionVigente()) { setEstado(nvEstado, "Inicia sesión para crear un notario.", "error"); return; }
+  ntAbrirNuevo(npZonaNotarios(d));
+});
 // Los notarios se leen la primera vez; un orden que no se pudo subir se reintenta
 function npAsegurarDatos(d) {
   if (typeof NT !== "undefined" && NT && !NT.cargados && !NT.cargando && sesionVigente()) ntCargar();
