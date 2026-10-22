@@ -4501,6 +4501,10 @@ try {
 } catch (e) {}
 const cuPorPagina = () => cuPorFila * CU_FILAS_POR_PAGINA; // cuentas visibles a la vez
 let cuPagina = 0; // página actual (empieza en 0)
+let cuMoviendo = false; // modo «Mover»
+// El orden también se guarda en este dispositivo: si el Apps Script publicado es una versión vieja (o no hay conexión),
+// el orden se conserva aquí y se vuelve a intentar subir al actualizar.
+const CU_CLAVE_ORDEN_LOCAL = "polo-ai-cuentas-orden-local";
 const cuPags = diEl("di-cu-pags");
 const cuPagInfo = diEl("di-cu-pag-info");
 
@@ -4515,13 +4519,14 @@ function dibujarCuentas() {
   cuChips.innerHTML = "";
   cuChips.style.setProperty("--cu-cols", String(cuPorFila));
   cuChips.dataset.cols = String(cuPorFila);
+  cuChips.classList.toggle("em-moviendo", cuMoviendo);
   const paginas = Math.max(1, Math.ceil(cuentas.length / cuPorPagina()));
   cuPagina = Math.min(Math.max(0, cuPagina), paginas - 1);
   cuPags.hidden = paginas <= 1;
   cuPagInfo.textContent = (cuPagina + 1) + " de " + paginas;
   diEl("di-cu-prev").disabled = cuPagina === 0;
   diEl("di-cu-sig").disabled = cuPagina >= paginas - 1;
-  cuentas.slice(cuPagina * cuPorPagina(), (cuPagina + 1) * cuPorPagina()).forEach((c) => {
+  cuentas.slice(cuPagina * cuPorPagina(), (cuPagina + 1) * cuPorPagina()).forEach((c, idx) => {
     const b = document.createElement("button");
     b.type = "button";
     const conImg = imagenValida(c.imagen);
@@ -4554,7 +4559,16 @@ function dibujarCuentas() {
       t.textContent = resumenCorto(c.correo, 40);
       b.appendChild(t);
     }
-    b.addEventListener("click", () => abrirVerCu(c));
+    if (cuMoviendo) { // modo mover: número de posición arriba a la izquierda; tocar la cuenta pide la posición nueva
+      const num = document.createElement("span");
+      num.className = "em-chip-num";
+      num.textContent = String(cuPagina * cuPorPagina() + idx + 1);
+      b.appendChild(num);
+      b.setAttribute("aria-label", "Mover " + c.nombre + " (posición " + (cuPagina * cuPorPagina() + idx + 1) + ")");
+      b.addEventListener("click", () => cuPreguntarPosicion(c));
+    } else {
+      b.addEventListener("click", () => abrirVerCu(c));
+    }
     cuChips.appendChild(b);
   });
   if (!cuentas.length) {
@@ -4570,6 +4584,7 @@ async function cargarCuentas() {
   try {
     const j = await llamarNotas("cuenta_listar");
     cuentas = Array.isArray(j.cuentas) ? j.cuentas : [];
+    cuAplicarOrdenLocal();
     cuCargadas = true;
     setEstado(cuEstado, "");
     dibujarCuentas();
@@ -4592,6 +4607,7 @@ function abrirCuentasDi() {
 function cerrarCuentasDi() {
   cerrarFormCu();
   cerrarVerCu();
+  if (cuMoviendo) cuPonerMover(false);
   cuSub.hidden = true;
 }
 
@@ -4917,6 +4933,68 @@ async function irAProyectoDeCuenta(id) {
 diEl("di-cu-ver-volver").addEventListener("click", cerrarVerCu);
 // El engrane abre el panel con toda la información de la cuenta (el de siempre)
 diEl("di-cu-ver-ajustes").addEventListener("click", () => { if (cuVerActual) abrirFormCu(cuVerActual); });
+
+// ----- Mover cuentas (reposicionar) -----
+function cuOrdenLocal() {
+  try { const o = JSON.parse(localStorage.getItem(CU_CLAVE_ORDEN_LOCAL)); return o && Array.isArray(o.ids) ? o : null; } catch (e) { return null; }
+}
+function cuGuardarOrdenLocal(ids, pendiente) {
+  try { localStorage.setItem(CU_CLAVE_ORDEN_LOCAL, JSON.stringify({ ids: ids, p: !!pendiente })); } catch (e) {}
+}
+// Si hay un orden que aún no se pudo subir a la hoja, se respeta; si no, manda el orden de la hoja
+function cuAplicarOrdenLocal() {
+  const loc = cuOrdenLocal();
+  if (!loc || !loc.p) return;
+  const pos = {};
+  loc.ids.forEach((id, i) => { if (!(id in pos)) pos[id] = i + 1; });
+  cuentas = cuentas
+    .map((c, i) => ({ c, i, k: pos[c.id] || Infinity }))
+    .sort((a, b) => (a.k === b.k ? a.i - b.i : a.k - b.k))
+    .map((x) => x.c);
+  cuSubirOrden().catch(() => {}); // se reintenta subir
+}
+async function cuSubirOrden() {
+  const ids = cuentas.map((c) => c.id);
+  cuGuardarOrdenLocal(ids, true);
+  await llamarNotas("cuenta_orden_guardar", { orden: ids });
+  cuGuardarOrdenLocal(ids, false);
+}
+const cuBtnMover = diEl("di-cu-mover");
+const cuMoverAyuda = diEl("di-cu-mover-ayuda");
+function cuPonerMover(activo) {
+  cuMoviendo = !!activo;
+  cuBtnMover.setAttribute("aria-pressed", String(cuMoviendo));
+  cuBtnMover.textContent = cuMoviendo ? "✔ Terminar de mover" : "↕ Mover";
+  cuMoverAyuda.hidden = !cuMoviendo;
+  dibujarCuentas();
+}
+function cuPreguntarPosicion(c) {
+  const total = cuentas.length;
+  const desde = cuentas.indexOf(c);
+  if (desde === -1) return;
+  if (total < 2) { setEstado(cuEstado, "Hace falta al menos otra cuenta para poder mover.", "error"); return; }
+  const r = window.prompt("«" + c.nombre + "» está en la posición " + (desde + 1) + " de " + total + ".\n¿A qué posición la quieres mover? (1 a " + total + ")", String(desde + 1));
+  if (r === null) return;
+  const n = parseInt(String(r).trim(), 10);
+  if (!(n >= 1 && n <= total)) { setEstado(cuEstado, "Escribe un número del 1 al " + total + ".", "error"); return; }
+  cuMoverA(c, n - 1);
+}
+async function cuMoverA(c, destino) {
+  const desde = cuentas.indexOf(c);
+  if (desde === -1 || desde === destino) return;
+  cuentas.splice(desde, 1);
+  cuentas.splice(destino, 0, c);
+  cuPagina = Math.floor(destino / cuPorPagina()); // se muestra la página donde quedó
+  dibujarCuentas();
+  setEstado(cuEstado, "Guardando orden…");
+  try {
+    await cuSubirOrden();
+    setEstado(cuEstado, "Orden guardado ✓", "ok");
+  } catch (err) {
+    setEstado(cuEstado, "El orden quedó guardado solo en este dispositivo (" + err.message + "). Se volverá a intentar al actualizar.", "error");
+  }
+}
+cuBtnMover.addEventListener("click", () => cuPonerMover(!cuMoviendo));
 
 // ----- Selector: cuántas cuentas se ven por fila -----
 const cuSelPorFila = diEl("di-cu-por-fila");
