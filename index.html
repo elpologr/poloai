@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=87" />
+  <link rel="stylesheet" href="styles.css?v=88" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -706,6 +706,14 @@
           <h3>&#128231; Cuentas</h3>
         </header>
         <div class="notas-sub-cuerpo">
+          <div class="di-cu-barra">
+            <button id="di-cu-nueva" class="notas-btn" type="button">&#65291; Añadir cuenta</button>
+            <nav id="di-cu-pags" class="di-cu-pags" aria-label="Páginas de cuentas" hidden>
+              <button id="di-cu-prev" class="btn-cal" type="button" aria-label="Cuentas anteriores">&#8249;</button>
+              <span id="di-cu-pag-info" class="di-cu-pag-info"></span>
+              <button id="di-cu-sig" class="btn-cal" type="button" aria-label="Cuentas siguientes">&#8250;</button>
+            </nav>
+          </div>
           <p id="di-cu-estado" class="notas-estado proy-estado-lista"></p>
           <div id="di-cu-chips" class="ej-chips"></div>
         </div>
@@ -1543,7 +1551,7 @@
   </main>
 
   <script src="config.js?v=66"></script>
-  <script src="app.js?v=92"></script>
+  <script src="app.js?v=93"></script>
   <script src="voz.js?v=64"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

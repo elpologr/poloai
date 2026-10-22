@@ -16,7 +16,7 @@ const VERSION = "64";
     "zona-actividades", "zona-trabajo", "btn-menu-notas", "seccion-notas", "btn-menu-ejercicio",
     "panel-ejercicio", "ej-cuadricula", "ej-dia", "ej-form",
     "btn-menu-diario", "panel-diario", "di-cuadricula", "di-dia", "di-form",
-    "di-cuentas-abrir", "di-cuentas", "di-cu-chips", "di-cu-form", "di-cu-proyectos",
+    "di-cuentas-abrir", "di-cuentas", "di-cu-chips", "di-cu-form", "di-cu-proyectos", "di-cu-nueva", "di-cu-prev", "di-cu-sig",
     "seccion-ejercicio", "seccion-diario", "di-ejercicios", "di-ej-detalle", "zona-pedidos-yeso", "bazar-division-yeso",
     "pop-color", "pop-colores", "pop-mas-colores", "pop-paleta", "pop-color-personal",
     "btn-menu-deudas", "seccion-deudas", "panel-deudas", "de-chips", "de-form",
@@ -4484,6 +4484,10 @@ let cuEditando = null; // cuenta abierta en la ventana (null = nueva)
 let cuImagenUrl = "";
 let cuImagenNueva = null; // { base64, vista } cuando se eligió una imagen que aún no se sube
 let cuSeleccion = new Set(); // Ids de proyectos marcados en la ventana
+const CU_POR_PAGINA = 5; // cuentas visibles a la vez
+let cuPagina = 0; // página actual (empieza en 0)
+const cuPags = diEl("di-cu-pags");
+const cuPagInfo = diEl("di-cu-pag-info");
 
 // Nombres de los proyectos vinculados que todavía existen en Empresas/Proyectos
 function cuNombresProyectos(c) {
@@ -4494,7 +4498,13 @@ function cuNombresProyectos(c) {
 
 function dibujarCuentas() {
   cuChips.innerHTML = "";
-  cuentas.forEach((c) => {
+  const paginas = Math.max(1, Math.ceil(cuentas.length / CU_POR_PAGINA));
+  cuPagina = Math.min(Math.max(0, cuPagina), paginas - 1);
+  cuPags.hidden = paginas <= 1;
+  cuPagInfo.textContent = (cuPagina + 1) + " de " + paginas;
+  diEl("di-cu-prev").disabled = cuPagina === 0;
+  diEl("di-cu-sig").disabled = cuPagina >= paginas - 1;
+  cuentas.slice(cuPagina * CU_POR_PAGINA, (cuPagina + 1) * CU_POR_PAGINA).forEach((c) => {
     const b = document.createElement("button");
     b.type = "button";
     const conImg = imagenValida(c.imagen);
@@ -4530,13 +4540,12 @@ function dibujarCuentas() {
     b.addEventListener("click", () => abrirFormCu(c));
     cuChips.appendChild(b);
   });
-  const nuevo = document.createElement("button");
-  nuevo.type = "button";
-  nuevo.className = "ej-chip ej-chip-nuevo";
-  nuevo.setAttribute("aria-label", "Añadir cuenta");
-  nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
-  nuevo.addEventListener("click", () => abrirFormCu(null));
-  cuChips.appendChild(nuevo);
+  if (!cuentas.length) {
+    const p = document.createElement("p");
+    p.className = "notas-estado";
+    p.textContent = "Todavía no tienes cuentas. Usa «Añadir cuenta».";
+    cuChips.appendChild(p);
+  }
 }
 
 async function cargarCuentas() {
@@ -4547,14 +4556,17 @@ async function cargarCuentas() {
     cuCargadas = true;
     setEstado(cuEstado, "");
     dibujarCuentas();
+    return true;
   } catch (err) {
     setEstado(cuEstado, "Error: " + err.message, "error");
+    return false;
   }
 }
 
 function abrirCuentasDi() {
   if (!sesionVigente()) { setEstado(diEstado, "Inicia sesión para ver tus cuentas", "error"); return; }
   cuSub.hidden = false;
+  cuPagina = 0;
   dibujarCuentas();
   if (!cuCargadas) cargarCuentas();
   // Los proyectos se necesitan para vincular: si aún no se han leído, se leen ahora
@@ -4723,10 +4735,22 @@ async function guardarCu() {
     const pos = editando ? cuentas.indexOf(editando) : -1;
     if (pos !== -1) cuentas[pos] = c;
     else cuentas.push(c);
+    cuPagina = Math.floor(cuentas.indexOf(c) / CU_POR_PAGINA); // se muestra la página donde quedó
     cerrarFormCu();
     dibujarCuentas();
     setEstado(cuEstado, "Guardado ✓", "ok");
-    cargarCuentas().then(() => setEstado(cuEstado, "Guardado ✓", "ok"));
+    // Se vuelve a leer la hoja para confirmar que de verdad quedó guardada
+    cargarCuentas().then((leida) => {
+      if (!leida) return;
+      if (!cuentas.some((x) => x.id === id)) {
+        setEstado(cuEstado, "⚠ El Apps Script dijo «guardado», pero la cuenta no aparece al volver a leer la hoja «Cuentas». " +
+          "Revisa que el link del exec de config.js sea el de la implementación con el google-apps-script.gs más reciente y que esté ligada a tu mismo libro de Google Sheets.", "error");
+      } else {
+        cuPagina = Math.floor(cuentas.findIndex((x) => x.id === id) / CU_POR_PAGINA);
+        dibujarCuentas();
+        setEstado(cuEstado, "Guardado ✓", "ok");
+      }
+    });
   } catch (err) {
     setEstado(cuFormEstado, "Error: " + err.message, "error");
   } finally {
@@ -4754,6 +4778,9 @@ async function borrarCu() {
 
 diEl("di-cuentas-abrir").addEventListener("click", abrirCuentasDi);
 diEl("di-cu-volver").addEventListener("click", cerrarCuentasDi);
+diEl("di-cu-nueva").addEventListener("click", () => abrirFormCu(null));
+diEl("di-cu-prev").addEventListener("click", () => { cuPagina--; dibujarCuentas(); });
+diEl("di-cu-sig").addEventListener("click", () => { cuPagina++; dibujarCuentas(); });
 cuGuardar.addEventListener("click", guardarCu);
 diEl("di-cu-cancelar").addEventListener("click", cerrarFormCu);
 cuBorrar.addEventListener("click", borrarCu);
