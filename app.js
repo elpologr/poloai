@@ -4471,7 +4471,8 @@ const cuQuitarImg = diEl("di-cu-quitar-img");
 const cuArchivo = diEl("di-cu-archivo");
 const cuUrlImg = diEl("di-cu-url-img");
 const cuNombre = diEl("di-cu-nombre");
-const cuCorreo = diEl("di-cu-correo");
+const cuCorreo = diEl("di-cu-correo"); // «Referencia del correo»: texto libre, no el correo real
+const cuImgProy = diEl("di-cu-img-proyecto");
 const cuListaProy = diEl("di-cu-proyectos");
 const cuGuardar = diEl("di-cu-guardar");
 const cuBorrar = diEl("di-cu-borrar");
@@ -4565,7 +4566,28 @@ function cerrarCuentasDi() {
 }
 
 // ----- Lista de proyectos para vincular -----
+function cuLlenarSelectImagen() {
+  cuImgProy.innerHTML = "";
+  const con = empresas.filter((e) => imagenValida(e.imagen));
+  cuImgProy.add(new Option(con.length ? "Elegir un proyecto…" : emCargadas ? "Ningún proyecto tiene imagen" : "Leyendo proyectos…", ""));
+  con.forEach((e) => cuImgProy.add(new Option(e.nombre + " (" + (e.zona || "Proyectos") + ")", e.id)));
+  cuImgProy.disabled = !con.length;
+}
+// Al elegir un proyecto, esta cuenta usa su misma imagen (se copia el link)
+cuImgProy.addEventListener("change", () => {
+  const e = empresas.find((x) => x.id === cuImgProy.value);
+  if (!e) return;
+  cuImagenUrl = e.imagen;
+  cuImagenNueva = null;
+  cuArchivo.value = "";
+  cuUrlImg.value = "";
+  cuDibujarVistaImagen();
+  setEstado(cuFormEstado, "Imagen de «" + e.nombre + "» ✓", "ok");
+  cuImgProy.value = "";
+});
+
 function dibujarListaProyectosCu() {
+  cuLlenarSelectImagen();
   cuListaProy.innerHTML = "";
   if (!empresas.length) {
     const p = document.createElement("p");
@@ -4678,10 +4700,9 @@ function cerrarFormCu() {
 }
 
 async function guardarCu() {
-  const nombre = cuNombre.value.trim();
-  if (!nombre) { setEstado(cuFormEstado, "Escribe el nombre de la cuenta", "error"); return; }
   const correo = cuCorreo.value.trim();
-  if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) { setEstado(cuFormEstado, "Ese correo no parece válido", "error"); return; }
+  const nombre = cuNombre.value.trim() || correo; // sin proyecto, el nombre es la misma referencia
+  if (!nombre) { setEstado(cuFormEstado, "Escribe el nombre del proyecto o la referencia del correo", "error"); return; }
   if (cuUrlImg.value.trim() && !cuUsarLinkImagen()) return;
   cuGuardar.disabled = true;
   try {

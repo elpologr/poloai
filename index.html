@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=86" />
+  <link rel="stylesheet" href="styles.css?v=87" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -722,6 +722,10 @@
               <button id="di-cu-quitar-img" class="notas-btn notas-btn-sec" type="button" hidden>Quitar imagen</button>
             </div>
             <input id="di-cu-archivo" type="file" accept="image/*" hidden />
+            <label class="di-cu-img-proy">
+              <span>…o usa la imagen de un proyecto</span>
+              <select id="di-cu-img-proyecto" aria-label="Usar la imagen de un proyecto"></select>
+            </label>
             <div class="proy-url-img">
               <input id="di-cu-url-img" type="url" inputmode="url" maxlength="2000" autocomplete="off"
                      placeholder="…o pega aquí el link de la imagen (imgbb)" aria-label="Link de la imagen" />
@@ -730,12 +734,12 @@
           </div>
           <div class="proy-datos-col">
             <label class="notas-campo">
-              <span>Nombre</span>
-              <input id="di-cu-nombre" type="text" maxlength="120" placeholder="Ej. Correo de trabajo" autocomplete="off" />
+              <span>Nombre del proyecto de la cuenta</span>
+              <input id="di-cu-nombre" type="text" maxlength="120" placeholder="Si no tiene proyecto, repite la referencia" autocomplete="off" />
             </label>
             <label class="notas-campo">
-              <span>Correo</span>
-              <input id="di-cu-correo" type="email" maxlength="200" placeholder="nombre@gmail.com" autocomplete="off" />
+              <span>Referencia del correo (no pongas el correo real)</span>
+              <input id="di-cu-correo" type="text" maxlength="200" placeholder="Ej. Correo 3 · el rojo" autocomplete="off" />
             </label>
             <div class="notas-campo">
               <span>Vincular a empresas / proyectos</span>
@@ -1538,8 +1542,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=65"></script>
-  <script src="app.js?v=91"></script>
+  <script src="config.js?v=66"></script>
+  <script src="app.js?v=92"></script>
   <script src="voz.js?v=64"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>
