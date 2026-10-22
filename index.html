@@ -719,6 +719,22 @@
         </div>
       </div>
 
+      <!-- Zona de una cuenta: solo la imagen, el nombre del proyecto, la referencia del correo y un botón al proyecto.
+           Los ajustes (editar todo) se abren con el engrane. -->
+      <div id="di-cu-ver" class="notas-submenu di-cu-ver" hidden>
+        <header class="notas-sub-cabecera di-cu-ver-cabecera">
+          <button id="di-cu-ver-volver" class="notas-btn notas-btn-sec" type="button">&#8249; Volver</button>
+          <button id="di-cu-ver-ajustes" class="notas-btn notas-btn-sec di-cu-ver-ajustes" type="button" aria-label="Ajustes de esta cuenta" title="Ajustes">&#9881;&#xFE0E;</button>
+        </header>
+        <div class="notas-sub-cuerpo di-cu-ver-cuerpo">
+          <div id="di-cu-ver-imagen" class="di-cu-ver-imagen"></div>
+          <h3 id="di-cu-ver-nombre" class="di-cu-ver-nombre"></h3>
+          <p id="di-cu-ver-correo" class="di-cu-ver-correo"></p>
+          <div id="di-cu-ver-botones" class="di-cu-ver-botones"></div>
+          <p id="di-cu-ver-estado" class="notas-estado"></p>
+        </div>
+      </div>
+
       <!-- Ventana para agregar o editar una cuenta -->
       <div id="di-cu-form" class="notas-nueva proy-form modo-editar" hidden>
         <h3 id="di-cu-form-titulo" class="notas-form-titulo">Nueva cuenta</h3>

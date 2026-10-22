@@ -4461,6 +4461,13 @@ document.addEventListener("keydown", (e) => {
 // Cada cuenta es uno de tus correos: Foto | Nombre | Correo | Proyectos vinculados (Ids de Empresas/Proyectos).
 // La foto se sube a imgbb igual que en Empresas/Proyectos (acción «proyecto_imagen»).
 const cuSub = diEl("di-cuentas");
+const cuVer = diEl("di-cu-ver");
+const cuVerImagen = diEl("di-cu-ver-imagen");
+const cuVerNombre = diEl("di-cu-ver-nombre");
+const cuVerCorreo = diEl("di-cu-ver-correo");
+const cuVerBotones = diEl("di-cu-ver-botones");
+const cuVerEstado = diEl("di-cu-ver-estado");
+let cuVerActual = null; // cuenta que se está viendo
 const cuEstado = diEl("di-cu-estado");
 const cuChips = diEl("di-cu-chips");
 const cuForm = diEl("di-cu-form");
@@ -4537,7 +4544,7 @@ function dibujarCuentas() {
       t.textContent = resumenCorto(c.correo, 40);
       b.appendChild(t);
     }
-    b.addEventListener("click", () => abrirFormCu(c));
+    b.addEventListener("click", () => abrirVerCu(c));
     cuChips.appendChild(b);
   });
   if (!cuentas.length) {
@@ -4574,6 +4581,7 @@ function abrirCuentasDi() {
 }
 function cerrarCuentasDi() {
   cerrarFormCu();
+  cerrarVerCu();
   cuSub.hidden = true;
 }
 
@@ -4737,6 +4745,7 @@ async function guardarCu() {
     else cuentas.push(c);
     cuPagina = Math.floor(cuentas.indexOf(c) / CU_POR_PAGINA); // se muestra la página donde quedó
     cerrarFormCu();
+    if (!cuVer.hidden) { cuVerActual = c; dibujarVerCu(); }
     dibujarCuentas();
     setEstado(cuEstado, "Guardado ✓", "ok");
     // Se vuelve a leer la hoja para confirmar que de verdad quedó guardada
@@ -4767,6 +4776,7 @@ async function borrarCu() {
     await llamarNotas("cuenta_borrar", { id: c.id });
     cuentas = cuentas.filter((x) => x !== c);
     cerrarFormCu();
+    cerrarVerCu();
     dibujarCuentas();
     setEstado(cuEstado, "Eliminada", "ok");
   } catch (err) {
@@ -4775,6 +4785,89 @@ async function borrarCu() {
     cuBorrar.disabled = false;
   }
 }
+
+// ----- Zona de una cuenta: imagen, nombre del proyecto, referencia del correo y botón al proyecto -----
+
+function dibujarVerCu() {
+  const c = cuVerActual;
+  if (!c) return;
+  // Imagen
+  cuVerImagen.innerHTML = "";
+  if (imagenValida(c.imagen)) {
+    const img = document.createElement("img");
+    img.alt = "Imagen de " + c.nombre;
+    img.referrerPolicy = "no-referrer";
+    img.addEventListener("error", () => { cuVerImagen.textContent = "📧"; });
+    img.src = c.imagen;
+    cuVerImagen.appendChild(img);
+  } else {
+    cuVerImagen.textContent = "📧";
+  }
+  // Los dos únicos textos
+  cuVerNombre.textContent = c.nombre;
+  cuVerCorreo.textContent = c.correo || "";
+  cuVerCorreo.hidden = !c.correo;
+  // Botón(es) hacia el proyecto vinculado en Empresas/Proyectos
+  cuVerBotones.innerHTML = "";
+  const mapa = {};
+  empresas.forEach((e) => { mapa[e.id] = e; });
+  const ids = (c.proyectos || []);
+  const hayLeidos = emCargadas;
+  const vigentes = hayLeidos ? ids.filter((id) => mapa[id]) : ids;
+  if (!vigentes.length) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "notas-btn di-cu-ver-ir";
+    b.disabled = true;
+    b.textContent = hayLeidos ? "Esta cuenta no está vinculada a un proyecto" : "Leyendo proyectos…";
+    cuVerBotones.appendChild(b);
+    return;
+  }
+  vigentes.forEach((id) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "notas-btn di-cu-ver-ir";
+    const e = mapa[id];
+    // Con un solo proyecto el botón dice «Ir al proyecto»; con varios, lleva el nombre de cada uno
+    b.textContent = vigentes.length === 1 ? "🏢 Ir al proyecto" : "🏢 " + (e ? e.nombre : "Ir al proyecto");
+    b.addEventListener("click", () => irAProyectoDeCuenta(id));
+    cuVerBotones.appendChild(b);
+  });
+}
+
+function abrirVerCu(c) {
+  cuVerActual = c;
+  setEstado(cuVerEstado, "");
+  dibujarVerCu();
+  cuVer.hidden = false;
+  cuVer.scrollTop = 0;
+  // Los proyectos se necesitan para el botón: si aún no se han leído, se leen ahora
+  if (!emCargadas) cargarEmpresas().then(() => { if (!cuVer.hidden) dibujarVerCu(); });
+}
+function cerrarVerCu() {
+  cuVer.hidden = true;
+  cuVerActual = null;
+}
+
+// Redirige a la ficha del proyecto en Empresas/Proyectos
+async function irAProyectoDeCuenta(id) {
+  setEstado(cuVerEstado, "");
+  if (!emCargadas) {
+    setEstado(cuVerEstado, "Leyendo proyectos…");
+    const ok = await cargarEmpresas();
+    if (ok === false && !emCargadas) { setEstado(cuVerEstado, "No se pudieron leer los proyectos. Intenta de nuevo.", "error"); return; }
+    setEstado(cuVerEstado, "");
+  }
+  const d = empresas.find((x) => x.id === id);
+  if (!d) { setEstado(cuVerEstado, "Ese proyecto ya no existe en Empresas/Proyectos.", "error"); return; }
+  mostrarSeccion("seccion-empresas");
+  if (document.getElementById("seccion-empresas").hidden) return; // el usuario decidió no salir
+  abrirDetalleEm(d);
+}
+
+diEl("di-cu-ver-volver").addEventListener("click", cerrarVerCu);
+// El engrane abre el panel con toda la información de la cuenta (el de siempre)
+diEl("di-cu-ver-ajustes").addEventListener("click", () => { if (cuVerActual) abrirFormCu(cuVerActual); });
 
 diEl("di-cuentas-abrir").addEventListener("click", abrirCuentasDi);
 diEl("di-cu-volver").addEventListener("click", cerrarCuentasDi);
@@ -4788,6 +4881,7 @@ cuBorrar.addEventListener("click", borrarCu);
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelDi.hidden) return;
   if (!cuForm.hidden) cerrarFormCu();
+  else if (!cuVer.hidden) cerrarVerCu();
   else if (!cuSub.hidden) cerrarCuentasDi();
 });
 
