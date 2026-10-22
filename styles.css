@@ -3225,3 +3225,27 @@ button.em-canal-ficha-texto { cursor: pointer; }
 .notas-nueva .di-cu-item input { width: auto; flex: none; margin: 0; }
 .di-cu-item small { color: var(--nb-suave); }
 .di-cu-vacio { margin: 0; font-size: 0.85rem; color: var(--nb-suave); }
+
+/* Recuadros de Cuentas: igual que los de Empresas/Proyectos (con foto, el nombre va encima, abajo) */
+#di-cu-chips .ej-chip { position: relative; overflow: hidden; }
+#di-cu-chips .ej-chip-nombre { font-size: 0.8rem; }
+#di-cu-chips .ej-chip-desc { font-size: 0.65rem; }
+#di-cu-chips .emp-chip-con-img { justify-content: flex-end; padding: 0; }
+#di-cu-chips .emp-chip-con-img .ej-chip-nombre,
+#di-cu-chips .emp-chip-con-img .ej-chip-fecha {
+  position: relative;
+  z-index: 1;
+  padding: 0 6px;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+#di-cu-chips .emp-chip-con-img .ej-chip-nombre { padding-top: 22px; }
+#di-cu-chips .emp-chip-con-img .ej-chip-fecha { padding-bottom: 6px; }
+#di-cu-chips .emp-chip-con-img::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 55%;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0));
+  pointer-events: none;
+}

@@ -4497,7 +4497,7 @@ function dibujarCuentas() {
     const b = document.createElement("button");
     b.type = "button";
     const conImg = imagenValida(c.imagen);
-    b.className = "ej-chip ej-chip-resumen" + (conImg ? " emp-chip-con-img" : "");
+    b.className = "ej-chip" + (conImg ? " emp-chip-con-img" : "");
     const vinculos = cuNombresProyectos(c);
     b.title = c.nombre + (c.correo ? " · " + c.correo : "") + (vinculos.length ? "\nVinculada a: " + vinculos.join(", ") : "");
     b.setAttribute("aria-label", "Abrir " + c.nombre);
