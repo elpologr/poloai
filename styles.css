@@ -3228,7 +3228,6 @@ button.em-canal-ficha-texto { cursor: pointer; }
   color: #fff; background: #12308a; border: 2px solid #fff; border-radius: 999px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55); pointer-events: none;
 }
-#em-npag-chips .np-notario { background: #fffdf3; border-color: #f0dc8a; }
 #em-npag-chips.np-moviendo .ej-chip:not(.ej-chip-nuevo) { outline: 2px dashed rgba(18, 48, 138, 0.75); outline-offset: -3px; cursor: pointer; }
 @media (max-width: 480px) {
   .np-num { bottom: 3px; left: 3px; min-width: 20px; height: 20px; font-size: 0.7rem; }
@@ -3242,7 +3241,15 @@ button.em-canal-ficha-texto { cursor: pointer; }
 .em-nvista .bazar-division { margin: 30px 0 16px; }
 .nv-vacio { margin: 0 0 6px; font-style: italic; color: #aab4d4; }
 .nv-grid .ej-chip { position: relative; }
-.nv-grid .np-notario-nota { background: #fffdf3; border-color: #f0dc8a; }
+/* Notarios dentro de «Notas del proyecto»: mismos cuadros azules que en la página del notario */
+.nv-grid .np-notario-nota, #em-npag-chips .np-notario {
+  color: #fff; background: linear-gradient(160deg, #2f7be0, #1b4fa8);
+  border: 1px solid #7fb2f5; box-shadow: 0 6px 16px rgba(20, 60, 140, 0.5);
+}
+.nv-grid .np-notario-nota .ej-chip-nombre, #em-npag-chips .np-notario .ej-chip-nombre { color: #fff; }
+.nv-grid .np-notario-nota .ej-chip-fecha, #em-npag-chips .np-notario .ej-chip-fecha { color: #cfe3ff; }
+.nv-grid .np-notario-nota .ej-chip-desc, #em-npag-chips .np-notario .ej-chip-desc { color: #e3efff; }
+.nv-grid .np-notario-nota .zona-cuadrito-tag, #em-npag-chips .np-notario .zona-cuadrito-tag { color: #cfe3ff; }
 
 
 /* Tareas obligatorias diarias: resumen de las completadas hoy (se ocultan hasta mañana) */
