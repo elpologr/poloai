@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "59";
+const VERSION = "60";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -25,7 +25,7 @@ const VERSION = "59";
     "cuenta-nota", "cuenta-dispositivos", "disp-panel", "disp-estado", "disp-lista", "disp-todas",
     "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
-    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp", "em-canal",
+    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp", "em-canal", "em-notas-proy-abrir", "em-npag", "em-npag-chips", "em-npag-form",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
   ];
   const problemas = [];
@@ -5600,6 +5600,7 @@ function cerrarSubRed() {
 emEl("em-red-sub-volver").addEventListener("click", cerrarSubRed);
 
 function abrirDetalleEm(d) {
+  cerrarNotasProy();
   emRedSub.hidden = true;
   emSubActual = null;
   emDetActual = d;
@@ -5611,6 +5612,7 @@ function abrirDetalleEm(d) {
   emEl("em-det-volver").focus();
 }
 function cerrarDetalleEm() {
+  cerrarNotasProy();
   emRedSub.hidden = true;
   emSubActual = null;
   emSubBoton = null;
@@ -6340,6 +6342,7 @@ function hojaMenuFlotante(ancla, etiqueta, opciones) {
 function hojaMenuLink(ancla, td, indice, enlace) {
   hojaMenuFlotante(ancla, "Opciones del link", [
     { texto: "\u270F\uFE0F Modificar link", accion: () => hojaModificarLink(td, enlace, indice) },
+    { texto: "\u2795 Agregar link", accion: () => hojaAgregarLink(td) },
     { texto: "\u{1F5D1}\uFE0F Borrar link", accion: () => hojaBorrarLink(td, enlace, indice) },
   ]);
 }
@@ -6595,8 +6598,14 @@ function hojaClickGaleria(e, gal) {
   }
   const mini = e.target.closest(".em-hoja-mini");
   if (mini) {
-    // YouTube se ve en el reproductor de la hoja; los demás se abren en otra pestaña (comportamiento normal del link)
-    if (mini.dataset.tipo === "youtube") {
+    // Se abre un panel con el video (o los videos) de los links de la celda; arriba de cada uno va su link para abrirlo en otra pantalla
+    const it = mini.closest(".em-hoja-gal-item");
+    const videos = inp ? hojaPartesVideos(inp.value) : [];
+    if (videos.length) {
+      e.preventDefault();
+      const i = it ? videos.findIndex((v) => v.i === +it.dataset.indice && !v.seccion) : -1;
+      hojaAbrirPanelVideos(videos, i < 0 ? 0 : i, emHoja);
+    } else if (mini.dataset.tipo === "youtube") {
       e.preventDefault();
       hojaAbrirVideo(mini.dataset.id, mini.getAttribute("href"));
     }
@@ -7963,6 +7972,110 @@ function hojaAbrirVideoSocial(red, enlace, padre) {
   fondo.addEventListener("pointerdown", (e) => { if (e.target === fondo) hojaCerrarVideo(); });
   cerrar.focus();
 }
+// ----- Panel con los videos de una celda: cada video con su link arriba (abre en una pantalla nueva) -----
+// El video se carga al tocar ▶ (así no se cargan todos a la vez); el que se tocó en la hoja se carga solo.
+function hojaAbrirPanelVideos(videos, inicio, padre) {
+  hojaCerrarVideo();
+  hojaCerrarMenuVideos();
+  const fondo = document.createElement("div");
+  fondo.className = "em-hoja-dialogo em-hoja-video-fondo";
+  const caja = document.createElement("div");
+  caja.className = "em-hoja-video-caja em-hoja-panel-caja";
+  caja.setAttribute("role", "dialog");
+  caja.setAttribute("aria-modal", "true");
+  caja.setAttribute("aria-label", "Videos de la celda");
+  const barra = document.createElement("div");
+  barra.className = "em-hoja-video-barra";
+  const titulo = document.createElement("strong");
+  titulo.className = "em-hoja-panel-titulo";
+  titulo.textContent = videos.length === 1 ? "Video" : videos.length + " videos";
+  const cerrar = document.createElement("button");
+  cerrar.type = "button";
+  cerrar.className = "em-hoja-icono";
+  cerrar.setAttribute("aria-label", "Cerrar");
+  cerrar.textContent = "\u00D7";
+  barra.append(titulo, cerrar);
+  const lista = document.createElement("div");
+  lista.className = "em-hoja-panel-lista";
+  let activo = null;
+  const bloques = videos.map((v) => {
+    const nombreRed = HOJA_RED_NOMBRE[v.red] || "la red";
+    const item = document.createElement("div");
+    item.className = "em-hoja-panel-item";
+    const enlace = document.createElement("a");
+    enlace.className = "em-hoja-panel-link";
+    enlace.href = v.enlace;
+    enlace.target = "_blank";
+    enlace.rel = "noopener noreferrer";
+    enlace.title = "Abrir en una pantalla nueva: " + v.enlace;
+    const corto = v.enlace.replace(/^https?:\/\/(www\.)?/i, "");
+    enlace.textContent = (v.seccion ? "\u{1F4C1} " + v.seccion + " \u00B7 " : "") + corto + " \u2197";
+    const marco = document.createElement("div");
+    marco.className = "em-hoja-video-marco em-hoja-panel-marco em-video-menu-mini-" + v.red;
+    let vertical = v.red === "tiktok";
+    try { if (/^\/(reel|reels)(\/|$)|\/reels?\//.test(new URL(v.enlace).pathname)) vertical = true; } catch (e) {}
+    if (vertical) marco.classList.add("em-hoja-video-vertical");
+    const img = document.createElement("img");
+    hojaPonerMiniatura(img, v);
+    marco.appendChild(img);
+    let embed = v.red === "youtube"
+      ? "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(v.id) + "?autoplay=1&rel=0&playsinline=1"
+      : hojaEmbedSocial(v.red, v.enlace);
+    if (embed && v.red === "facebook") embed += "&autoplay=true";
+    const bloque = { item, descargar: () => {}, cargar: () => {} };
+    if (embed) {
+      const play = document.createElement("button");
+      play.type = "button";
+      play.className = "em-hoja-panel-play";
+      play.setAttribute("aria-label", "Reproducir el video de " + nombreRed);
+      play.textContent = "\u25B6";
+      marco.appendChild(play);
+      bloque.cargar = () => {
+        if (marco.querySelector("iframe")) return;
+        if (activo && activo !== bloque) activo.descargar(); // solo un video a la vez, así no suenan dos
+        const iframe = document.createElement("iframe");
+        iframe.src = embed;
+        iframe.title = "Video de " + nombreRed;
+        iframe.allow = "autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share; fullscreen";
+        iframe.allowFullscreen = true;
+        iframe.referrerPolicy = "strict-origin-when-cross-origin";
+        marco.appendChild(iframe);
+        marco.classList.add("em-hoja-panel-cargado");
+        activo = bloque;
+      };
+      bloque.descargar = () => {
+        const f = marco.querySelector("iframe");
+        if (f) f.remove();
+        marco.classList.remove("em-hoja-panel-cargado");
+        if (activo === bloque) activo = null;
+      };
+      play.addEventListener("click", bloque.cargar);
+    } else {
+      // TikTok, Threads y X no se pueden ver dentro de otra página: miniatura y botón para abrirlo
+      const abrir = document.createElement("a");
+      abrir.href = v.enlace;
+      abrir.target = "_blank";
+      abrir.rel = "noopener noreferrer";
+      abrir.className = "em-hoja-guardar em-hoja-panel-abrir";
+      abrir.textContent = "Abrir el video en " + nombreRed + " \u2197";
+      marco.appendChild(abrir);
+    }
+    item.append(enlace, marco);
+    lista.appendChild(item);
+    return bloque;
+  });
+  caja.append(barra, lista);
+  fondo.appendChild(caja);
+  (padre || emHoja).appendChild(fondo);
+  cerrar.addEventListener("click", hojaCerrarVideo);
+  fondo.addEventListener("pointerdown", (e) => { if (e.target === fondo) hojaCerrarVideo(); });
+  const b = bloques[inicio] || bloques[0];
+  if (b) {
+    b.cargar();
+    b.item.scrollIntoView({ block: "nearest" });
+  }
+  cerrar.focus();
+}
 function hojaCerrarVideo() {
   const f = document.querySelector(".em-hoja-video-fondo");
   if (f) f.remove();
@@ -7978,6 +8091,12 @@ emHojaTabla.addEventListener("click", (e) => {
   if (gal) { hojaClickGaleria(e, gal); return; }
   const a = e.target.closest ? e.target.closest(".em-hoja-mini, .em-hoja-link") : null;
   if (!a) return;
+  if (a.classList.contains("em-hoja-mini")) { // miniatura suelta de una celda: mismo panel que en la galería
+    const tdm = a.closest("td");
+    const cel = tdm ? tdm.querySelector(".em-hoja-celda") : null;
+    const vs = cel ? hojaPartesVideos(cel.value) : [];
+    if (vs.length) { e.preventDefault(); hojaAbrirPanelVideos(vs, 0, emHoja); return; }
+  }
   // Celda con varios videos (separados por comas): se abre el menú para elegir cuál ver
   const td = a.closest("td");
   const celda = td ? td.querySelector(".em-hoja-celda") : null;
@@ -8137,6 +8256,7 @@ function dibujarNotasEm() {
       .forEach((nota) => emNotasLista.appendChild(emCrearNota(d, nota)));
   }
   emActualizarContador();
+  dibujarChipsNp();
 }
 
 function emCrearNota(d, nota) {
@@ -8281,6 +8401,173 @@ async function emGuardarNota() {
   }
 }
 emNotaAgregar.addEventListener("click", emGuardarNota);
+
+// ----- «Notas del proyecto»: página con recuadros (como Deudas o Bazar) -----
+// Usa las MISMAS notas del proyecto (columna H «Notas») y las mismas acciones del Apps Script
+// (empresa_nota_guardar / empresa_nota_borrar): no hace falta cambiar el Apps Script.
+const npPag = emEl("em-npag");
+const npChips = emEl("em-npag-chips");
+const npEstado = emEl("em-npag-estado");
+const npProyecto = emEl("em-npag-proyecto");
+const npForm = emEl("em-npag-form");
+const npFormTitulo = emEl("em-npag-form-titulo");
+const npNombre = emEl("em-npag-nombre");
+const npCreada = emEl("em-npag-creada");
+const npTexto = emEl("em-npag-texto");
+const npGuardar = emEl("em-npag-guardar");
+const npBorrar = emEl("em-npag-borrar");
+const npFormEstado = emEl("em-npag-form-estado");
+let npEditando = null; // nota abierta en la ventana (null = nota nueva)
+
+function notasDeProyecto(d) {
+  // La nota especial (redes) tiene su propio botón en la hoja de redes: aquí no sale
+  return (d && Array.isArray(d.notas) ? d.notas : []).filter((n) => n.nombre !== NESP_NOMBRE);
+}
+
+function dibujarChipsNp() {
+  const d = emDetActual;
+  npChips.innerHTML = "";
+  if (!d || npPag.hidden) return;
+  npProyecto.textContent = d.nombre || "";
+  notasDeProyecto(d).forEach((n) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ej-chip ej-chip-resumen";
+    const titulo = n.nombre || "Sin nombre";
+    b.title = titulo + (n.fecha ? " (creada el " + n.fecha + ")" : "");
+    b.setAttribute("aria-label", "Ver o editar la nota " + titulo);
+    const nom = document.createElement("span");
+    nom.className = "ej-chip-nombre";
+    nom.textContent = "📝 " + titulo;
+    const desc = document.createElement("span");
+    desc.className = "ej-chip-desc";
+    desc.textContent = resumenCorto(n.texto, 70);
+    if (n.fecha) {
+      const f = document.createElement("span");
+      f.className = "ej-chip-fecha";
+      f.textContent = String(n.fecha).split(" ")[0]; // solo el día (dd/mm/aaaa)
+      b.append(nom, f, desc);
+    } else {
+      b.append(nom, desc);
+    }
+    b.addEventListener("click", () => abrirFormNp(n));
+    npChips.appendChild(b);
+  });
+  const nuevo = document.createElement("button");
+  nuevo.type = "button";
+  nuevo.className = "ej-chip ej-chip-nuevo";
+  nuevo.setAttribute("aria-label", "Añadir una nota del proyecto");
+  nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
+  nuevo.addEventListener("click", () => abrirFormNp(null));
+  npChips.appendChild(nuevo);
+}
+
+function abrirNotasProy() {
+  if (!emDetActual) return;
+  setEstado(npEstado, "");
+  npPag.hidden = false;
+  npPag.scrollTop = 0;
+  dibujarChipsNp();
+  emEl("em-npag-volver").focus();
+}
+function cerrarNotasProy() {
+  npForm.hidden = true;
+  npEditando = null;
+  npPag.hidden = true;
+}
+function abrirFormNp(n) {
+  npEditando = n;
+  npFormTitulo.textContent = n ? "Editar nota" : "Nueva nota";
+  npNombre.value = n ? n.nombre || "" : "";
+  npTexto.value = n ? n.texto || "" : "";
+  // La fecha de creación se anota sola al guardar una nota nueva y no se cambia al editarla
+  npCreada.hidden = !(n && n.fecha);
+  npCreada.textContent = n && n.fecha ? "Creada el " + n.fecha + (n.modificada ? " · Modificada: " + n.modificada : "") : "";
+  npBorrar.hidden = !n;
+  setEstado(npFormEstado, "");
+  npForm.hidden = false;
+  npNombre.focus();
+}
+function cerrarFormNp() {
+  npForm.hidden = true;
+  npEditando = null;
+}
+
+async function guardarNp() {
+  const d = emDetActual;
+  if (!d) return;
+  const texto = ntLimpiar(npTexto.value);
+  if (!texto) {
+    setEstado(npFormEstado, "Escribe algo primero", "error");
+    return;
+  }
+  const editando = npEditando;
+  const nombre = npNombre.value.replace(/[|\r\n]+/g, " ").trim().slice(0, 80);
+  // Nota nueva: va a Google Drive (hasta 1,000,000 de caracteres). Al editar se respeta dónde ya estaba guardada.
+  const destino = editando ? (editando.destino === "drive" ? "drive" : "sheets") : "drive";
+  const fecha = editando ? editando.fecha || selloFechaHora() : selloFechaHora();
+  if (editando && editando.nombre === nombre && editando.texto === texto) {
+    cerrarFormNp();
+    return;
+  }
+  const nota = {
+    id: editando ? editando.id : ntNuevoId(),
+    nombre,
+    fecha,
+    modificada: editando ? selloFechaHora() : "",
+    destino,
+    texto,
+  };
+  npGuardar.disabled = true;
+  setEstado(npFormEstado, "Guardando…");
+  try {
+    const j = await llamarNotas("empresa_nota_guardar", {
+      id: d.id,
+      notaId: nota.id,
+      nombre: nota.nombre,
+      fecha: nota.fecha,
+      modificada: nota.modificada,
+      destino: nota.destino,
+      texto: nota.texto,
+    });
+    nota.largo = typeof j.notaLargo === "number" ? j.notaLargo : 0;
+    if (typeof j.largo === "number") d.notasLargo = j.largo;
+    const actuales = Array.isArray(d.notas) ? d.notas : [];
+    d.notas = editando ? actuales.map((n) => (n.id === nota.id ? nota : n)) : actuales.concat([nota]);
+    cerrarFormNp();
+    dibujarNotasEm();
+    setEstado(npEstado, editando ? "Cambios guardados ✓" : "Nota agregada ✓", "ok");
+  } catch (err) {
+    setEstado(npFormEstado, "Error: " + err.message, "error");
+  } finally {
+    npGuardar.disabled = false;
+  }
+}
+
+async function borrarNp() {
+  const d = emDetActual;
+  const n = npEditando;
+  if (!d || !n || !window.confirm("¿Eliminar la nota «" + (n.nombre || "Sin nombre") + "»?")) return;
+  npBorrar.disabled = true;
+  setEstado(npFormEstado, "Eliminando…");
+  try {
+    await llamarNotas("empresa_nota_borrar", { id: d.id, notaId: n.id });
+    d.notas = (Array.isArray(d.notas) ? d.notas : []).filter((x) => x.id !== n.id);
+    cerrarFormNp();
+    dibujarNotasEm();
+    setEstado(npEstado, "Nota eliminada", "ok");
+  } catch (err) {
+    setEstado(npFormEstado, "Error: " + err.message, "error");
+  } finally {
+    npBorrar.disabled = false;
+  }
+}
+
+emEl("em-notas-proy-abrir").addEventListener("click", abrirNotasProy);
+emEl("em-npag-volver").addEventListener("click", cerrarNotasProy);
+emEl("em-npag-cancelar").addEventListener("click", cerrarFormNp);
+npGuardar.addEventListener("click", guardarNp);
+npBorrar.addEventListener("click", borrarNp);
 
 // ----- Nota especial: redes del proyecto + descripción y hashtags para YouTube, Facebook, Instagram y TikTok -----
 // Se guarda como una nota más del proyecto (en Drive) con el nombre NESP_NOMBRE, así no hace falta cambiar el Apps Script.
@@ -9485,7 +9772,9 @@ emBorrar.addEventListener("click", borrarEm);
 // Esc cierra la ventana
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelEm.hidden) return;
-  if (!emRedSub.hidden) cerrarSubRed();
+  if (!npForm.hidden) cerrarFormNp();
+  else if (!npPag.hidden) cerrarNotasProy();
+  else if (!emRedSub.hidden) cerrarSubRed();
   else if (hojaModoQuitar && !emHoja.hidden) hojaSalirModoQuitar(); // Esc cancela «Quitar columna» sin cerrar la hoja
   else if (!emHoja.hidden) cerrarHoja();
   else if (!emCanal.hidden) cerrarCanal();

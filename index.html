@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="59" />
+  <meta name="app-version" content="60" />
   <meta name="theme-color" content="#4a2685" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=78" />
+  <link rel="stylesheet" href="styles.css?v=79" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1074,6 +1074,10 @@
           <button id="em-det-volver" class="em-det-btn" type="button" aria-label="Volver a la lista" title="Volver">&#8592;</button>
           <button id="em-det-ajustes" class="em-det-btn" type="button" aria-label="Ajustes de este proyecto" title="Ajustes">&#9881;&#xFE0E;</button>
         </div>
+        <!-- Botón «Notas del proyecto»: tan largo como la foto y tan alto como los botones del menú inicial -->
+        <button id="em-notas-proy-abrir" class="em-notas-proy-btn" type="button">
+          <span class="em-notas-proy-ico" aria-hidden="true">&#128221;</span><span>Notas del proyecto</span>
+        </button>
         <div id="em-det-imagen" class="em-det-hero"></div>
         <!-- Botón de la hoja de redes: justo debajo del banner (empuja hacia abajo el nombre, la descripción y lo demás) -->
         <div class="em-det-hoja-fila">
@@ -1096,7 +1100,7 @@
           <div id="em-det-links" class="em-det-links"></div>
         </div>
         <!-- Notas personales de esta empresa o proyecto (columna H «Notas» de la hoja) -->
-        <div id="em-det-notas-zona" class="em-det-notas-zona">
+        <div id="em-det-notas-zona" class="em-det-notas-zona" hidden>
           <h4 id="em-notas-titulo" class="em-det-subtitulo">📝 Mis notas</h4>
           <div class="em-nota-barra">
             <button id="em-nota-nueva" class="em-nota-btn-agregar" type="button">＋ Crear nota</button>
@@ -1222,6 +1226,41 @@
           <button id="em-nesp-guardar" class="em-hoja-guardar" type="button">Guardar</button>
         </div>
         <div id="em-nesp-cuerpo" class="em-nesp-cuerpo"></div>
+      </div>
+
+      <!-- Notas del proyecto: página con recuadros, como Deudas o Bazar (usa las mismas notas de la columna H «Notas» de cada empresa o proyecto) -->
+      <div id="em-npag" class="em-red-sub em-npag" hidden role="dialog" aria-modal="true" aria-labelledby="em-npag-titulo">
+        <div class="em-det-barra">
+          <button id="em-npag-volver" class="em-det-btn" type="button" aria-label="Volver al proyecto" title="Volver">&#8592;</button>
+        </div>
+        <div class="em-npag-cab">
+          <h3 id="em-npag-titulo" class="em-npag-titulo">&#128221; Notas del proyecto</h3>
+          <small id="em-npag-proyecto" class="em-npag-proyecto"></small>
+        </div>
+        <div class="em-npag-cuerpo">
+          <p id="em-npag-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="em-npag-chips" class="ej-chips"></div>
+        </div>
+      </div>
+
+      <!-- Ventana para agregar o editar una nota del proyecto -->
+      <div id="em-npag-form" class="notas-nueva modo-editar" hidden>
+        <h3 id="em-npag-form-titulo" class="notas-form-titulo">Nueva nota</h3>
+        <label class="notas-campo">
+          <span>Nombre</span>
+          <input id="em-npag-nombre" type="text" maxlength="80" placeholder="Ej. Ideas para el logo" autocomplete="off" />
+        </label>
+        <p id="em-npag-creada" class="notas-estado" hidden></p>
+        <label class="notas-campo">
+          <span>Nota</span>
+          <textarea id="em-npag-texto" rows="6" maxlength="1000000" placeholder="Escribe tu nota del proyecto…"></textarea>
+        </label>
+        <div class="notas-fila">
+          <button id="em-npag-guardar" class="notas-btn" type="button">Guardar</button>
+          <button id="em-npag-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <button id="em-npag-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+          <span id="em-npag-form-estado" class="notas-estado"></span>
+        </div>
       </div>
 
       <!-- Ventana de ajustes: agregar o editar una empresa o proyecto -->
@@ -1369,7 +1408,7 @@
   </main>
 
   <script src="config.js?v=64"></script>
-  <script src="app.js?v=83"></script>
+  <script src="app.js?v=84"></script>
   <script src="voz.js?v=64"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

@@ -1,5 +1,5 @@
 :root {
-  --app-version: "59"; /* debe coincidir con VERSION en app.js */
+  --app-version: "60"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -3022,3 +3022,76 @@ button.em-canal-ficha-texto { cursor: pointer; }
 .em-hoja-seccion-mini > span:first-child { font-size: 1rem; }
 .em-video-menu-mini-youtube { background: linear-gradient(135deg, #ff3b30, #8e0b0b); }
 .em-video-menu-pie { position: sticky; bottom: -6px; margin: 4px -6px -6px; padding: 4px 6px 6px; background: #fff; border-top: 1px solid #e3d8f6; }
+
+
+/* ---------- Panel con los videos de una celda ---------- */
+.em-hoja-panel-caja { max-height: 100%; }
+.em-hoja-panel-titulo { color: #fff; font-size: 0.95rem; }
+.em-hoja-panel-lista { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding-right: 2px; -webkit-overflow-scrolling: touch; }
+.em-hoja-panel-item { display: flex; flex-direction: column; gap: 6px; }
+.em-hoja-panel-link {
+  display: block; overflow: hidden; padding: 7px 10px; font-size: 0.82rem; font-weight: 600; color: #8ab4f8; text-decoration: none;
+  text-overflow: ellipsis; white-space: nowrap; background: rgba(255, 255, 255, 0.08); border-radius: 8px;
+}
+.em-hoja-panel-link:hover, .em-hoja-panel-link:focus-visible { background: rgba(255, 255, 255, 0.16); outline: none; }
+.em-hoja-panel-marco { flex: none; }
+.em-hoja-panel-marco img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.em-hoja-panel-marco img[hidden] { display: none; }
+.em-hoja-panel-play {
+  position: absolute; left: 50%; top: 50%; z-index: 2; width: 58px; height: 58px; padding: 0 0 0 4px; font-size: 1.5rem; line-height: 1;
+  color: #fff; cursor: pointer; background: rgba(0, 0, 0, 0.62); border: 2px solid rgba(255, 255, 255, 0.9); border-radius: 50%; transform: translate(-50%, -50%);
+}
+.em-hoja-panel-play:hover, .em-hoja-panel-play:focus-visible { background: rgba(0, 0, 0, 0.85); outline: none; }
+.em-hoja-panel-cargado img, .em-hoja-panel-cargado .em-hoja-panel-play { display: none; }
+.em-hoja-panel-marco iframe { z-index: 3; }
+.em-hoja-panel-abrir { position: absolute; left: 50%; top: 50%; z-index: 2; transform: translate(-50%, -50%); text-decoration: none; text-align: center; }
+
+
+/* ---------- Notas del proyecto (botón arriba de la foto + página de recuadros) ---------- */
+/* El botón mide lo mismo que cada botón del menú inicial (--lado) y es tan largo como la foto (mismos márgenes de 20px) */
+.em-notas-proy-btn {
+  --gap: 10px;
+  --lado: min(104px, calc((100vw - 32px - 4 * var(--gap)) / 5));
+  flex: none;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  height: var(--lado);
+  margin: 0 20px 14px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fff;
+  background: linear-gradient(135deg, #7a44d6, #4a2685);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 18px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: transform 0.12s, filter 0.12s;
+}
+.em-notas-proy-btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+.em-notas-proy-btn:focus-visible { outline: 3px solid #8fb8ff; outline-offset: 2px; }
+.em-notas-proy-ico { font-size: 2.6rem; line-height: 1; }
+@media (max-width: 600px) {
+  .em-notas-proy-btn { --gap: 8px; gap: 12px; font-size: 1.25rem; border-radius: 14px; }
+  .em-notas-proy-ico { font-size: 2.1rem; }
+}
+@media (max-width: 420px) {
+  .em-notas-proy-btn { --gap: 6px; gap: 8px; font-size: 1rem; border-radius: 12px; }
+  .em-notas-proy-ico { font-size: 1.7rem; }
+}
+
+.em-npag-cab { flex: none; margin: 4px 22px 0; }
+.em-npag-titulo { margin: 0; font-size: 1.4rem; }
+.em-npag-proyecto { display: block; margin-top: 2px; color: #aab4d4; overflow-wrap: anywhere; }
+.em-npag-cuerpo { flex: 1 1 auto; margin: 10px 22px 24px; }
+.em-npag .notas-estado { color: #cfd6ee; }
+.em-npag .notas-estado.error { color: #ff8f84; }
+.em-npag .notas-estado.ok { color: #7be0a8; }
+@media (max-width: 480px) {
+  .em-npag-cab, .em-npag-cuerpo { margin-left: 14px; margin-right: 14px; }
+}
