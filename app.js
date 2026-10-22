@@ -4491,9 +4491,15 @@ let cuEditando = null; // cuenta abierta en la ventana (null = nueva)
 let cuImagenUrl = "";
 let cuImagenNueva = null; // { base64, vista } cuando se eligió una imagen que aún no se sube
 let cuSeleccion = new Set(); // Ids de proyectos marcados en la ventana
-const CU_POR_FILA = 5; // cuentas por fila (debe coincidir con las columnas de #di-cu-chips en styles.css)
-const CU_FILAS_POR_PAGINA = 30; // filas por página
-const CU_POR_PAGINA = CU_POR_FILA * CU_FILAS_POR_PAGINA; // cuentas visibles a la vez (150)
+const CU_FILAS_POR_PAGINA = 40; // filas por página
+const CU_FILA_MIN = 2, CU_FILA_MAX = 8, CU_FILA_INICIAL = 4; // opciones de «por fila» y valor de inicio
+const CU_CLAVE_POR_FILA = "polo-cuentas-por-fila"; // la elección se recuerda en este dispositivo
+let cuPorFila = CU_FILA_INICIAL;
+try {
+  const g = parseInt(localStorage.getItem(CU_CLAVE_POR_FILA), 10);
+  if (g >= CU_FILA_MIN && g <= CU_FILA_MAX) cuPorFila = g;
+} catch (e) {}
+const cuPorPagina = () => cuPorFila * CU_FILAS_POR_PAGINA; // cuentas visibles a la vez
 let cuPagina = 0; // página actual (empieza en 0)
 const cuPags = diEl("di-cu-pags");
 const cuPagInfo = diEl("di-cu-pag-info");
@@ -4507,13 +4513,15 @@ function cuNombresProyectos(c) {
 
 function dibujarCuentas() {
   cuChips.innerHTML = "";
-  const paginas = Math.max(1, Math.ceil(cuentas.length / CU_POR_PAGINA));
+  cuChips.style.setProperty("--cu-cols", String(cuPorFila));
+  cuChips.dataset.cols = String(cuPorFila);
+  const paginas = Math.max(1, Math.ceil(cuentas.length / cuPorPagina()));
   cuPagina = Math.min(Math.max(0, cuPagina), paginas - 1);
   cuPags.hidden = paginas <= 1;
   cuPagInfo.textContent = (cuPagina + 1) + " de " + paginas;
   diEl("di-cu-prev").disabled = cuPagina === 0;
   diEl("di-cu-sig").disabled = cuPagina >= paginas - 1;
-  cuentas.slice(cuPagina * CU_POR_PAGINA, (cuPagina + 1) * CU_POR_PAGINA).forEach((c) => {
+  cuentas.slice(cuPagina * cuPorPagina(), (cuPagina + 1) * cuPorPagina()).forEach((c) => {
     const b = document.createElement("button");
     b.type = "button";
     const conImg = imagenValida(c.imagen);
@@ -4745,7 +4753,7 @@ async function guardarCu() {
     const pos = editando ? cuentas.indexOf(editando) : -1;
     if (pos !== -1) cuentas[pos] = c;
     else cuentas.push(c);
-    cuPagina = Math.floor(cuentas.indexOf(c) / CU_POR_PAGINA); // se muestra la página donde quedó
+    cuPagina = Math.floor(cuentas.indexOf(c) / cuPorPagina()); // se muestra la página donde quedó
     cerrarFormCu();
     if (!cuVer.hidden) { cuVerActual = c; dibujarVerCu(); }
     dibujarCuentas();
@@ -4757,7 +4765,7 @@ async function guardarCu() {
         setEstado(cuEstado, "⚠ El Apps Script dijo «guardado», pero la cuenta no aparece al volver a leer la hoja «Cuentas». " +
           "Revisa que el link del exec de config.js sea el de la implementación con el google-apps-script.gs más reciente y que esté ligada a tu mismo libro de Google Sheets.", "error");
       } else {
-        cuPagina = Math.floor(cuentas.findIndex((x) => x.id === id) / CU_POR_PAGINA);
+        cuPagina = Math.floor(cuentas.findIndex((x) => x.id === id) / cuPorPagina());
         dibujarCuentas();
         setEstado(cuEstado, "Guardado ✓", "ok");
       }
@@ -4826,14 +4834,53 @@ function dibujarVerCu() {
     return;
   }
   vigentes.forEach((id) => {
+    const e = mapa[id];
+    const bloque = document.createElement("div");
+    bloque.className = "di-cu-ver-bloque";
     const b = document.createElement("button");
     b.type = "button";
     b.className = "notas-btn di-cu-ver-ir";
-    const e = mapa[id];
     // Con un solo proyecto el botón dice «Ir al proyecto»; con varios, lleva el nombre de cada uno
     b.textContent = vigentes.length === 1 ? "🏢 Ir al proyecto" : "🏢 " + (e ? e.nombre : "Ir al proyecto");
     b.addEventListener("click", () => irAProyectoDeCuenta(id));
-    cuVerBotones.appendChild(b);
+    bloque.appendChild(b);
+    // Debajo del botón: las redes de ese proyecto (recuadros chiquitos con el icono de cada red)
+    if (e) {
+      const redes = cuRedesDeProyecto(e);
+      if (redes.length) {
+        const fila = document.createElement("div");
+        fila.className = "di-cu-redes";
+        redes.forEach((r) => fila.appendChild(r));
+        bloque.appendChild(fila);
+      }
+    }
+    cuVerBotones.appendChild(bloque);
+  });
+}
+
+// Recuadros de redes de un proyecto: su link principal y los de la zona de links (sin repetir; solo direcciones válidas)
+function cuRedesDeProyecto(d) {
+  const vistos = new Set();
+  const lista = [];
+  [d.link].concat(enlacesDeTexto(d.links)).forEach((l) => {
+    const href = hrefSeguro(String(l || "").trim());
+    if (href && !vistos.has(href)) { vistos.add(href); lista.push(href); }
+  });
+  return lista.map((href) => {
+    const red = emRedDeLink(href);
+    const el = document.createElement("a");
+    el.className = "em-red di-cu-red";
+    el.dataset.red = red.id;
+    el.href = href;
+    el.target = "_blank";
+    el.rel = "noopener noreferrer";
+    el.title = red.nombre + " · " + href;
+    el.setAttribute("aria-label", "Abrir " + red.nombre);
+    const n = document.createElement("span");
+    n.className = "di-cu-red-nombre";
+    n.textContent = red.nombre.replace(/ \(.*\)$/, ""); // «X (Twitter)» → «X»
+    el.append(emIconoRed(red.id, red.glifo), n);
+    return el;
   });
 }
 
@@ -4870,6 +4917,19 @@ async function irAProyectoDeCuenta(id) {
 diEl("di-cu-ver-volver").addEventListener("click", cerrarVerCu);
 // El engrane abre el panel con toda la información de la cuenta (el de siempre)
 diEl("di-cu-ver-ajustes").addEventListener("click", () => { if (cuVerActual) abrirFormCu(cuVerActual); });
+
+// ----- Selector: cuántas cuentas se ven por fila -----
+const cuSelPorFila = diEl("di-cu-por-fila");
+for (let n = CU_FILA_MIN; n <= CU_FILA_MAX; n++) cuSelPorFila.add(new Option(String(n), String(n)));
+cuSelPorFila.value = String(cuPorFila);
+cuSelPorFila.addEventListener("change", () => {
+  const n = parseInt(cuSelPorFila.value, 10);
+  if (!(n >= CU_FILA_MIN && n <= CU_FILA_MAX)) return;
+  cuPorFila = n;
+  try { localStorage.setItem(CU_CLAVE_POR_FILA, String(n)); } catch (e) {}
+  cuPagina = 0;
+  dibujarCuentas();
+});
 
 diEl("di-cuentas-abrir").addEventListener("click", abrirCuentasDi);
 diEl("di-cu-volver").addEventListener("click", cerrarCuentasDi);

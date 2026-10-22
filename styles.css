@@ -3258,20 +3258,24 @@ button.em-canal-ficha-texto { cursor: pointer; }
 .di-cu-pags { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .di-cu-pags[hidden] { display: none; }
 .di-cu-pag-info { font-size: 0.85rem; font-weight: 700; color: #eaf2fc; min-width: 5.5em; text-align: center; }
-#di-cu-chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+#di-cu-chips { display: grid; grid-template-columns: repeat(var(--cu-cols, 4), minmax(0, 1fr)); gap: 12px; }
 #di-cu-chips .ej-chip { width: 100%; height: auto; aspect-ratio: 1 / 1; padding: 8px; gap: 4px; }
-#di-cu-chips .ej-chip-nombre { font-size: 0.85rem; -webkit-line-clamp: 3; }
-#di-cu-chips .ej-chip-fecha { font-size: 0.72rem; }
-#di-cu-chips .ej-chip-desc { font-size: 0.68rem; }
+#di-cu-chips .ej-chip-nombre { font-size: 0.9rem; -webkit-line-clamp: 3; }
+#di-cu-chips .ej-chip-fecha { font-size: 0.75rem; }
+#di-cu-chips .ej-chip-desc { font-size: 0.7rem; }
 #di-cu-chips .emp-chip-con-img { padding: 0; }
+.di-cu-porfila { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 700; color: #eaf2fc; }
+.di-cu-porfila select { padding: 4px 8px; font: inherit; color: var(--nb-texto); background: #fff; border: 1px solid var(--nb-borde); border-radius: 8px; }
 @media (max-width: 600px) {
-  #di-cu-chips { gap: 6px; }
-  #di-cu-chips .ej-chip { padding: 4px; gap: 2px; }
-  #di-cu-chips .ej-chip-nombre { font-size: 0.62rem; -webkit-line-clamp: 3; }
-  #di-cu-chips .ej-chip-fecha { font-size: 0.55rem; }
-  #di-cu-chips .ej-chip-desc { font-size: 0.55rem; }
-  #di-cu-chips .emp-chip-con-img .ej-chip-nombre { padding: 14px 3px 0; }
-  #di-cu-chips .emp-chip-con-img .ej-chip-fecha { padding: 0 3px 3px; }
+  #di-cu-chips { gap: 8px; }
+  /* Con 4 o más por fila los recuadros son chicos: se reduce el texto */
+  #di-cu-chips:not([data-cols="2"]):not([data-cols="3"]) { gap: 6px; }
+  #di-cu-chips:not([data-cols="2"]):not([data-cols="3"]) .ej-chip { padding: 4px; gap: 2px; }
+  #di-cu-chips:not([data-cols="2"]):not([data-cols="3"]) .ej-chip-nombre { font-size: 0.64rem; }
+  #di-cu-chips:not([data-cols="2"]):not([data-cols="3"]) .ej-chip-fecha,
+  #di-cu-chips:not([data-cols="2"]):not([data-cols="3"]) .ej-chip-desc { font-size: 0.55rem; }
+  #di-cu-chips:not([data-cols="2"]):not([data-cols="3"]) .emp-chip-con-img .ej-chip-nombre { padding: 14px 3px 0; }
+  #di-cu-chips:not([data-cols="2"]):not([data-cols="3"]) .emp-chip-con-img .ej-chip-fecha { padding: 0 3px 3px; }
 }
 
 /* ---------- Zona de una cuenta (Diario → Cuentas): imagen, 2 textos y un botón ---------- */
@@ -3292,3 +3296,19 @@ button.em-canal-ficha-texto { cursor: pointer; }
 .di-cu-ver-correo[hidden] { display: none; }
 .di-cu-ver-botones { display: flex; flex-direction: column; align-items: center; gap: 10px; width: min(100%, 360px); margin-top: 6px; }
 .di-cu-ver-ir { width: 100%; }
+
+/* Redes del proyecto, debajo del botón «Ir al proyecto» (recuadros chiquitos con el icono de cada red) */
+.di-cu-ver-bloque { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+.di-cu-ver-bloque + .di-cu-ver-bloque { margin-top: 10px; }
+.di-cu-redes { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.em-red.di-cu-red {
+  flex-direction: column; justify-content: center; gap: 6px;
+  width: 78px; height: 78px; padding: 8px 4px;
+  text-align: center; border-radius: 16px;
+}
+.di-cu-red .em-red-ico { width: 38px; height: 38px; }
+.di-cu-red .em-red-ico svg { width: 23px; height: 23px; }
+.di-cu-red-nombre {
+  max-width: 100%; overflow: hidden; font-size: 0.68rem; font-weight: 700; line-height: 1.1;
+  text-overflow: ellipsis; white-space: nowrap;
+}
