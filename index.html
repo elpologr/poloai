@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=83" />
+  <link rel="stylesheet" href="styles.css?v=85" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1233,7 +1233,23 @@
         <div id="em-nesp-cuerpo" class="em-nesp-cuerpo"></div>
       </div>
 
-      <!-- Notas del proyecto: página con recuadros, como Deudas o Bazar (usa las mismas notas de la columna H «Notas» de cada empresa o proyecto) -->
+      <!-- Notas del proyecto (primera vista): las notas del proyecto y las de cada notario en recuadros grandes, como Bazar o Deudas. El engrane abre la configuración (la pantalla de abajo) -->
+      <div id="em-nvista" class="em-red-sub em-npag em-nvista" hidden role="dialog" aria-modal="true" aria-labelledby="em-nv-titulo">
+        <div class="em-det-barra">
+          <button id="em-nv-volver" class="em-det-btn" type="button" aria-label="Volver al proyecto" title="Volver">&#8592;</button>
+          <button id="em-nv-config" class="em-det-btn" type="button" aria-label="Configuración de las notas (notarios y orden)" title="Configuración">&#9881;&#xFE0E;</button>
+        </div>
+        <div class="em-npag-cab">
+          <h3 id="em-nv-titulo" class="em-npag-titulo">&#128221; Notas del proyecto</h3>
+          <small id="em-nv-proyecto" class="em-npag-proyecto"></small>
+        </div>
+        <div class="em-npag-cuerpo">
+          <p id="em-nv-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="em-nv-secciones"></div>
+        </div>
+      </div>
+
+      <!-- Configuración de las notas del proyecto (se abre con el engrane): notas, notarios, orden y posiciones; página con recuadros, como Deudas o Bazar (usa las mismas notas de la columna H «Notas» de cada empresa o proyecto) -->
       <div id="em-npag" class="em-red-sub em-npag" hidden role="dialog" aria-modal="true" aria-labelledby="em-npag-titulo">
         <div class="em-det-barra">
           <button id="em-npag-volver" class="em-det-btn" type="button" aria-label="Volver al proyecto" title="Volver">&#8592;</button>
@@ -1467,7 +1483,7 @@
   </main>
 
   <script src="config.js?v=64"></script>
-  <script src="app.js?v=88"></script>
+  <script src="app.js?v=90"></script>
   <script src="voz.js?v=64"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

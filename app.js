@@ -8814,9 +8814,120 @@ function npAsegurarDatos(d) {
   const loc = npOrdenLocal()[d.id];
   if (loc && loc.p && sesionVigente()) npSubirOrden(d, loc.ids).catch(() => {});
 }
-npRedibujarHook = () => { if (!npPag.hidden) dibujarChipsNp(); };
+npRedibujarHook = () => { nvDibujar(); if (!npPag.hidden) dibujarChipsNp(); };
+
+// ----- Primera vista de «Notas del proyecto»: recuadros grandes (como Bazar y Deudas) -----
+// Arriba van las notas del proyecto; después, una división por cada notario con las notas que tiene dentro.
+// El engrane abre la configuración (la pantalla con «+ Notario», «Mover» y los números de posición).
+const nvPag = emEl("em-nvista");
+const nvSecciones = emEl("em-nv-secciones");
+const nvProyecto = emEl("em-nv-proyecto");
+const nvEstado = emEl("em-nv-estado");
+function nvCrearChip(titulo, fecha, resumen, etiquetaTexto, extraClase) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "ej-chip ej-chip-resumen" + (extraClase ? " " + extraClase : "");
+  b.title = titulo + (fecha ? " (" + fecha + ")" : "");
+  const nom = document.createElement("span");
+  nom.className = "ej-chip-nombre";
+  nom.textContent = "📝 " + titulo;
+  const desc = document.createElement("span");
+  desc.className = "ej-chip-desc";
+  desc.textContent = resumen;
+  b.append(nom);
+  if (fecha) {
+    const f = document.createElement("span");
+    f.className = "ej-chip-fecha";
+    f.textContent = fecha;
+    b.append(f);
+  }
+  b.append(desc);
+  if (etiquetaTexto) {
+    const tag = document.createElement("span");
+    tag.className = "zona-cuadrito-tag";
+    tag.textContent = etiquetaTexto;
+    b.append(tag);
+  }
+  return b;
+}
+function nvCrearAnadir(etiqueta, alClic) {
+  const nuevo = document.createElement("button");
+  nuevo.type = "button";
+  nuevo.className = "ej-chip ej-chip-nuevo";
+  nuevo.setAttribute("aria-label", etiqueta);
+  nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
+  nuevo.addEventListener("click", alClic);
+  return nuevo;
+}
+function nvDibujar() {
+  const d = emDetActual;
+  nvSecciones.innerHTML = "";
+  if (!d || nvPag.hidden) return;
+  nvProyecto.textContent = d.nombre || "";
+  const elementos = npElementos(d);
+  // 1) Notas del proyecto
+  const sec = document.createElement("div");
+  sec.className = "nv-seccion";
+  const grid = document.createElement("div");
+  grid.className = "ej-chips nv-grid";
+  elementos.filter((x) => x.tipo === "nota").forEach((item) => {
+    const n = item.n;
+    const titulo = n.nombre || "Sin nombre";
+    const b = nvCrearChip(titulo, n.fecha ? String(n.fecha).split(" ")[0] : "", resumenCorto(npResumen(n), 70), n.etiqueta && NP_ETIQ_TEXTO[n.etiqueta] ? NP_ETIQ_TEXTO[n.etiqueta] : "");
+    b.setAttribute("aria-label", "Ver o editar la nota " + titulo);
+    b.addEventListener("click", () => abrirFormNp(n));
+    grid.appendChild(b);
+  });
+  grid.appendChild(nvCrearAnadir("Añadir una nota del proyecto", () => abrirFormNp(null)));
+  sec.appendChild(grid);
+  nvSecciones.appendChild(sec);
+  // 2) Un notario = una división con sus notas dentro
+  elementos.filter((x) => x.tipo === "notario").forEach((item) => {
+    const nt = item.n;
+    const notas = Array.isArray(nt.notas) ? nt.notas : [];
+    const s = document.createElement("div");
+    s.className = "nv-seccion";
+    const div = document.createElement("div");
+    div.className = "bazar-division";
+    div.setAttribute("role", "separator");
+    div.setAttribute("aria-label", "Notario " + nt.nombre);
+    const l1 = document.createElement("span");
+    l1.className = "bazar-division-linea";
+    const t = document.createElement("h3");
+    t.className = "bazar-division-titulo";
+    t.textContent = "📒 " + nt.nombre;
+    const l2 = document.createElement("span");
+    l2.className = "bazar-division-linea";
+    div.append(l1, t, l2);
+    s.appendChild(div);
+    if (nt.descripcion) {
+      const p = document.createElement("p");
+      p.className = "nv-vacio";
+      p.textContent = resumenCorto(nt.descripcion, 160);
+      s.appendChild(p);
+    }
+    const g = document.createElement("div");
+    g.className = "ej-chips nv-grid";
+    notas.slice().reverse().forEach((nota) => { // la más reciente primero, igual que dentro del notario
+      const primera = String(nota.texto || "").split(/\r?\n/).map((x) => x.trim()).find(Boolean) || "Sin texto";
+      const titulo = primera.length > 40 ? primera.slice(0, 40) + "…" : primera;
+      const b = nvCrearChip(titulo, nota.fecha ? String(nota.fecha).split(" ")[0] : "", resumenCorto(String(nota.texto || ""), 70), "", "np-notario-nota");
+      b.setAttribute("aria-label", "Ver o editar esta nota del notario " + nt.nombre);
+      b.addEventListener("click", () => {
+        ntAbrir(nt); // abre el notario y deja esta nota lista para modificarla
+        NT.editandoNota = nota.id;
+        ntDibujarNotas();
+      });
+      g.appendChild(b);
+    });
+    g.appendChild(nvCrearAnadir("Añadir una nota al notario " + nt.nombre, () => ntAbrir(nt)));
+    s.appendChild(g);
+    nvSecciones.appendChild(s);
+  });
+}
 
 function dibujarChipsNp() {
+  nvDibujar(); // la primera vista también se actualiza
   const d = emDetActual;
   npChips.innerHTML = "";
   if (!d || npPag.hidden) return;
@@ -8883,20 +8994,39 @@ function dibujarChipsNp() {
   npChips.appendChild(nuevo);
 }
 
+// «Notas del proyecto»: se abre la primera vista (recuadros grandes). La configuración se abre con su engrane.
 function abrirNotasProy() {
+  if (!emDetActual) return;
+  setEstado(npEstado, "");
+  setEstado(nvEstado, "");
+  nvPag.hidden = false;
+  nvPag.scrollTop = 0;
+  npAsegurarDatos(emDetActual);
+  nvDibujar();
+  emEl("em-nv-volver").focus();
+}
+function abrirConfigNp() {
   if (!emDetActual) return;
   setEstado(npEstado, "");
   npPag.hidden = false;
   npPag.scrollTop = 0;
   npPonerMover(false);
-  npAsegurarDatos(emDetActual);
   dibujarChipsNp();
   emEl("em-npag-volver").focus();
 }
+// Solo cierra la configuración (se vuelve a la primera vista)
+function cerrarConfigNp() {
+  npForm.hidden = true;
+  npEditando = null;
+  npPag.hidden = true;
+  nvDibujar();
+}
+// Cierra todo (primera vista y configuración)
 function cerrarNotasProy() {
   npForm.hidden = true;
   npEditando = null;
   npPag.hidden = true;
+  nvPag.hidden = true;
 }
 function npDibujarHist(partes) {
   npHist.innerHTML = "";
@@ -9098,7 +9228,9 @@ npFinalizar.addEventListener("click", () => {
 });
 
 emEl("em-notas-proy-abrir").addEventListener("click", abrirNotasProy);
-emEl("em-npag-volver").addEventListener("click", cerrarNotasProy);
+emEl("em-npag-volver").addEventListener("click", cerrarConfigNp);
+emEl("em-nv-volver").addEventListener("click", cerrarNotasProy);
+emEl("em-nv-config").addEventListener("click", abrirConfigNp);
 ["actividades", "trabajo"].forEach((clave) => {
   const b = document.getElementById(clave + "-actualizar");
   const z = zonas.find((x) => x.cfg.seccion === clave);
@@ -10328,7 +10460,8 @@ emBorrar.addEventListener("click", borrarEm);
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelEm.hidden) return;
   if (!npForm.hidden) cerrarFormNp();
-  else if (!npPag.hidden) cerrarNotasProy();
+  else if (!npPag.hidden) cerrarConfigNp();
+  else if (!nvPag.hidden) cerrarNotasProy();
   else if (!emRedSub.hidden) cerrarSubRed();
   else if (hojaModoQuitar && !emHoja.hidden) hojaSalirModoQuitar(); // Esc cancela «Quitar columna» sin cerrar la hoja
   else if (!emHoja.hidden) cerrarHoja();
@@ -10969,6 +11102,8 @@ const TD_ALARMAS = [
 let tareasDiarias = [];
 let tdCargadas = false;
 let tdCargando = false;
+let tdMostrarHechas = false; // true = se enseñan también las completadas de hoy (para editarlas o borrarlas)
+const tdEnCurso = new Set(); // tareas que se están anotando ahora mismo (evita un segundo clic)
 
 function tdLeer(clave) {
   try { return JSON.parse(localStorage.getItem(clave)) || {}; } catch (e) { return {}; }
@@ -11018,8 +11153,31 @@ function dibujarTareasDiarias() {
   }
   const hoyClave = tdHoyClave();
   const hechas = tdLeerHechas();
-  tdOrdenadas().forEach((t) => {
-    const marca = hechas[t.id] && hechas[t.id].slice(0, 10) === hoyClave ? hechas[t.id] : "";
+  const marcaDe = (t) => (hechas[t.id] && hechas[t.id].slice(0, 10) === hoyClave ? hechas[t.id] : "");
+  const lista = tdOrdenadas();
+  const nHechas = lista.filter((t) => marcaDe(t)).length;
+  // Una tarea completada hoy se oculta hasta mañana (solo se puede completar una vez al día)
+  if (nHechas) {
+    const barra = document.createElement("div");
+    barra.className = "td-hechas-barra";
+    const info = document.createElement("span");
+    info.textContent = "✅ Completadas hoy: " + nHechas + " (se ocultan hasta mañana)";
+    const ver = document.createElement("button");
+    ver.type = "button";
+    ver.className = "td-sec";
+    ver.textContent = tdMostrarHechas ? "Ocultar" : "Ver";
+    ver.addEventListener("click", () => { tdMostrarHechas = !tdMostrarHechas; dibujarTareasDiarias(); });
+    barra.append(info, ver);
+    tdGrid.appendChild(barra);
+    if (nHechas === lista.length && !tdMostrarHechas) {
+      const p = document.createElement("p");
+      p.className = "td-vacio";
+      p.textContent = "🎉 Ya completaste todas las tareas de hoy. Mañana vuelven a aparecer.";
+      tdGrid.appendChild(p);
+    }
+  }
+  lista.filter((t) => tdMostrarHechas || !marcaDe(t)).forEach((t) => {
+    const marca = marcaDe(t);
     const d = document.createElement("div");
     d.className = "td-tile" + (marca ? " td-hecha" : "");
     const txt = document.createElement("p");
@@ -11041,6 +11199,7 @@ function dibujarTareasDiarias() {
     ok.className = "td-ok";
     ok.textContent = "✅ Completar";
     ok.addEventListener("click", () => completarTareaDiaria(t, ok));
+    ok.hidden = !!marca; // ya completada hoy: no se puede volver a presionar hasta mañana
     const sec = document.createElement("div");
     sec.className = "td-acciones";
     const ed = document.createElement("button");
@@ -11203,6 +11362,13 @@ async function borrarTareaDiaria(t) {
 // «Completar»: agrega al Diario una «Tarea finalizada» con la fecha de hoy y la hora en la descripción.
 // Cada vez lleva un Id nuevo (el Diario no repite Ids), así la tarea se puede completar todos los días.
 async function completarTareaDiaria(t, boton) {
+  // Solo una vez al día: si ya se completó hoy (o se está anotando), no se hace nada
+  const previa = tdLeerHechas()[t.id];
+  if (tdEnCurso.has(t.id) || (previa && previa.slice(0, 10) === tdHoyClave())) {
+    dibujarTareasDiarias();
+    return;
+  }
+  tdEnCurso.add(t.id);
   const ahora = new Date();
   const fecha = claveFecha(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
   const hora = dos(ahora.getHours()) + ":" + dos(ahora.getMinutes());
@@ -11222,6 +11388,8 @@ async function completarTareaDiaria(t, boton) {
   } catch (e) {
     boton.disabled = false;
     setEstado(tdEstado, "Error: " + e.message + " — puedes volver a intentarlo", "error");
+  } finally {
+    tdEnCurso.delete(t.id);
   }
 }
 
