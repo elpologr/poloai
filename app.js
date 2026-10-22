@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "63";
+const VERSION = "64";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -16,6 +16,7 @@ const VERSION = "63";
     "zona-actividades", "zona-trabajo", "btn-menu-notas", "seccion-notas", "btn-menu-ejercicio",
     "panel-ejercicio", "ej-cuadricula", "ej-dia", "ej-form",
     "btn-menu-diario", "panel-diario", "di-cuadricula", "di-dia", "di-form",
+    "di-cuentas-abrir", "di-cuentas", "di-cu-chips", "di-cu-form", "di-cu-proyectos",
     "seccion-ejercicio", "seccion-diario", "di-ejercicios", "di-ej-detalle", "zona-pedidos-yeso", "bazar-division-yeso",
     "pop-color", "pop-colores", "pop-mas-colores", "pop-paleta", "pop-color-personal",
     "btn-menu-deudas", "seccion-deudas", "panel-deudas", "de-chips", "de-form",
@@ -1282,7 +1283,7 @@ const OF_CLAVE_DATOS = "polo-offline-datos:";
 const OF_LISTAS = {
   nota_listar: "notas", ejercicio_listar: "ejercicios", diario_listar: "diarios", deuda_listar: "deudas",
   informacion_listar: "informaciones", comando_listar: "comandosLista", bazar_listar: "bazarLista",
-  empresa_listar: "empresas", proyecto_listar: "proyectos", notario_listar: "notarios", tarea_diaria_listar: "tareas",
+  empresa_listar: "empresas", cuenta_listar: "cuentas", proyecto_listar: "proyectos", notario_listar: "notarios", tarea_diaria_listar: "tareas",
 };
 // guardado nuevo permitido sin internet -> [lectura que lo muestra, nombre de la zona]
 const OF_AGREGAR = {
@@ -4386,6 +4387,9 @@ function actualizarPanelDiario() {
   } else {
     diCargados = false;
     diarios = [];
+    cuCargadas = false;
+    cuentas = [];
+    cerrarCuentasDi();
     cerrarDiaDi();
   }
 }
@@ -4397,6 +4401,7 @@ function entrarDiario() {
   diAnio = ahora.getFullYear();
   diDia = null;
   diDiaPanel.hidden = true;
+  cerrarCuentasDi();
   cerrarFormDi();
   panelDi.hidden = false;
   dibujarCalendarioDi();
@@ -4404,6 +4409,7 @@ function entrarDiario() {
 }
 // Diario ya es una página: aquí solo se cierran el formulario y el submenú del día
 function cerrarDiario() {
+  cerrarCuentasDi();
   cerrarEjerciciosDi();
   cerrarFormDi();
   diDiaPanel.hidden = true;
@@ -4415,6 +4421,7 @@ diEl("di-actualizar").addEventListener("click", () => {
   if (sesionVigente()) {
     cargarDiarios();
     cargarEjercicios(); // también vuelve a leer los ejercicios
+    if (!cuSub.hidden) cargarCuentas();
   } else actualizarPanelDiario();
 });
 diEl("di-ir-login").addEventListener("click", () => {
@@ -4448,6 +4455,292 @@ document.addEventListener("keydown", (e) => {
   else if (!diEjSub.hidden) cerrarEjerciciosDi();
   else if (!diForm.hidden) cerrarFormDi();
   else if (!diDiaPanel.hidden) cerrarDiaDi();
+});
+
+// ---------- Cuentas (zona dentro de Diario; hoja «Cuentas» de Google Sheets) ----------
+// Cada cuenta es uno de tus correos: Foto | Nombre | Correo | Proyectos vinculados (Ids de Empresas/Proyectos).
+// La foto se sube a imgbb igual que en Empresas/Proyectos (acción «proyecto_imagen»).
+const cuSub = diEl("di-cuentas");
+const cuEstado = diEl("di-cu-estado");
+const cuChips = diEl("di-cu-chips");
+const cuForm = diEl("di-cu-form");
+const cuFormTitulo = diEl("di-cu-form-titulo");
+const cuVista = diEl("di-cu-vista");
+const cuElegirImg = diEl("di-cu-elegir-img");
+const cuQuitarImg = diEl("di-cu-quitar-img");
+const cuArchivo = diEl("di-cu-archivo");
+const cuUrlImg = diEl("di-cu-url-img");
+const cuNombre = diEl("di-cu-nombre");
+const cuCorreo = diEl("di-cu-correo");
+const cuListaProy = diEl("di-cu-proyectos");
+const cuGuardar = diEl("di-cu-guardar");
+const cuBorrar = diEl("di-cu-borrar");
+const cuFormEstado = diEl("di-cu-form-estado");
+
+let cuentas = []; // [{ id, nombre, correo, imagen, proyectos: [Id de empresa/proyecto] }]
+let cuCargadas = false;
+let cuEditando = null; // cuenta abierta en la ventana (null = nueva)
+let cuImagenUrl = "";
+let cuImagenNueva = null; // { base64, vista } cuando se eligió una imagen que aún no se sube
+let cuSeleccion = new Set(); // Ids de proyectos marcados en la ventana
+
+// Nombres de los proyectos vinculados que todavía existen en Empresas/Proyectos
+function cuNombresProyectos(c) {
+  const mapa = {};
+  empresas.forEach((e) => { mapa[e.id] = e.nombre; });
+  return (c.proyectos || []).map((id) => mapa[id]).filter(Boolean);
+}
+
+function dibujarCuentas() {
+  cuChips.innerHTML = "";
+  cuentas.forEach((c) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    const conImg = imagenValida(c.imagen);
+    b.className = "ej-chip ej-chip-resumen" + (conImg ? " emp-chip-con-img" : "");
+    const vinculos = cuNombresProyectos(c);
+    b.title = c.nombre + (c.correo ? " · " + c.correo : "") + (vinculos.length ? "\nVinculada a: " + vinculos.join(", ") : "");
+    b.setAttribute("aria-label", "Abrir " + c.nombre);
+    if (conImg) {
+      const img = document.createElement("img");
+      img.className = "emp-chip-img";
+      img.alt = "";
+      img.loading = "lazy";
+      img.referrerPolicy = "no-referrer";
+      img.src = c.imagen;
+      img.addEventListener("error", () => img.remove());
+      b.appendChild(img);
+    }
+    const n = document.createElement("span");
+    n.className = "ej-chip-nombre";
+    n.textContent = (conImg ? "" : "📧 ") + c.nombre;
+    b.appendChild(n);
+    if (vinculos.length) {
+      const f = document.createElement("span");
+      f.className = "ej-chip-fecha";
+      f.textContent = "🔗 " + vinculos.length;
+      b.appendChild(f);
+    } else if (!conImg && c.correo) {
+      const t = document.createElement("span");
+      t.className = "ej-chip-desc";
+      t.textContent = resumenCorto(c.correo, 40);
+      b.appendChild(t);
+    }
+    b.addEventListener("click", () => abrirFormCu(c));
+    cuChips.appendChild(b);
+  });
+  const nuevo = document.createElement("button");
+  nuevo.type = "button";
+  nuevo.className = "ej-chip ej-chip-nuevo";
+  nuevo.setAttribute("aria-label", "Añadir cuenta");
+  nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
+  nuevo.addEventListener("click", () => abrirFormCu(null));
+  cuChips.appendChild(nuevo);
+}
+
+async function cargarCuentas() {
+  setEstado(cuEstado, "Cargando…");
+  try {
+    const j = await llamarNotas("cuenta_listar");
+    cuentas = Array.isArray(j.cuentas) ? j.cuentas : [];
+    cuCargadas = true;
+    setEstado(cuEstado, "");
+    dibujarCuentas();
+  } catch (err) {
+    setEstado(cuEstado, "Error: " + err.message, "error");
+  }
+}
+
+function abrirCuentasDi() {
+  if (!sesionVigente()) { setEstado(diEstado, "Inicia sesión para ver tus cuentas", "error"); return; }
+  cuSub.hidden = false;
+  dibujarCuentas();
+  if (!cuCargadas) cargarCuentas();
+  // Los proyectos se necesitan para vincular: si aún no se han leído, se leen ahora
+  if (!emCargadas) cargarEmpresas().then(() => { if (!cuSub.hidden) dibujarCuentas(); });
+}
+function cerrarCuentasDi() {
+  cerrarFormCu();
+  cuSub.hidden = true;
+}
+
+// ----- Lista de proyectos para vincular -----
+function dibujarListaProyectosCu() {
+  cuListaProy.innerHTML = "";
+  if (!empresas.length) {
+    const p = document.createElement("p");
+    p.className = "di-cu-vacio";
+    p.textContent = emCargadas ? "Aún no tienes empresas o proyectos." : "Leyendo tus empresas y proyectos…";
+    cuListaProy.appendChild(p);
+    return;
+  }
+  empresas.forEach((e) => {
+    const et = document.createElement("label");
+    et.className = "di-cu-item";
+    const ch = document.createElement("input");
+    ch.type = "checkbox";
+    ch.checked = cuSeleccion.has(e.id);
+    ch.addEventListener("change", () => { if (ch.checked) cuSeleccion.add(e.id); else cuSeleccion.delete(e.id); });
+    const t = document.createElement("span");
+    t.textContent = e.nombre + " ";
+    const z = document.createElement("small");
+    z.textContent = "(" + (e.zona || "Proyectos") + ")";
+    t.appendChild(z);
+    et.append(ch, t);
+    cuListaProy.appendChild(et);
+  });
+}
+
+// ----- Imagen (la misma mecánica que Empresas/Proyectos) -----
+function cuDibujarVistaImagen() {
+  cuVista.innerHTML = "";
+  const src = cuImagenNueva ? cuImagenNueva.vista : cuImagenUrl;
+  if (src && (cuImagenNueva || imagenValida(src))) {
+    const img = document.createElement("img");
+    img.alt = "Foto de la cuenta";
+    img.referrerPolicy = "no-referrer";
+    img.addEventListener("error", () => { cuVista.textContent = "No se pudo cargar la imagen. Revisa el link."; });
+    img.src = src;
+    cuVista.appendChild(img);
+  } else {
+    cuVista.textContent = "Sin imagen";
+  }
+  cuQuitarImg.hidden = !(cuImagenNueva || cuImagenUrl);
+  cuElegirImg.textContent = cuImagenNueva || cuImagenUrl ? "Cambiar imagen" : "Elegir imagen";
+}
+cuElegirImg.addEventListener("click", () => cuArchivo.click());
+function cuUsarLinkImagen() {
+  const u = cuUrlImg.value.trim();
+  if (!u) { setEstado(cuFormEstado, "Pega primero el link de la imagen", "error"); return false; }
+  if (!imagenValida(u) || u.length > 2000) { setEstado(cuFormEstado, "El link debe empezar con http:// o https://", "error"); return false; }
+  if (/^https?:\/\/(www\.)?ibb\.co\//i.test(u)) {
+    setEstado(cuFormEstado, "Ese es el link de la página de imgbb. Copia el «Enlace directo» (empieza con https://i.ibb.co/…)", "error");
+    return false;
+  }
+  cuImagenUrl = u;
+  cuImagenNueva = null;
+  cuArchivo.value = "";
+  cuUrlImg.value = "";
+  cuDibujarVistaImagen();
+  setEstado(cuFormEstado, "");
+  return true;
+}
+diEl("di-cu-usar-url").addEventListener("click", cuUsarLinkImagen);
+cuUrlImg.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); cuUsarLinkImagen(); }
+});
+cuQuitarImg.addEventListener("click", () => {
+  cuImagenNueva = null;
+  cuImagenUrl = "";
+  cuArchivo.value = "";
+  cuDibujarVistaImagen();
+});
+cuArchivo.addEventListener("change", async () => {
+  const archivo = cuArchivo.files && cuArchivo.files[0];
+  if (!archivo) return;
+  setEstado(cuFormEstado, "Preparando imagen…");
+  try {
+    cuImagenNueva = await leerImagenReducida(archivo);
+    cuDibujarVistaImagen();
+    setEstado(cuFormEstado, "");
+  } catch (err) {
+    setEstado(cuFormEstado, "Error: " + err.message, "error");
+  }
+  cuArchivo.value = "";
+});
+
+// ----- Ventana para añadir / editar -----
+function abrirFormCu(c) {
+  cuEditando = c;
+  cuImagenUrl = c ? c.imagen || "" : "";
+  cuImagenNueva = null;
+  cuUrlImg.value = "";
+  cuSeleccion = new Set(c && Array.isArray(c.proyectos) ? c.proyectos : []);
+  cuFormTitulo.textContent = c ? "Editar cuenta" : "Nueva cuenta";
+  cuNombre.value = c ? c.nombre : "";
+  cuCorreo.value = c ? c.correo || "" : "";
+  cuBorrar.hidden = !c;
+  setEstado(cuFormEstado, "");
+  cuDibujarVistaImagen();
+  dibujarListaProyectosCu();
+  cuForm.hidden = false;
+  cuForm.scrollTop = 0;
+  cuNombre.focus();
+  if (!emCargadas) cargarEmpresas().then(() => { if (!cuForm.hidden) dibujarListaProyectosCu(); });
+}
+function cerrarFormCu() {
+  cuForm.hidden = true;
+  cuEditando = null;
+  cuImagenNueva = null;
+  cuImagenUrl = "";
+  cuArchivo.value = "";
+  cuUrlImg.value = "";
+}
+
+async function guardarCu() {
+  const nombre = cuNombre.value.trim();
+  if (!nombre) { setEstado(cuFormEstado, "Escribe el nombre de la cuenta", "error"); return; }
+  const correo = cuCorreo.value.trim();
+  if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) { setEstado(cuFormEstado, "Ese correo no parece válido", "error"); return; }
+  if (cuUrlImg.value.trim() && !cuUsarLinkImagen()) return;
+  cuGuardar.disabled = true;
+  try {
+    if (cuImagenNueva) {
+      setEstado(cuFormEstado, "Subiendo imagen…");
+      const j = await llamarNotas("proyecto_imagen", { imagen: cuImagenNueva.base64 });
+      cuImagenUrl = j.url;
+      cuImagenNueva = null;
+    }
+    setEstado(cuFormEstado, "Guardando…");
+    const editando = cuEditando;
+    const id = editando ? editando.id : String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
+    // Si ya se leyeron los proyectos, solo se conservan los que todavía existen
+    const existentes = new Set(empresas.map((e) => e.id));
+    const proyectos = Array.from(cuSeleccion).filter((x) => !emCargadas || existentes.has(x));
+    const c = { id, nombre, correo, imagen: cuImagenUrl, proyectos };
+    await llamarNotas(editando ? "cuenta_editar" : "cuenta_agregar", c);
+    const pos = editando ? cuentas.indexOf(editando) : -1;
+    if (pos !== -1) cuentas[pos] = c;
+    else cuentas.push(c);
+    cerrarFormCu();
+    dibujarCuentas();
+    setEstado(cuEstado, "Guardado ✓", "ok");
+    cargarCuentas().then(() => setEstado(cuEstado, "Guardado ✓", "ok"));
+  } catch (err) {
+    setEstado(cuFormEstado, "Error: " + err.message, "error");
+  } finally {
+    cuGuardar.disabled = false;
+  }
+}
+
+async function borrarCu() {
+  const c = cuEditando;
+  if (!c || !window.confirm("¿Eliminar la cuenta «" + c.nombre + "»? (la imagen seguirá en imgbb)")) return;
+  cuBorrar.disabled = true;
+  setEstado(cuFormEstado, "Eliminando…");
+  try {
+    await llamarNotas("cuenta_borrar", { id: c.id });
+    cuentas = cuentas.filter((x) => x !== c);
+    cerrarFormCu();
+    dibujarCuentas();
+    setEstado(cuEstado, "Eliminada", "ok");
+  } catch (err) {
+    setEstado(cuFormEstado, "Error: " + err.message, "error");
+  } finally {
+    cuBorrar.disabled = false;
+  }
+}
+
+diEl("di-cuentas-abrir").addEventListener("click", abrirCuentasDi);
+diEl("di-cu-volver").addEventListener("click", cerrarCuentasDi);
+cuGuardar.addEventListener("click", guardarCu);
+diEl("di-cu-cancelar").addEventListener("click", cerrarFormCu);
+cuBorrar.addEventListener("click", borrarCu);
+// Esc cierra primero la ventana y luego la zona de Cuentas
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || panelDi.hidden) return;
+  if (!cuForm.hidden) cerrarFormCu();
+  else if (!cuSub.hidden) cerrarCuentasDi();
 });
 
 // ---------- Deudas (hoja «Diario», columnas H a K) ----------

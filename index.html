@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="63" />
+  <meta name="app-version" content="64" />
   <meta name="theme-color" content="#4a2685" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -648,6 +648,10 @@
         </div>
 
         <div id="di-contenido">
+          <!-- Botón pequeño «Cuentas»: abre la zona de tus correos (se maneja en app.js) -->
+          <div class="di-cuentas-barra">
+            <button id="di-cuentas-abrir" class="btn-cal di-cuentas-btn" type="button">&#128231; Cuentas</button>
+          </div>
           <div class="cal-controles">
             <button id="di-anterior" class="btn-cal" type="button" aria-label="Mes anterior">&#8249;</button>
             <select id="di-mes" aria-label="Mes"></select>
@@ -692,6 +696,58 @@
           <h3 id="di-ej-detalle-nombre" class="zona-vista-nombre"></h3>
           <div id="di-ej-detalle-fecha" class="zona-vista-fecha"></div>
           <p id="di-ej-detalle-texto" class="zona-vista-texto"></p>
+        </div>
+      </div>
+
+      <!-- Cuentas (tus correos): un recuadro por cuenta, con foto y nombre; se vinculan a Empresas/Proyectos -->
+      <div id="di-cuentas" class="notas-submenu" hidden>
+        <header class="notas-sub-cabecera">
+          <button id="di-cu-volver" class="notas-btn notas-btn-sec" type="button">‹ Volver</button>
+          <h3>&#128231; Cuentas</h3>
+        </header>
+        <div class="notas-sub-cuerpo">
+          <p id="di-cu-estado" class="notas-estado proy-estado-lista"></p>
+          <div id="di-cu-chips" class="ej-chips"></div>
+        </div>
+      </div>
+
+      <!-- Ventana para agregar o editar una cuenta -->
+      <div id="di-cu-form" class="notas-nueva proy-form modo-editar" hidden>
+        <h3 id="di-cu-form-titulo" class="notas-form-titulo">Nueva cuenta</h3>
+        <div class="proy-form-cuerpo">
+          <div class="proy-imagen-col">
+            <div id="di-cu-vista" class="proy-vista"></div>
+            <div class="proy-imagen-botones">
+              <button id="di-cu-elegir-img" class="notas-btn notas-btn-sec" type="button">Elegir imagen</button>
+              <button id="di-cu-quitar-img" class="notas-btn notas-btn-sec" type="button" hidden>Quitar imagen</button>
+            </div>
+            <input id="di-cu-archivo" type="file" accept="image/*" hidden />
+            <div class="proy-url-img">
+              <input id="di-cu-url-img" type="url" inputmode="url" maxlength="2000" autocomplete="off"
+                     placeholder="…o pega aquí el link de la imagen (imgbb)" aria-label="Link de la imagen" />
+              <button id="di-cu-usar-url" class="notas-btn notas-btn-sec" type="button">Usar link</button>
+            </div>
+          </div>
+          <div class="proy-datos-col">
+            <label class="notas-campo">
+              <span>Nombre</span>
+              <input id="di-cu-nombre" type="text" maxlength="120" placeholder="Ej. Correo de trabajo" autocomplete="off" />
+            </label>
+            <label class="notas-campo">
+              <span>Correo</span>
+              <input id="di-cu-correo" type="email" maxlength="200" placeholder="nombre@gmail.com" autocomplete="off" />
+            </label>
+            <div class="notas-campo">
+              <span>Vincular a empresas / proyectos</span>
+              <div id="di-cu-proyectos" class="di-cu-lista"></div>
+            </div>
+          </div>
+        </div>
+        <div class="notas-fila">
+          <button id="di-cu-guardar" class="notas-btn" type="button">Guardar</button>
+          <button id="di-cu-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <button id="di-cu-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+          <span id="di-cu-form-estado" class="notas-estado"></span>
         </div>
       </div>
 

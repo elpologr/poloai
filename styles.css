@@ -1,5 +1,5 @@
 :root {
-  --app-version: "63"; /* debe coincidir con VERSION en app.js */
+  --app-version: "64"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -3209,3 +3209,19 @@ button.em-canal-ficha-texto { cursor: pointer; }
 
 /* Tareas obligatorias diarias: resumen de las completadas hoy (se ocultan hasta mañana) */
 .td-hechas-barra { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 0.85rem; font-weight: 700; }
+
+/* ---------- Cuentas (dentro de Diario) ---------- */
+.di-cuentas-barra { display: flex; justify-content: flex-start; margin: 4px 0 8px; }
+.di-cuentas-btn { padding: 4px 12px; font-size: 0.85rem; }
+.di-cu-lista {
+  max-height: 220px;
+  overflow: auto;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--nb-borde);
+  border-radius: 10px;
+}
+.di-cu-item { display: flex; align-items: center; gap: 8px; padding: 5px 2px; font-size: 0.9rem; cursor: pointer; }
+.notas-nueva .di-cu-item input { width: auto; flex: none; margin: 0; }
+.di-cu-item small { color: var(--nb-suave); }
+.di-cu-vacio { margin: 0; font-size: 0.85rem; color: var(--nb-suave); }
