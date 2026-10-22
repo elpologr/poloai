@@ -3,7 +3,7 @@
 // 2) Con internet siempre se usa la versión nueva de los archivos (y se actualiza la copia guardada).
 //    Si la red no responde en ESPERA_RED ms, se muestra la copia guardada mientras la red sigue intentando en segundo plano.
 // 3) «sin-internet.html» queda solo como último recurso (si nunca se abrió la app con internet en este dispositivo).
-const CACHE = "polo-app-v2";
+const CACHE = "polo-app-v3";
 const PAGINA_OFFLINE = "sin-internet.html";
 const ESPERA_RED = 4000; // ms que se espera a la red antes de usar la copia guardada
 
