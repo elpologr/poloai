@@ -1302,14 +1302,79 @@ function ofLeerCola() {
 function ofGuardarCola(c) {
   try { localStorage.setItem(OF_CLAVE_COLA, JSON.stringify(c)); return true; } catch (e) { return false; }
 }
+// ---- Copia de las listas de cada zona ----
+// Se guarda en IndexedDB (cabe muchísimo más que localStorage, que solo tiene ~5 MB para TODO y se llenaba con las notas)
+// y se mantiene también en memoria para poder leerla al instante. Si el navegador no tiene IndexedDB, se usa localStorage como antes.
+const OF_BD = "polo-cache";
+const OF_ALMACEN = "listas";
+const ofMemoria = {}; // acción -> { guardado, j }
+const ofTemporizadoresBD = {};
+let ofBD = null;
+
+const ofListo = (async function ofIniciarCache() {
+  try {
+    if (!window.indexedDB) throw new Error("Sin IndexedDB");
+    ofBD = await new Promise((ok, mal) => {
+      const q = indexedDB.open(OF_BD, 1);
+      q.onupgradeneeded = () => q.result.createObjectStore(OF_ALMACEN);
+      q.onsuccess = () => ok(q.result);
+      q.onerror = () => mal(q.error);
+      q.onblocked = () => mal(new Error("Base bloqueada"));
+    });
+    await new Promise((ok) => {
+      const t = ofBD.transaction(OF_ALMACEN, "readonly");
+      const cur = t.objectStore(OF_ALMACEN).openCursor();
+      cur.onsuccess = () => {
+        const c = cur.result;
+        if (c) { ofMemoria[c.key] = c.value; c.continue(); }
+      };
+      t.oncomplete = ok; t.onerror = ok; t.onabort = ok;
+    });
+  } catch (e) {
+    ofBD = null;
+  }
+  // Copias antiguas en localStorage: se pasan a la base nueva y se borran para liberar espacio
+  try {
+    Object.keys(localStorage).forEach((k) => {
+      if (k.indexOf(OF_CLAVE_DATOS) !== 0) return;
+      const accion = k.slice(OF_CLAVE_DATOS.length);
+      if (!ofMemoria[accion]) {
+        try { ofMemoria[accion] = JSON.parse(localStorage.getItem(k)); if (ofBD) ofGuardarBD(accion); } catch (e) {}
+      }
+      if (ofBD) localStorage.removeItem(k);
+    });
+  } catch (e) {}
+})();
+
+function ofGuardarBD(accion) {
+  clearTimeout(ofTemporizadoresBD[accion]);
+  // Se junta con otros guardados seguidos para no escribir la lista completa muchas veces
+  ofTemporizadoresBD[accion] = setTimeout(() => {
+    try {
+      if (!ofBD || !ofMemoria[accion]) return;
+      const t = ofBD.transaction(OF_ALMACEN, "readwrite");
+      t.objectStore(OF_ALMACEN).put(ofMemoria[accion], accion);
+      t.onerror = () => {};
+    } catch (e) { /* sin espacio o base cerrada: se sigue sin copia */ }
+  }, 300);
+}
+
 function ofLeerLista(accion) {
-  try { return JSON.parse(localStorage.getItem(OF_CLAVE_DATOS + accion)); } catch (e) { return null; }
+  return ofMemoria[accion] || null;
 }
 function ofEscribirLista(accion, c) {
-  try { localStorage.setItem(OF_CLAVE_DATOS + accion, JSON.stringify(c)); } catch (e) { /* sin espacio: se sigue sin copia */ }
+  ofMemoria[accion] = c;
+  if (ofBD) ofGuardarBD(accion);
+  else { try { localStorage.setItem(OF_CLAVE_DATOS + accion, JSON.stringify(c)); } catch (e) {} }
 }
 // Al cerrar sesión se borran las listas guardadas en el dispositivo (la cola de notas pendientes se conserva)
 function ofBorrarDatos() {
+  Object.keys(ofTemporizadoresBD).forEach((k) => clearTimeout(ofTemporizadoresBD[k]));
+  Object.keys(ofMemoria).forEach((k) => delete ofMemoria[k]);
+  Object.keys(ofUltimaRed).forEach((k) => delete ofUltimaRed[k]);
+  try {
+    if (ofBD) ofBD.transaction(OF_ALMACEN, "readwrite").objectStore(OF_ALMACEN).clear();
+  } catch (e) {}
   try {
     Object.keys(localStorage).forEach((k) => { if (k.indexOf(OF_CLAVE_DATOS) === 0) localStorage.removeItem(k); });
   } catch (e) {}
@@ -1350,14 +1415,95 @@ function ofAviso(texto, siempre) {
   ofAvisoTimer = setTimeout(() => { ofAvisoEl.hidden = true; }, 6000);
 }
 
+// ---- Mostrar primero lo guardado y actualizar en segundo plano ----
+// Si una zona ya se abrió antes en este dispositivo, su lista se muestra al instante desde la copia guardada, y mientras tanto
+// se pide la lista nueva a Google. Si algo cambió, la zona se vuelve a dibujar sola.
+const OF_FRESCO_MS = 8000; // una lista leída hace menos de esto se considera al día
+const ofUltimaRed = {}; // acción -> hora de la última lectura buena desde internet
+const ofRevalidando = {};
+let ofCambios = 0; // sube con cada guardado/edición/borrado que sale bien (para que una lectura vieja no los pise)
+
+// Vuelve a pedirle a cada zona que se dibuje (solo si ya estaba cargada)
+function ofRecargar(accion) {
+  try {
+    switch (accion) {
+      case "nota_listar": if (notasCargadas) cargarNotasZonas(); break;
+      case "ejercicio_listar": if (ejCargados) cargarEjercicios(); break;
+      case "diario_listar": if (diCargados) cargarDiarios(); break;
+      case "deuda_listar": if (deCargadas) cargarDeudas(); break;
+      case "informacion_listar": if (ipCargadas) cargarInformaciones(); break;
+      case "comando_listar": if (cmCargadas) cargarComandos(); break;
+      case "bazar_listar": if (bzCargadas) cargarBazar(); break;
+      case "empresa_listar": if (emCargadas) cargarEmpresas(); break;
+      case "cuenta_listar": if (cuCargadas) cargarCuentas(); break;
+      case "proyecto_listar": if (proyectosCargados) cargarProyectos(); break;
+      case "tarea_diaria_listar": if (tdCargadas) cargarTareasDiarias(); break;
+      case "notario_listar": if (typeof NT !== "undefined" && NT && NT.cargados) ntCargar(); break;
+    }
+  } catch (e) { /* si una zona no se pudo redibujar, se queda como estaba */ }
+}
+
+// A una lista (guardada o traída de internet) se le suman las notas hechas sin internet que todavía no se suben
+function ofConPendientes(accion, base) {
+  const j = Object.assign({}, base);
+  const clave = OF_LISTAS[accion];
+  j[clave] = Array.isArray(j[clave]) ? j[clave].slice() : [];
+  const cola = ofLeerCola();
+  Object.keys(OF_AGREGAR).forEach((acc) => {
+    if (OF_AGREGAR[acc][0] !== accion) return;
+    cola.forEach((x) => {
+      if (x.accion === acc && x.payload && !j[clave].some((y) => String(y.id) === String(x.payload.id))) j[clave].push(x.payload);
+    });
+  });
+  return j;
+}
+
+async function ofRevalidar(accion, extra, base) {
+  if (ofRevalidando[accion]) return;
+  ofRevalidando[accion] = true;
+  const cambios = ofCambios;
+  try {
+    const j = await llamarNotasRed(accion, extra, 20000);
+    ofUltimaRed[accion] = Date.now();
+    ofAvisoMostrado = false;
+    // Si mientras tanto se guardó algo, esta lectura pudo quedar vieja: se descarta (la próxima vez se corrige sola)
+    if (cambios !== ofCambios) return;
+    const igual = JSON.stringify(j) === JSON.stringify(base);
+    ofEscribirLista(accion, { guardado: Date.now(), j });
+    if (!igual) ofRecargar(accion);
+  } catch (e) {
+    if (ofSinRed(e) && credencialVigente()) {
+      ofAviso("📴 Sin internet: se muestra lo último guardado en este dispositivo. Lo nuevo que anotes se subirá solo al volver la conexión.");
+    }
+    // Con cualquier otro error se queda lo que ya se ve
+  } finally {
+    ofRevalidando[accion] = false;
+  }
+}
+
 async function llamarNotas(accion, extra) {
   const esLista = OF_LISTAS[accion];
   const esAgregar = OF_AGREGAR[accion];
+
+  if (esLista) {
+    await ofListo;
+    const c = ofLeerLista(accion);
+    if (c && c.j && Array.isArray(c.j[esLista]) && credencialVigente()) {
+      if (Date.now() - (ofUltimaRed[accion] || 0) > OF_FRESCO_MS) ofRevalidar(accion, extra, c.j);
+      return ofConPendientes(accion, Object.assign({}, c.j, { cache: true }));
+    }
+  }
+
   try {
     const j = await llamarNotasRed(accion, extra, esLista ? 20000 : esAgregar ? 30000 : 0);
     ofAvisoMostrado = false; // hubo conexión: la próxima vez que falle se vuelve a avisar
-    if (esLista) ofEscribirLista(accion, { guardado: Date.now(), j });
-    else if (esAgregar) ofMezclarEnCache(accion, extra);
+    if (esLista) {
+      ofUltimaRed[accion] = Date.now();
+      ofEscribirLista(accion, { guardado: Date.now(), j });
+    } else {
+      ofCambios++;
+      if (esAgregar) ofMezclarEnCache(accion, extra);
+    }
     return j;
   } catch (e) {
     // Solo se usa el modo sin internet si de verdad es un problema de conexión y hay una sesión vigente
@@ -1366,19 +1512,8 @@ async function llamarNotas(accion, extra) {
     if (esLista) {
       const c = ofLeerLista(accion);
       if (!c || !c.j) throw new Error("Sin internet, y esta zona todavía no se había abierto con conexión en este dispositivo.");
-      const j = Object.assign({}, c.j, { offline: true });
-      const clave = OF_LISTAS[accion];
-      j[clave] = Array.isArray(j[clave]) ? j[clave].slice() : [];
-      // Lo anotado sin internet que todavía no se sube también se ve
-      const cola = ofLeerCola();
-      Object.keys(OF_AGREGAR).forEach((acc) => {
-        if (OF_AGREGAR[acc][0] !== accion) return;
-        cola.forEach((x) => {
-          if (x.accion === acc && x.payload && !j[clave].some((y) => String(y.id) === String(x.payload.id))) j[clave].push(x.payload);
-        });
-      });
       ofAviso("📴 Sin internet: se muestra lo último guardado en este dispositivo. Lo nuevo que anotes se subirá solo al volver la conexión.");
-      return j;
+      return ofConPendientes(accion, Object.assign({}, c.j, { offline: true }));
     }
 
     if (esAgregar && extra && extra.id) {
@@ -12998,9 +13133,14 @@ cargarDatos();
     avisoTimer = setTimeout(() => { aviso.hidden = true; }, 7000);
   }
 
+  // Una nota con error se vuelve a intentar (hasta 3 veces, cada 10 minutos): muchos errores son momentáneos
+  // (Google ocupado, bloqueo de la hoja...). Los que siguen fallando se quedan guardados.
+  const pendiente = (x) => !x.error || ((x.intentos || 0) < 3 && Date.now() - (x.errorEn || 0) > 600000);
+
   async function subir() {
     if (subiendo || !navigator.onLine) return;
-    if (!leer().some((x) => !x.error)) return;
+    await ofListo;
+    if (!leer().some(pendiente)) return;
     if (!credencialVigente()) return; // sin sesión no se puede subir; se intentará cuando haya
     if (!bloqueoLibre()) return;
     subiendo = true;
@@ -13009,7 +13149,7 @@ cargarDatos();
     let conError = 0;
     try {
       while (true) {
-        const it = leer().find((x) => !x.error);
+        const it = leer().find(pendiente);
         if (!it) break;
         decir("Subiendo notas hechas sin internet… (" + (subidas + 1) + ")");
         try {
@@ -13021,9 +13161,11 @@ cargarDatos();
         } catch (e) {
           if (!credencialVigente()) break; // la sesión se cerró: las notas se quedan guardadas
           if (e instanceof TypeError || (e && e.name === "AbortError")) break; // se cortó la conexión: se reintenta después
+          // Google respondió una página en vez de datos (ocupado o tardó): no es un error de la nota, se reintenta en un rato
+          if (e && /Google respondió una página/.test(String(e.message))) { decir("Google está tardando en responder; se reintentará en un minuto."); break; }
           const c = leer();
           const pos = c.findIndex((x) => x.payload.id === it.payload.id);
-          if (pos !== -1) { c[pos].error = e.message || "Error desconocido"; guardar(c); }
+          if (pos !== -1) { c[pos].error = e.message || "Error desconocido"; c[pos].intentos = (c[pos].intentos || 0) + 1; c[pos].errorEn = Date.now(); guardar(c); }
           conError++;
         }
         await new Promise((r) => setTimeout(r, 400));
