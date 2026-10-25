@@ -147,7 +147,15 @@ function vaciarCalendario(aviso) {
   mostrarEstadoCal(aviso || "");
 }
 
-// Leer el calendario también exige iniciar sesión con la cuenta autorizada
+// Copia del calendario para abrirlo al instante la próxima vez (comparte la base de «polo-cache» con las demás zonas)
+let calCambios = 0; // sube con cada cambio guardado, para que una lectura vieja no lo pise
+function calGuardarCopia() {
+  calCambios++;
+  try { ofEscribirLista("calendario_listar", { guardado: Date.now(), j: { ok: true, datos: JSON.parse(JSON.stringify(datos)) } }); } catch (e) {}
+}
+
+// Leer el calendario también exige iniciar sesión con la cuenta autorizada.
+// Si ya se abrió antes en este dispositivo, se muestra al instante lo guardado y se actualiza en segundo plano.
 async function cargarDatos() {
   if (!configurado()) {
     mostrarEstadoCal(
@@ -161,24 +169,47 @@ async function cargarDatos() {
     vaciarCalendario("Inicia sesión con Google (menú ☰) para ver tu calendario.");
     return;
   }
-  mostrarEstadoCal("Cargando datos…");
+  try { await ofListo; } catch (e) {}
+  const c = ofLeerLista("calendario_listar");
+  const hayCopia = !!(c && c.j && c.j.datos);
+  if (hayCopia) {
+    Object.keys(datos).forEach((k) => delete datos[k]);
+    Object.assign(datos, JSON.parse(JSON.stringify(c.j.datos)));
+    calendarioCargado = true;
+    mostrarEstadoCal("");
+    dibujarCalendario();
+  } else {
+    mostrarEstadoCal("Cargando datos…");
+  }
+  const cambios = calCambios;
+  const ctl = new AbortController();
+  const reloj = setTimeout(() => ctl.abort(), 20000);
   try {
     // text/plain evita el "preflight" de CORS con Apps Script
     const r = await fetch(CONFIG.APPS_SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({ token: CONFIG.TOKEN, idToken, accion: "calendario_listar" }),
+      signal: ctl.signal,
     });
     const j = await leerJsonRespuesta(r);
     sesionRechazada(j);
     if (!j.ok) throw new Error(j.error || "Error desconocido");
-    Object.keys(datos).forEach((k) => delete datos[k]);
-    Object.assign(datos, j.datos);
-    calendarioCargado = true;
-    mostrarEstadoCal("");
-    dibujarCalendario();
+    if (cambios !== calCambios) return; // mientras tanto se guardó algo: esta lectura pudo quedar vieja
+    const igual = hayCopia && JSON.stringify(j.datos) === JSON.stringify(c.j.datos);
+    ofEscribirLista("calendario_listar", { guardado: Date.now(), j: { ok: true, datos: JSON.parse(JSON.stringify(j.datos)) } });
+    if (!igual) {
+      Object.keys(datos).forEach((k) => delete datos[k]);
+      Object.assign(datos, j.datos);
+      calendarioCargado = true;
+      mostrarEstadoCal("");
+      dibujarCalendario();
+    }
   } catch (e) {
-    mostrarEstadoCal("No se pudieron cargar los datos: " + e.message, "error");
+    // Si ya se está viendo lo guardado (sin internet o red lenta), no se muestra error
+    if (!hayCopia) mostrarEstadoCal("No se pudieron cargar los datos: " + e.message, "error");
+  } finally {
+    clearTimeout(reloj);
   }
 }
 
@@ -210,6 +241,7 @@ async function guardarCampo(fecha, campo, valor) {
   if (!j.ok) throw new Error(j.error || "Error al guardar");
   datos[fecha] = datos[fecha] || {};
   datos[fecha][campo] = valor;
+  calGuardarCopia();
 }
 
 function tieneDatos(fecha) {
@@ -3839,6 +3871,7 @@ async function cambiarColorDia(fecha, valor) {
   setEstado(popColorEstado, "Guardando…");
   try {
     await guardarColorDia(fecha, valor);
+    calGuardarCopia();
     if (orden === secuenciaColorDia) setEstado(popColorEstado, "Guardado ✓", "ok");
   } catch (e) {
     if (orden !== secuenciaColorDia) return;
@@ -13090,9 +13123,45 @@ cargarDatos();
     ayuda.hidden = !ayuda.hidden;
   });
 
-  // El service worker es lo que permite que el navegador ofrezca instalar la app
+  // El service worker es lo que permite instalar la app y que abra al instante desde la copia guardada.
+  // Unos segundos después de abrir le pide revisar (en segundo plano) si hay una versión nueva.
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    let avisoVersion = null;
+    const mostrarAvisoVersion = () => {
+      if (avisoVersion) return;
+      avisoVersion = document.createElement("div");
+      avisoVersion.setAttribute("role", "status");
+      avisoVersion.style.cssText = "position:fixed;left:12px;right:12px;bottom:16px;z-index:99999;display:flex;gap:10px;align-items:center;justify-content:space-between;padding:12px 14px;color:#fff;background:#4a2685;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.35);font:600 .9rem system-ui,sans-serif";
+      const t = document.createElement("span");
+      t.textContent = "Hay una versión nueva de Polo AI";
+      const mk = (txt, fondo, fn) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = txt;
+        b.style.cssText = "padding:8px 14px;font:inherit;color:#fff;background:" + fondo + ";border:0;border-radius:10px;cursor:pointer";
+        b.addEventListener("click", fn);
+        return b;
+      };
+      const fila = document.createElement("span");
+      fila.style.cssText = "display:flex;gap:8px";
+      fila.append(mk("Luego", "rgba(255,255,255,.2)", () => avisoVersion.remove()), mk("Actualizar", "#7a44d6", () => location.reload()));
+      avisoVersion.append(t, fila);
+      document.body.appendChild(avisoVersion);
+    };
+    navigator.serviceWorker.addEventListener("message", (e) => {
+      if (e.data && e.data.tipo === "polo-nueva-version") mostrarAvisoVersion();
+    });
+    let ultimaPeticion = 0;
+    const pedirRevision = () => {
+      if (Date.now() - ultimaPeticion < 30 * 60 * 1000) return;
+      ultimaPeticion = Date.now();
+      navigator.serviceWorker.ready.then((reg) => { if (reg.active) reg.active.postMessage({ tipo: "revisar" }); }).catch(() => {});
+    };
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+      setTimeout(pedirRevision, 5000);
+    });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) pedirRevision(); });
   }
 })();
 

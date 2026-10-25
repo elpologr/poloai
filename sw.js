@@ -1,11 +1,12 @@
 // Service worker de Polo AI.
-// 1) Guarda la app completa (index.html, app.js, styles.css...) para que abra SIN internet con la misma pantalla principal.
-// 2) Con internet siempre se usa la versión nueva de los archivos (y se actualiza la copia guardada).
-//    Si la red no responde en ESPERA_RED ms, se muestra la copia guardada mientras la red sigue intentando en segundo plano.
+// 1) La app completa (index.html, app.js, styles.css...) se guarda en el dispositivo y SIEMPRE se abre desde esa copia,
+//    al instante, sin esperar a la red (antes se esperaba hasta 4 s por cada archivo cuando la señal era mala).
+// 2) Las actualizaciones se revisan en segundo plano (la página lo pide unos segundos después de abrir). Si hay una versión
+//    nueva, se guarda COMPLETA de una sola vez (nunca a medias) y la página avisa «Hay una versión nueva» para recargar.
 // 3) «sin-internet.html» queda solo como último recurso (si nunca se abrió la app con internet en este dispositivo).
-const CACHE = "polo-app-v3";
+const CACHE = "polo-app-v4";
 const PAGINA_OFFLINE = "sin-internet.html";
-const ESPERA_RED = 4000; // ms que se espera a la red antes de usar la copia guardada
+const LIMITE_RED = 15000; // ms máximos por archivo al revisar actualizaciones en segundo plano
 
 // Imprescindibles: si no se pueden guardar, la instalación se reintenta después
 const CRITICOS = ["index.html", "styles.css", "app.js", "voz.js", "config.js", PAGINA_OFFLINE];
@@ -47,33 +48,20 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-// Red primero (con límite de espera); si no hay red o tarda demasiado, la copia guardada
+// Copia guardada primero (instantáneo). Solo si no hay copia (primera vez) se usa la red.
 async function responder(e, clave) {
   const req = e.request;
   const llave = BASE + clave;
-  // «no-cache»: siempre se pregunta al servidor si hay versión nueva (si no cambió, responde rápido sin descargar de nuevo)
-  const red = fetch(req.url, { cache: "no-cache" }).then(async (r) => {
-    if (r.ok) {
-      const copia = r.clone();
-      const c = await caches.open(CACHE);
-      await c.put(llave, copia);
-    }
-    return r;
-  });
-  e.waitUntil(red.catch(() => {})); // aunque se muestre la copia, la actualización sigue en segundo plano
-
-  const espera = new Promise((res) => setTimeout(() => res(null), ESPERA_RED));
-  const r = await Promise.race([red.catch(() => null), espera]);
-  if (r && r.ok) return r;
-
-  const guardada = await caches.match(llave);
+  const c = await caches.open(CACHE);
+  const guardada = await c.match(llave);
   if (guardada) return guardada;
-  if (r) return r; // la red respondió con error y no hay copia: se deja ese error
   try {
-    return await red; // tardó mucho pero no hay copia: se espera a la red
+    const r = await fetch(req.url, { cache: "no-cache" });
+    if (r.ok) await c.put(llave, r.clone());
+    return r;
   } catch (err) {
     if (req.mode === "navigate") {
-      const offline = await caches.match(BASE + PAGINA_OFFLINE);
+      const offline = await c.match(BASE + PAGINA_OFFLINE);
       if (offline) return offline;
     }
     return Response.error();
@@ -94,6 +82,67 @@ self.addEventListener("fetch", (e) => {
       fetch(req).catch(async () => (await caches.match(BASE + "index.html")) || (await caches.match(BASE + PAGINA_OFFLINE)) || Response.error())
     );
   }
+});
+
+// ---------- Revisar si hay versión nueva (en segundo plano) ----------
+async function mismoContenido(a, b) {
+  const [x, y] = await Promise.all([a.clone().arrayBuffer(), b.clone().arrayBuffer()]);
+  if (x.byteLength !== y.byteLength) return false;
+  const u = new Uint8Array(x);
+  const v = new Uint8Array(y);
+  for (let i = 0; i < u.length; i++) if (u[i] !== v[i]) return false;
+  return true;
+}
+
+async function pedirConLimite(url) {
+  const ctl = new AbortController();
+  const reloj = setTimeout(() => ctl.abort(), LIMITE_RED);
+  try {
+    return await fetch(url, { cache: "no-cache", signal: ctl.signal });
+  } finally {
+    clearTimeout(reloj);
+  }
+}
+
+let revisando = null;
+let ultimaRevision = 0;
+function revisarActualizacion() {
+  if (revisando) return revisando;
+  if (Date.now() - ultimaRevision < 120000) return Promise.resolve();
+  revisando = (async () => {
+    try {
+      const c = await caches.open(CACHE);
+      const nuevos = [];
+      let cambio = false;
+      for (const a of ARCHIVOS) {
+        const llave = BASE + a;
+        let r;
+        try { r = await pedirConLimite(llave); } catch (err) { return; } // sin red o muy lenta: no se cambia nada
+        if (!r.ok) {
+          if (CRITICOS.includes(a)) return; // si falta un archivo importante no se actualiza nada (para no dejar la app a medias)
+          continue;
+        }
+        const vieja = await c.match(llave);
+        if (!vieja || !(await mismoContenido(r, vieja))) cambio = true;
+        nuevos.push([llave, r]);
+      }
+      if (!cambio) return;
+      // Se guardan todos juntos: la app nunca queda mezclada entre versión vieja y nueva
+      await Promise.all(nuevos.map(([k, r]) => c.put(k, r)));
+      const ventanas = await self.clients.matchAll({ type: "window" });
+      ventanas.forEach((v) => v.postMessage({ tipo: "polo-nueva-version" }));
+    } catch (err) {
+      /* se vuelve a intentar la próxima vez */
+    } finally {
+      ultimaRevision = Date.now();
+      revisando = null;
+    }
+  })();
+  return revisando;
+}
+
+self.addEventListener("message", (e) => {
+  if (e.data && e.data.tipo === "revisar") e.waitUntil(revisarActualizacion());
 });
 
 // Al tocar un aviso de alarma se abre (o se enfoca) la app
