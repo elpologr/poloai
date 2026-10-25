@@ -1888,16 +1888,16 @@ function crearTarjetaNota(n) {
   // Tocar la tarjeta en cualquier zona abre su edición (los botones ✎ y × siguen con su función)
   tarjeta.tabIndex = 0;
   tarjeta.setAttribute("role", "button");
-  tarjeta.setAttribute("aria-label", "Editar la nota " + (n.nombre || "Sin nombre"));
+  tarjeta.setAttribute("aria-label", "Abrir la nota " + (n.nombre || "Sin nombre"));
   tarjeta.addEventListener("click", (e) => {
     if (e.target.closest("button, input")) return;
     if (String(window.getSelection()).length) return; // si estaba seleccionando texto, no se abre
-    abrirEdicionNota(n);
+    abrirVisorDeNota(n, () => abrirEdicionNota(n));
   });
   tarjeta.addEventListener("keydown", (e) => {
     if (e.target === tarjeta && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
-      abrirEdicionNota(n);
+      abrirVisorDeNota(n, () => abrirEdicionNota(n));
     }
   });
   return tarjeta;
@@ -3119,8 +3119,7 @@ function crearZonaEtiqueta(cfg) {
   }
   // Al tocar una tarjeta: nota sencilla (si la zona la usa) o edición directa
   function abrirTarjeta(n) {
-    if (vista) abrirVista(n);
-    else abrirEdicion(n);
+    abrirVisorDeNota(n, () => abrirEdicion(n));
   }
   if (vista) {
     vista.querySelector(".zona-vista-cerrar").addEventListener("click", cerrarVista);
@@ -4020,7 +4019,7 @@ function dibujarChipsEj() {
     b.setAttribute("aria-label", "Ver o editar el ejercicio " + e.nombre);
     b.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">💪</span><span class="ej-chip-nombre"></span>';
     b.querySelector(".ej-chip-nombre").textContent = e.nombre;
-    b.addEventListener("click", () => abrirFormEj(e));
+    b.addEventListener("click", () => abrirVisorEj(e));
     ejChips.appendChild(b);
   });
   const nuevo = document.createElement("button");
@@ -4360,7 +4359,7 @@ function dibujarChipsDi() {
       b.title = e.nombre + " (Anotación de Tarea Finalizada)";
     }
     b.querySelector(".ej-chip-nombre").textContent = e.nombre;
-    b.addEventListener("click", () => abrirFormDi(e));
+    b.addEventListener("click", () => abrirVisorDi(e));
     diChips.appendChild(b);
   });
   const nuevo = document.createElement("button");
@@ -5263,7 +5262,7 @@ function dibujarChipsDe() {
     } else {
       b.append(n, t);
     }
-    b.addEventListener("click", () => abrirFormDe(d));
+    b.addEventListener("click", () => abrirVisorDe(d));
     deChips.appendChild(b);
   });
   const nuevo = document.createElement("button");
@@ -5495,7 +5494,7 @@ function dibujarChipsIp() {
     t.className = "ej-chip-desc";
     t.textContent = resumenCorto(d.descripcion, 70);
     b.append(n, f, t);
-    b.addEventListener("click", () => abrirFormIp(d));
+    b.addEventListener("click", () => abrirVisorIp(d));
     ipChips.appendChild(b);
   });
   const nuevo = document.createElement("button");
@@ -5689,7 +5688,7 @@ function dibujarChipsCm() {
     t.className = "ej-chcm-desc";
     t.textContent = resumenCorto(d.descripcion, 70);
     b.append(n, f, t);
-    b.addEventListener("click", () => abrirFormCm(d));
+    b.addEventListener("click", () => abrirVisorCm(d));
     cmChips.appendChild(b);
   });
   const nuevo = document.createElement("button");
@@ -5882,7 +5881,7 @@ function dibujarChipsBzEn(cont, categoria, conAnadir) {
     t.className = "ej-chip-desc";
     t.textContent = resumenCorto(d.informacion, 70);
     b.append(n, t);
-    b.addEventListener("click", () => abrirFormBz(d));
+    b.addEventListener("click", () => abrirVisorBz(d));
     cont.appendChild(b);
   });
   if (!conAnadir) return;
@@ -6037,6 +6036,407 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelBz.hidden) return;
   if (!bzForm.hidden) cerrarFormBz();
 });
+
+// ---------- Vista de nota (leer y escribir) ----------
+// Al tocar una nota se abre primero esta vista: el nombre arriba (con un lápiz para cambiarlo) y un recuadro grande para
+// escribir o modificar el texto. El engrane (arriba a la derecha) abre el formulario completo de siempre.
+// Cada zona la usa con abrirVisorNota({...}); aquí van las piezas comunes y más abajo los adaptadores de cada zona.
+const vn = { el: null, actual: null, renombrando: false, bajoDown: false, overflowPrevio: "" };
+
+function vnCrear() {
+  if (vn.el) return;
+  const css = document.createElement("style");
+  css.textContent = `
+    .vn { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; padding: 12px; background: rgba(30, 12, 60, 0.55); }
+    .vn[hidden] { display: none; }
+    .vn-caja { position: relative; display: flex; flex-direction: column; gap: 8px; width: min(680px, 100%); height: min(88vh, 720px); height: min(88dvh, 720px);
+      padding: 14px 14px 12px; color: var(--texto, #2b2140); background: var(--fondo, #fff); border: 1px solid var(--borde, #e3d8f6);
+      border-radius: 16px; box-shadow: 0 18px 50px rgba(30, 12, 60, 0.45); }
+    .vn-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .vn-titulo { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; padding-top: 3px; }
+    .vn-nombre { margin: 0; min-width: 0; font-size: 1.25rem; line-height: 1.25; overflow-wrap: anywhere; cursor: default; user-select: text; }
+    .vn-nombre-input { flex: 1; min-width: 0; padding: 7px 10px; font: inherit; font-size: 1.05rem; font-weight: 700; color: #2b2140; background: #fff;
+      border: 2px solid var(--acento, #7a44d6); border-radius: 10px; }
+    .vn-botones { display: flex; align-items: center; gap: 6px; flex: none; }
+    .vn-btn { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 36px; height: 36px; padding: 0; font-size: 1.25rem; line-height: 1;
+      color: var(--acento-oscuro, #6234b8); background: rgba(255, 255, 255, 0.9); border: 1px solid var(--borde, #e3d8f6); border-radius: 50%; cursor: pointer; }
+    .vn-btn:hover { background: #fff; }
+    .vn-btn:focus-visible { outline: 3px solid var(--acento, #7a44d6); outline-offset: 2px; }
+    .vn-btn[hidden], .vn-nombre[hidden], .vn-nombre-input[hidden] { display: none; }
+    .vn-lapiz, .vn-ok, .vn-no { width: 28px; height: 28px; font-size: 0.85rem; }
+    .vn-sub { min-height: 1em; margin: 0; font-size: 0.82rem; color: var(--suave, #6f6585); }
+    .vn-texto { flex: 1; min-height: 0; width: 100%; padding: 12px 14px; resize: none; font: inherit; font-size: 1rem; line-height: 1.5; color: #2b2140;
+      background: rgba(255, 255, 255, 0.9); border: 1px solid var(--borde, #e3d8f6); border-radius: 12px; }
+    .vn-texto:focus { outline: 2px solid var(--acento, #7a44d6); outline-offset: -1px; }
+    .vn-pie { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; }
+    .vn-estado { padding: 4px 10px; font-size: 0.85rem; font-weight: 600; color: #2b2140; background: rgba(255, 255, 255, 0.9); border-radius: 999px; }
+    .vn-estado:empty { display: none; }
+    .vn-estado.error { color: #c0392b; }
+    .vn-estado.ok { color: #1e8a55; }
+    .vn-guardar { margin-left: auto; padding: 10px 22px; font: inherit; font-weight: 700; color: #fff; background: var(--acento, #7a44d6); border: 0; border-radius: 10px; cursor: pointer; }
+    .vn-guardar:hover:not(:disabled) { background: var(--acento-oscuro, #6234b8); }
+    .vn-guardar:disabled { opacity: 0.5; cursor: default; }
+  `;
+  document.head.appendChild(css);
+  const el = document.createElement("div");
+  el.className = "vn";
+  el.hidden = true;
+  el.innerHTML = `
+    <div class="vn-caja" role="dialog" aria-modal="true" aria-label="Nota">
+      <div class="vn-cab">
+        <div class="vn-titulo">
+          <h3 class="vn-nombre"></h3>
+          <input class="vn-nombre-input" type="text" maxlength="80" autocomplete="off" aria-label="Nombre de la nota" hidden />
+          <button type="button" class="vn-btn vn-lapiz" title="Cambiar el nombre" aria-label="Cambiar el nombre">&#9998;</button>
+          <button type="button" class="vn-btn vn-ok" title="Guardar nombre" aria-label="Guardar nombre" hidden>&#10003;</button>
+          <button type="button" class="vn-btn vn-no" title="Cancelar" aria-label="Cancelar el cambio de nombre" hidden>&times;</button>
+        </div>
+        <div class="vn-botones">
+          <button type="button" class="vn-btn vn-cerrar" title="Cerrar" aria-label="Cerrar">&times;</button>
+          <button type="button" class="vn-btn vn-ajustes" title="Ajustes (editar registro)" aria-label="Ajustes">&#9881;&#65039;</button>
+        </div>
+      </div>
+      <p class="vn-sub"></p>
+      <textarea class="vn-texto" spellcheck="true" maxlength="1000000"></textarea>
+      <div class="vn-pie">
+        <span class="vn-estado" role="status" aria-live="polite"></span>
+        <button type="button" class="vn-guardar">Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  const q = (c) => el.querySelector(c);
+  vn.el = el;
+  vn.caja = q(".vn-caja");
+  vn.nombre = q(".vn-nombre");
+  vn.inputNombre = q(".vn-nombre-input");
+  vn.lapiz = q(".vn-lapiz");
+  vn.ok = q(".vn-ok");
+  vn.no = q(".vn-no");
+  vn.ajustes = q(".vn-ajustes");
+  vn.sub = q(".vn-sub");
+  vn.texto = q(".vn-texto");
+  vn.estado = q(".vn-estado");
+  vn.guardar = q(".vn-guardar");
+
+  q(".vn-cerrar").addEventListener("click", () => vnCerrar());
+  vn.ajustes.addEventListener("click", vnIrAjustes);
+  vn.lapiz.addEventListener("click", vnEmpezarNombre);
+  vn.ok.addEventListener("click", vnConfirmarNombre);
+  vn.no.addEventListener("click", vnCancelarNombre);
+  vn.guardar.addEventListener("click", () => { vnGuardar(); });
+  vn.texto.addEventListener("input", () => { vnDecir(""); vnActualizarBoton(); }); // al escribir se quita el aviso anterior
+  vn.texto.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) { e.preventDefault(); vnGuardar(); }
+  });
+  vn.inputNombre.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); vnConfirmarNombre(); }
+  });
+  el.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    e.stopPropagation();
+    if (vn.renombrando) vnCancelarNombre();
+    else vnCerrar();
+  });
+  // Tocar el fondo oscuro (fuera de la nota) la cierra, pero solo si el toque empezó también allí (no al soltar una selección)
+  el.addEventListener("pointerdown", (e) => { vn.bajoDown = e.target === el; });
+  el.addEventListener("click", (e) => { if (e.target === el && vn.bajoDown) vnCerrar(); });
+}
+
+function vnSucio() {
+  return !!vn.actual && vn.texto.value !== vn.actual.base;
+}
+function vnActualizarBoton() {
+  const s = vn.actual;
+  if (!s) return;
+  vn.guardar.disabled = s.ocupado || !vnSucio();
+}
+function vnDecir(texto, tipo) {
+  vn.estado.textContent = texto || "";
+  vn.estado.className = "vn-estado" + (tipo ? " " + tipo : "");
+}
+function vnOcupado(si) {
+  const s = vn.actual;
+  if (!s) return;
+  s.ocupado = si;
+  vn.texto.readOnly = si;
+  vn.lapiz.disabled = si;
+  vn.ok.disabled = si;
+  vn.ajustes.disabled = si;
+  vnActualizarBoton();
+}
+
+function abrirVisorNota(cfg) {
+  vnCrear();
+  vn.actual = { cfg, base: cfg.texto || "", nombre: cfg.nombre || "Sin nombre", ocupado: false };
+  vn.renombrando = false;
+  vn.nombre.textContent = vn.actual.nombre;
+  vn.nombre.hidden = false;
+  vn.inputNombre.hidden = true;
+  vn.lapiz.hidden = !cfg.renombrar;
+  vn.ok.hidden = true;
+  vn.no.hidden = true;
+  vn.ajustes.hidden = !cfg.ajustes;
+  vn.sub.textContent = cfg.subtitulo || "";
+  vn.sub.hidden = !cfg.subtitulo;
+  vn.texto.value = vn.actual.base;
+  vn.texto.readOnly = false;
+  vn.texto.placeholder = cfg.placeholder || "Escribe aquí…";
+  vn.lapiz.disabled = false;
+  vn.ok.disabled = false;
+  vn.ajustes.disabled = false;
+  vnDecir("");
+  // Color de la nota (solo las notas normales lo tienen)
+  if (cfg.fondo) {
+    vn.caja.style.setProperty("--fondo", cfg.fondo);
+    aplicarContraste(vn.caja, cfg.fondo);
+  } else {
+    vn.caja.style.removeProperty("--fondo");
+    vn.caja.style.removeProperty("color");
+    vn.caja.style.removeProperty("--suave");
+  }
+  vn.overflowPrevio = document.body.style.overflow;
+  document.body.style.overflow = "hidden"; // la página de atrás no se mueve mientras se escribe
+  vn.el.hidden = false;
+  vnActualizarBoton();
+  if (!vn.actual.base) vn.texto.focus(); // nota vacía: se puede empezar a escribir; si ya tiene texto no se abre el teclado
+  else vn.caja.querySelector(".vn-cerrar").focus({ preventScroll: true });
+}
+
+// forzar: cerrar sin preguntar (cuando ya se guardó o se pasa a Ajustes)
+function vnCerrar(forzar) {
+  if (!vn.el || vn.el.hidden) return;
+  if (!forzar && vnSucio() && !window.confirm("Tienes cambios sin guardar en esta nota. ¿Cerrar sin guardarlos?")) return;
+  vn.el.hidden = true;
+  vn.actual = null;
+  vn.renombrando = false;
+  document.body.style.overflow = vn.overflowPrevio;
+}
+
+async function vnGuardar() {
+  const s = vn.actual;
+  if (!s || s.ocupado) return false;
+  if (!vnSucio()) return true;
+  const valor = vn.texto.value;
+  if (!s.cfg.permitirVacio && !valor.trim()) {
+    vnDecir("Escribe algo primero", "error");
+    return false;
+  }
+  vnOcupado(true);
+  vnDecir("Guardando…");
+  try {
+    await s.cfg.guardarTexto(valor);
+    s.base = valor;
+    if (vn.actual === s) vnDecir("Guardado ✓", "ok");
+    return true;
+  } catch (e) {
+    if (vn.actual === s) vnDecir("Error: " + e.message, "error");
+    return false;
+  } finally {
+    if (vn.actual === s) vnOcupado(false);
+  }
+}
+
+// El engrane: si hay texto sin guardar se guarda primero (para no perderlo) y se abre el formulario completo
+async function vnIrAjustes() {
+  const s = vn.actual;
+  if (!s || s.ocupado) return;
+  if (vnSucio() && !(await vnGuardar())) return;
+  if (vn.actual !== s) return;
+  const abrir = s.cfg.ajustes;
+  vnCerrar(true);
+  abrir();
+}
+
+// ----- Lápiz: cambiar el nombre (el nombre no se puede escribir directamente al tocarlo) -----
+function vnEmpezarNombre() {
+  const s = vn.actual;
+  if (!s || s.ocupado) return;
+  vn.renombrando = true;
+  vn.inputNombre.value = s.nombre === "Sin nombre" ? "" : s.nombre;
+  vn.nombre.hidden = true;
+  vn.lapiz.hidden = true;
+  vn.inputNombre.hidden = false;
+  vn.ok.hidden = false;
+  vn.no.hidden = false;
+  vn.inputNombre.focus();
+  vn.inputNombre.select();
+}
+function vnTerminarNombre() {
+  vn.renombrando = false;
+  vn.inputNombre.hidden = true;
+  vn.ok.hidden = true;
+  vn.no.hidden = true;
+  vn.nombre.hidden = false;
+  vn.lapiz.hidden = !(vn.actual && vn.actual.cfg.renombrar);
+}
+function vnCancelarNombre() {
+  vnTerminarNombre();
+  vnDecir("");
+}
+async function vnConfirmarNombre() {
+  const s = vn.actual;
+  if (!s || s.ocupado) return;
+  const nuevo = vn.inputNombre.value.trim();
+  if (!nuevo) {
+    vnDecir("Escribe un nombre", "error");
+    vn.inputNombre.focus();
+    return;
+  }
+  if (nuevo === s.nombre) {
+    vnCancelarNombre();
+    return;
+  }
+  vnOcupado(true);
+  vnDecir("Guardando nombre…");
+  try {
+    const guardado = await s.cfg.renombrar(nuevo);
+    s.nombre = guardado || nuevo;
+    if (vn.actual === s) {
+      vn.nombre.textContent = s.nombre;
+      vnTerminarNombre();
+      vnDecir("Nombre cambiado ✓", "ok");
+    }
+  } catch (e) {
+    if (vn.actual === s) vnDecir("Error: " + e.message, "error");
+  } finally {
+    if (vn.actual === s) vnOcupado(false);
+  }
+}
+
+// ----- Registros con nombre + texto (Bazar, Deudas, Información, Comandos, Ejercicio, Diario) -----
+// c: { campo, guardar(base, cambios) -> registro nuevo, abrirForm(registro), subtitulo?(registro), placeholder? }
+function visorRegistro(d, c) {
+  let actual = d;
+  abrirVisorNota({
+    nombre: actual.nombre,
+    texto: actual[c.campo] || "",
+    subtitulo: c.subtitulo ? c.subtitulo(actual) : "",
+    placeholder: c.placeholder,
+    permitirVacio: true,
+    guardarTexto: async (texto) => { actual = await c.guardar(actual, { [c.campo]: texto.trim() }); },
+    renombrar: async (nombre) => { actual = await c.guardar(actual, { nombre }); return actual.nombre; },
+    ajustes: () => c.abrirForm(actual),
+  });
+}
+const vnValor = (cambios, base, k) => (cambios[k] !== undefined ? cambios[k] : base[k] || "");
+const vnDestino = (d) => (d.destino === "drive" ? "drive" : "sheets");
+
+function abrirVisorBz(d) {
+  visorRegistro(d, {
+    campo: "informacion",
+    placeholder: "Precio, estado, detalles…",
+    subtitulo: (r) => categoriaBz(r),
+    abrirForm: (r) => abrirFormBz(r),
+    guardar: async (base, cambios) => {
+      const n = { id: base.id, nombre: vnValor(cambios, base, "nombre"), informacion: vnValor(cambios, base, "informacion"), categoria: categoriaBz(base), destino: vnDestino(base) };
+      await llamarNotas("bazar_editar", n);
+      bazarLista = bazarLista.map((x) => (x.id === n.id ? n : x));
+      dibujarChipsBz();
+      return n;
+    },
+  });
+}
+function abrirVisorDe(d) {
+  visorRegistro(d, {
+    campo: "descripcion",
+    subtitulo: (r) => (r.fecha ? "Creada el " + ipFechaCorta(r.fecha) : ""),
+    abrirForm: (r) => abrirFormDe(r),
+    guardar: async (base, cambios) => {
+      const n = { id: base.id, nombre: vnValor(cambios, base, "nombre"), fecha: base.fecha || "", descripcion: vnValor(cambios, base, "descripcion"), destino: vnDestino(base) };
+      await llamarNotas("deuda_editar", n);
+      deudas = deudas.map((x) => (x.id === n.id ? n : x));
+      dibujarChipsDe();
+      return n;
+    },
+  });
+}
+function abrirVisorIp(d) {
+  visorRegistro(d, {
+    campo: "descripcion",
+    subtitulo: (r) => (r.fecha ? ipFechaCorta(r.fecha) : ""),
+    abrirForm: (r) => abrirFormIp(r),
+    guardar: async (base, cambios) => {
+      const n = { id: base.id, nombre: vnValor(cambios, base, "nombre"), fecha: base.fecha || ipHoy(), descripcion: vnValor(cambios, base, "descripcion"), destino: vnDestino(base) };
+      await llamarNotas("informacion_editar", n);
+      informaciones = informaciones.map((x) => (x.id === n.id ? n : x));
+      dibujarChipsIp();
+      return n;
+    },
+  });
+}
+function abrirVisorCm(d) {
+  visorRegistro(d, {
+    campo: "descripcion",
+    subtitulo: (r) => (r.fecha ? ipFechaCorta(r.fecha) : ""),
+    abrirForm: (r) => abrirFormCm(r),
+    guardar: async (base, cambios) => {
+      const n = { id: base.id, nombre: vnValor(cambios, base, "nombre"), fecha: base.fecha || cmHoy(), descripcion: vnValor(cambios, base, "descripcion"), destino: vnDestino(base) };
+      await llamarNotas("comando_editar", n);
+      comandosLista = comandosLista.map((x) => (x.id === n.id ? n : x));
+      dibujarChipsCm();
+      return n;
+    },
+  });
+}
+function abrirVisorEj(d) {
+  visorRegistro(d, {
+    campo: "descripcion",
+    subtitulo: (r) => (r.fecha ? ipFechaCorta(r.fecha) : ""),
+    abrirForm: (r) => abrirFormEj(r),
+    guardar: async (base, cambios) => {
+      const n = { id: base.id, nombre: vnValor(cambios, base, "nombre"), fecha: base.fecha, descripcion: vnValor(cambios, base, "descripcion"), destino: vnDestino(base) };
+      await llamarNotas("ejercicio_editar", n);
+      ejercicios = ejercicios.map((x) => (x.id === n.id ? n : x));
+      dibujarChipsEj();
+      dibujarCalendarioEj();
+      return n;
+    },
+  });
+}
+function abrirVisorDi(d) {
+  visorRegistro(d, {
+    campo: "descripcion",
+    subtitulo: (r) => (r.fecha ? ipFechaCorta(r.fecha) : ""),
+    abrirForm: (r) => abrirFormDi(r),
+    guardar: async (base, cambios) => {
+      const n = { id: base.id, nombre: vnValor(cambios, base, "nombre"), fecha: base.fecha, descripcion: vnValor(cambios, base, "descripcion"), destino: vnDestino(base), terminado: !!base.terminado };
+      await llamarNotas("diario_editar", n);
+      diarios = diarios.map((x) => (x.id === n.id ? n : x));
+      dibujarChipsDi();
+      dibujarCalendarioDi();
+      return n;
+    },
+  });
+}
+
+// ----- Notas normales (hoja «Notas»: panel de Notas y zonas Actividades, Trabajo, Pedidos de Yeso…) -----
+async function guardarCambiosNota(n, cambios) {
+  const datos = {
+    nombre: cambios.nombre !== undefined ? cambios.nombre : n.nombre || "Sin nombre",
+    fecha: n.fecha || selloFechaHora(),
+    etiqueta: n.etiqueta || "General",
+    texto: cambios.texto !== undefined ? cambios.texto : n.texto || "",
+    color: n.color || "Blanco",
+    identificador: n.identificador || "",
+    destino: vnDestino(n),
+  };
+  await llamarNotas("nota_editar", Object.assign({ id: n.id }, datos));
+  Object.assign(n, datos);
+  dibujarNotas(); // redibuja el panel de Notas y todas las zonas
+}
+function abrirVisorDeNota(n, abrirAjustes) {
+  abrirVisorNota({
+    nombre: n.nombre || "Sin nombre",
+    texto: n.texto || "",
+    fondo: hexDeColor(n.color),
+    subtitulo: [n.etiqueta || "General", n.fecha].filter(Boolean).join(" · "),
+    placeholder: "Escribe tu nota…",
+    permitirVacio: false, // una nota no puede quedar vacía (igual que en el formulario)
+    guardarTexto: (texto) => guardarCambiosNota(n, { texto: texto.trim() }),
+    renombrar: async (nombre) => { await guardarCambiosNota(n, { nombre }); return n.nombre; },
+    ajustes: abrirAjustes,
+  });
+}
 
 // ---------- Empresas/Proyectos (hoja «Empresas Proyectos», columnas A a H) ----------
 // Mini notas con Nombre | Fecha | Link | Imagen | Descripcion/Nota | zona de links | Id | Notas (A a H).
