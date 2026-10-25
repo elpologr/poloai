@@ -1,5 +1,5 @@
 :root {
-  --app-version: "64"; /* debe coincidir con VERSION en app.js */
+  --app-version: "65"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -1996,7 +1996,8 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
 .em-zona-btn[aria-selected="true"] { color: #fff; background: #12308a; box-shadow: 0 2px 8px rgba(8, 20, 70, 0.55); }
 .em-zona-btn[aria-selected="true"]:hover { background: #0e2870; }
 .em-zona-btn:focus-visible { outline: 3px solid #8fb8ff; outline-offset: 2px; }
-.em-grupos[hidden] { display: none; }
+.em-zonas[hidden], .em-grupos[hidden] { display: none; }
+#em-chips[hidden], .em-mover-barra[hidden], #em-nivel-volver[hidden] { display: none; }
 @media (max-width: 520px) {
   .em-zona-btn { padding: 9px 4px; font-size: 0.76rem; }
 }

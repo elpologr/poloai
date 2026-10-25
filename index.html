@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="64" />
+  <meta name="app-version" content="65" />
   <meta name="theme-color" content="#4a2685" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=93" />
+  <link rel="stylesheet" href="styles.css?v=94" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1174,6 +1174,8 @@
       <header class="notas-cabecera">
         <h2 id="em-titulo">Empresas/Proyectos</h2>
         <div class="notas-cab-botones">
+          <!-- «‹ Volver»: sube un nivel (Personales → Proyectos → zonas); solo se ve cuando no estás en las zonas -->
+          <button id="em-nivel-volver" class="notas-btn-icono" type="button" aria-label="Volver a la zona anterior" title="Volver" hidden>&#8249;</button>
           <button id="em-actualizar" class="notas-btn-icono" type="button"
                   title="Volver a leer las empresas y proyectos de Google Sheets" aria-label="Actualizar empresas y proyectos">&#8635;</button>
           <button id="em-cerrar" class="notas-btn-icono" type="button" aria-label="Cerrar empresas y proyectos">&times;</button>
@@ -1687,7 +1689,7 @@
   </main>
 
   <script src="config.js?v=66"></script>
-  <script src="app.js?v=100"></script>
+  <script src="app.js?v=101"></script>
   <script src="voz.js?v=65"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>
