@@ -3431,3 +3431,24 @@ button.em-canal-ficha-texto { cursor: pointer; }
 .zona-mas-titulo:hover { background: var(--acento-claro); color: var(--acento); }
 .zona-mas-titulo:active { transform: scale(0.94); }
 .bazar-division .zona-mas-titulo { margin: 0 -2px; }
+
+/* Con una zona abierta se ocultan los botones del menú principal */
+body.en-seccion .menu { display: none; }
+.btn-volver-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 9px 16px;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--acento-oscuro);
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(40, 10, 80, 0.25);
+  cursor: pointer;
+}
+.btn-volver-menu[hidden] { display: none; }
+.btn-volver-menu:hover { background: var(--acento-claro); }

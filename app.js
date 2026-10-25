@@ -27,7 +27,7 @@ const VERSION = "64";
     "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
     "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-mover", "em-mover-ayuda", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp", "em-canal", "em-notas-proy-abrir", "em-npag", "em-npag-chips", "em-npag-form", "em-npag-etiqueta", "em-npag-finalizar", "actividades-actualizar", "trabajo-actualizar",
-    "btn-menu-notas-imp", "btn-menu-tareas-pend", "seccion-notas-imp", "seccion-tareas-pend", "zona-notas-imp", "zona-notas-fav", "zona-tareas-pend", "notas-imp-actualizar", "tareas-pend-actualizar", "ej-tarea", "de-tarea", "ip-tarea", "cm-tarea", "bz-tarea",
+    "btn-menu-notas-imp", "btn-menu-tareas-pend", "btn-volver-menu", "seccion-notas-imp", "seccion-tareas-pend", "zona-notas-imp", "zona-notas-fav", "zona-tareas-pend", "notas-imp-actualizar", "tareas-pend-actualizar", "ej-tarea", "de-tarea", "ip-tarea", "cm-tarea", "bz-tarea",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
   ];
   const problemas = [];
@@ -62,12 +62,18 @@ const botonesMenu = document.querySelectorAll(".btn-menu");
 const secciones = document.querySelectorAll(".seccion");
 const mensajeInicio = document.getElementById("inicio");
 
-function mostrarSeccion(id) {
+// Al abrir una zona se ocultan los botones del menú principal y solo se ve esa zona; el botón «‹ Menú principal» los devuelve.
+// (opciones.conservarMenu: se usa al abrir la página, para que el menú siga visible junto al calendario)
+const btnVolverMenu = document.getElementById("btn-volver-menu");
+function mostrarSeccion(id, opciones) {
   // Pedidos de Yeso ya no es una sección aparte: vive dentro de la página de Bazar
   if (id === "pedidos-yeso") id = "seccion-bazar";
   // Si hay una nota a medias (en Notas o en una zona), se pregunta antes de salir
   if (!confirmarAbandonoEdicion()) return;
   mensajeInicio.hidden = true;
+  const soloZona = !!id && !(opciones && opciones.conservarMenu);
+  document.body.classList.toggle("en-seccion", soloZona);
+  if (btnVolverMenu) btnVolverMenu.hidden = !soloZona;
   secciones.forEach((s) => (s.hidden = s.id !== id));
   botonesMenu.forEach((b) =>
     b.classList.toggle("activo", b.dataset.seccion === id)
@@ -112,6 +118,17 @@ function mostrarSeccion(id) {
   // Los Notarios se leen la primera vez que se ve una zona que los tiene
   if (typeof actualizarNotarios === "function") actualizarNotarios();
 }
+
+// «‹ Menú principal»: cierra la zona abierta y vuelve a mostrar todos los botones
+function mostrarMenuPrincipal() {
+  mostrarSeccion(""); // cierra y limpia la zona (pregunta antes si hay una nota sin guardar)
+  if (secciones.length && [...secciones].some((s) => !s.hidden)) return; // el usuario decidió no salir
+  document.body.classList.remove("en-seccion");
+  if (btnVolverMenu) btnVolverMenu.hidden = true;
+  mensajeInicio.hidden = false;
+  window.scrollTo({ top: 0 });
+}
+if (btnVolverMenu) btnVolverMenu.addEventListener("click", mostrarMenuPrincipal);
 
 // Todos los botones del menú cambian de sección (Ejercicio y Diario también son páginas)
 botonesMenu.forEach((b) => {
@@ -13553,7 +13570,7 @@ renovarSesionDispositivo(); // al abrir la página se renueva el pase de este di
 
 // ---------- Inicio ----------
 // Al abrir o recargar la página (F5) el calendario ya aparece en la fecha actual
-mostrarSeccion("calendario");
+mostrarSeccion("calendario", { conservarMenu: true });
 cargarDatos();
 
 
