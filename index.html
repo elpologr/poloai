@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="65" />
+  <meta name="app-version" content="66" />
   <meta name="theme-color" content="#4a2685" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=94" />
+  <link rel="stylesheet" href="styles.css?v=95" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1082,6 +1082,12 @@
       </header>
 
       <div class="notas-cuerpo">
+        <!-- Botones de arriba: cada uno abre su propia pantalla (Bazar, Pedidos de Yeso o Ventas); los maneja app.js -->
+        <div id="bz-pestanas" class="em-zonas" role="tablist" aria-label="Zonas de Bazar">
+          <button type="button" class="em-zona-btn" role="tab" data-bz-tab="Bazar" aria-selected="true">&#128717;&#65039; Bazar</button>
+          <button type="button" class="em-zona-btn" role="tab" data-bz-tab="Pedidos de Yeso" aria-selected="false">&#128230; Pedidos de Yeso</button>
+          <button type="button" class="em-zona-btn" role="tab" data-bz-tab="Ventas" aria-selected="false">&#128176; Ventas</button>
+        </div>
         <div id="bz-sin-sesion" class="notas-aviso-sesion" hidden>
           <p>Inicia sesión con tu cuenta de Google para ver y guardar tu bazar.</p>
           <button id="bz-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
@@ -1089,7 +1095,9 @@
 
         <div id="bz-contenido">
           <p id="bz-estado" class="notas-estado proy-estado-lista"></p>
-          <div id="bz-chips" class="ej-chips"></div>
+          <div id="bz-pag-bazar">
+            <div id="bz-chips" class="ej-chips"></div>
+          </div>
         </div>
       </div>
 
@@ -1136,6 +1144,8 @@
     </div>
   </div>
 
+  <!-- Pantalla «Pedidos de Yeso» de Bazar (solo se ve con su botón de arriba) -->
+  <div id="bz-pag-yeso" hidden>
   <!-- División y zona «Pedidos de Yeso» dentro de Bazar (la arma app.js; usa la hoja «Notas» con la etiqueta «Pedidos de Yeso») -->
   <div id="bazar-division-yeso" class="bazar-division" role="separator" aria-label="Pedidos de Yeso">
     <span class="bazar-division-linea" aria-hidden="true"></span>
@@ -1147,7 +1157,10 @@
   <div id="bz-zona-yeso" class="zona-etiqueta bazar-zona-extra" hidden>
     <div id="bz-chips-yeso" class="ej-chips"></div>
   </div>
+  </div>
 
+  <!-- Pantalla «Ventas» de Bazar (solo se ve con su botón de arriba) -->
+  <div id="bz-pag-ventas" hidden>
   <!-- División y zona «Ventas» dentro de Bazar (registros de la hoja «Bazar» con categoría «Ventas»; la arma app.js) -->
   <div id="bazar-division-ventas" class="bazar-division" role="separator" aria-label="Ventas">
     <span class="bazar-division-linea" aria-hidden="true"></span>
@@ -1156,6 +1169,7 @@
   </div>
   <div id="bz-zona-ventas" class="zona-etiqueta bazar-zona-extra" hidden>
     <div id="bz-chips-ventas" class="ej-chips"></div>
+  </div>
   </div>
     </section>
 
@@ -1689,8 +1703,8 @@
   </main>
 
   <script src="config.js?v=66"></script>
-  <script src="app.js?v=101"></script>
-  <script src="voz.js?v=65"></script>
+  <script src="app.js?v=102"></script>
+  <script src="voz.js?v=66"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>
 </html>

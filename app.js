@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "65";
+const VERSION = "66";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -24,7 +24,7 @@ const VERSION = "65";
     "btn-menu-comandos", "seccion-comandos", "panel-comandos", "cm-chips", "cm-form", "cm-fecha",
     "btn-menu-bazar", "seccion-bazar", "panel-bazar", "bz-chips", "bz-form", "bz-informacion",
     "cuenta-nota", "cuenta-dispositivos", "disp-panel", "disp-estado", "disp-lista", "disp-todas",
-    "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
+    "bz-pestanas", "bz-pag-bazar", "bz-pag-yeso", "bz-pag-ventas", "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
     "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-nivel-volver", "em-mover", "em-mover-ayuda", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp", "em-canal", "em-notas-proy-abrir", "em-npag", "em-npag-chips", "em-npag-form", "em-npag-etiqueta", "em-npag-finalizar", "actividades-actualizar", "trabajo-actualizar",
     "btn-menu-notas-imp", "btn-menu-tareas-pend", "btn-volver-menu", "seccion-notas-imp", "seccion-tareas-pend", "zona-notas-imp", "zona-notas-fav", "zona-tareas-pend", "notas-imp-actualizar", "tareas-pend-actualizar", "ej-tarea", "de-tarea", "ip-tarea", "cm-tarea", "bz-tarea",
@@ -67,7 +67,8 @@ const mensajeInicio = document.getElementById("inicio");
 const btnVolverMenu = document.getElementById("btn-volver-menu");
 function mostrarSeccion(id, opciones) {
   // Pedidos de Yeso ya no es una sección aparte: vive dentro de la página de Bazar
-  if (id === "pedidos-yeso") id = "seccion-bazar";
+  const abreYeso = id === "pedidos-yeso";
+  if (abreYeso) id = "seccion-bazar";
   // Si hay una nota a medias (en Notas o en una zona), se pregunta antes de salir
   if (!confirmarAbandonoEdicion()) return;
   navSec = id || "";
@@ -100,7 +101,7 @@ function mostrarSeccion(id, opciones) {
   if (id === "seccion-comandos") entrarComandos();
   else cerrarComandos();
   // Bazar también es una página
-  if (id === "seccion-bazar") entrarBazar();
+  if (id === "seccion-bazar") entrarBazar(abreYeso ? "Pedidos de Yeso" : "Bazar");
   else cerrarBazar();
   // Empresas/Proyectos también es una página
   if (id === "seccion-empresas") entrarEmpresas();
@@ -136,11 +137,12 @@ var navAplicando = false; // true mientras se restaura una entrada (para no volv
 function navEstadoActual() {
   const s = { polo: 1, n: navN, sec: navSec, menu: navMenu };
   if (navSec === "seccion-empresas") s.em = emNavEstado();
+  if (navSec === "seccion-bazar") s.bz = bzTab;
   return s;
 }
 function navClave(s) {
   const e = s.em ? [s.em.nivel, s.em.zona, s.em.grupo, s.em.sub].join(",") : "";
-  return [s.sec, s.menu ? 1 : 0, e].join("|");
+  return [s.sec, s.menu ? 1 : 0, e, s.bz || ""].join("|");
 }
 function navRegistrar() {
   if (navAplicando) return;
@@ -184,6 +186,7 @@ window.addEventListener("popstate", (ev) => {
       return;
     }
     if (s.sec === "seccion-empresas" && s.em) emNavAplicar(s.em);
+    if (s.sec === "seccion-bazar" && s.bz) bzMostrarTab(s.bz);
     navN = s.n || 0;
     navClaveActual = navClave(s);
   } finally {
@@ -3941,9 +3944,8 @@ document.getElementById("btn-yeso").addEventListener("click", () => {
   const z = zonas.find((x) => x.cfg.seccion === "pedidos-yeso");
   if (z.actualizar() && !notasCargadas) cargarNotasZonas();
   else z.dibujar();
-  // Baja hasta la división «Pedidos de Yeso» dentro de Bazar
-  const div = document.getElementById("bazar-division-yeso");
-  if (div) div.scrollIntoView({ behavior: "smooth", block: "start" });
+  // Bazar se abre directamente en su pantalla «Pedidos de Yeso» (mostrarSeccion ya la elige)
+  window.scrollTo({ top: 0 });
 });
 
 // Al abrir una de estas secciones se muestra su zona (y se leen las notas si aún no se han leído)
@@ -6171,12 +6173,26 @@ function actualizarPanelBazar() {
 }
 
 // Se llama al entrar a la página de Bazar (desde mostrarSeccion)
-function entrarBazar() {
+function entrarBazar(tab) {
   cerrarFormBz();
   panelBz.hidden = false;
+  bzMostrarTab(tab || "Bazar");
   dibujarChipsBz();
   actualizarPanelBazar();
 }
+
+// Botones de arriba de Bazar: Bazar | Pedidos de Yeso | Ventas. Cada uno es su propia pantalla (las otras dos se ocultan).
+// (Pedidos de Yeso y Ventas siguen siendo las mismas zonas de siempre; solo cambia que ya no se ven juntas.)
+var bzTab = "Bazar";
+const bzPestanas = Array.from(document.querySelectorAll("#bz-pestanas [data-bz-tab]"));
+const bzPaginas = { "Bazar": bzEl("bz-pag-bazar"), "Pedidos de Yeso": bzEl("bz-pag-yeso"), "Ventas": bzEl("bz-pag-ventas") };
+function bzMostrarTab(nombre) {
+  bzTab = bzPaginas[nombre] ? nombre : "Bazar";
+  Object.keys(bzPaginas).forEach((k) => { bzPaginas[k].hidden = k !== bzTab; });
+  bzPestanas.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.bzTab === bzTab)));
+  navRegistrar();
+}
+bzPestanas.forEach((b) => b.addEventListener("click", () => { bzMostrarTab(b.dataset.bzTab); window.scrollTo({ top: 0 }); }));
 // Bazar es una página: aquí solo se cierra la ventana
 function cerrarBazar() {
   cerrarFormBz();

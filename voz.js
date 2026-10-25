@@ -601,6 +601,7 @@
       const z = ultimaZona;
       cerrar();
       if (z && typeof mostrarSeccion === "function") mostrarSeccion(z.seccion);
+      if (z && z.id === "ventas" && typeof bzMostrarTab === "function") bzMostrarTab("Ventas"); // Ventas es una pantalla de Bazar
     });
 
     // ----- Dictado por voz (Web Speech API del navegador) -----
