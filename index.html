@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=92" />
+  <link rel="stylesheet" href="styles.css?v=93" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -249,6 +249,16 @@
     <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Deudas, Bazar, Ejercicio, Diario, Pendientes, Trabajo, Información Primordial, Comandos. Arriba de todos va el botón grande «Día de Hoy».
          Cada botón abre su propia sección (Ejercicio y Diario con su propio calendario). -->
     <nav class="menu" aria-label="Secciones">
+      <!-- Fila superior: dos botones cuadrados iguales, 50 % más altos que «Día de Hoy».
+           Izquierda: Notas (las más importantes). Derecha: Tareas por Terminar (todos los pendientes de todas las zonas). -->
+      <div class="menu-superior">
+        <button id="btn-menu-notas-imp" class="btn-menu btn-menu-grande" type="button" data-seccion="seccion-notas-imp">
+          <span class="btn-menu-icono" aria-hidden="true">&#128204;</span><span class="btn-menu-texto">Notas</span>
+        </button>
+        <button id="btn-menu-tareas-pend" class="btn-menu btn-menu-grande" type="button" data-seccion="seccion-tareas-pend">
+          <span class="btn-menu-icono" aria-hidden="true">&#9203;</span><span class="btn-menu-texto">Tareas por Terminar</span>
+        </button>
+      </div>
       <button id="btn-menu-hoy" class="btn-menu btn-menu-hoy" type="button" data-seccion="seccion-hoy">
         <span class="btn-menu-icono" aria-hidden="true">&#9728;&#65039;</span><span class="btn-menu-texto">Día de Hoy</span>
       </button>
@@ -264,7 +274,7 @@
         <span class="btn-menu-icono" aria-hidden="true">&#128197;</span><span class="btn-menu-texto">Calendario</span>
       </button>
       <button id="btn-menu-notas" class="btn-menu" type="button" data-seccion="seccion-notas">
-        <span class="btn-menu-icono" aria-hidden="true">&#128221;</span><span class="btn-menu-texto">Notas</span>
+        <span class="btn-menu-icono" aria-hidden="true">&#128221;</span><span class="btn-menu-texto">Revisar Notas</span>
       </button>
       <button id="btn-menu-deudas" class="btn-menu" type="button" data-seccion="seccion-deudas">
         <span class="btn-menu-icono" aria-hidden="true">&#128176;</span><span class="btn-menu-texto">Deudas</span>
@@ -398,7 +408,7 @@
             <span>Anotar también en</span>
             <select id="cal-tambien">
               <option value="">Solo en el calendario</option>
-              <option value="actividad">🎯 Pendientes (con botón de finalizar)</option>
+              <option value="actividad">🎯 Tareas por Terminar (con botón de finalizar)</option>
               <option value="trabajo">💼 Trabajo (con botón de finalizar)</option>
             </select>
           </label>
@@ -431,7 +441,7 @@
         </div>
 
         <header class="notas-cabecera">
-          <h2 id="notas-titulo">Notas</h2>
+          <h2 id="notas-titulo">Revisar Notas</h2>
           <div class="notas-cab-botones">
             <button id="notas-actualizar" class="notas-btn-icono" type="button"
                     title="Volver a leer las notas de Google Sheets" aria-label="Actualizar notas">&#8635;</button>
@@ -606,6 +616,13 @@
         <label class="notas-campo">
           <span>Descripción</span>
           <textarea id="ej-descripcion" rows="4" maxlength="1000000" placeholder="Series, repeticiones, tiempo…"></textarea>
+        </label>
+        <label class="notas-campo">
+          <span>Tarea por terminar (solo al crear)</span>
+          <select id="ej-tarea">
+            <option value="">No</option>
+            <option value="actividad">⏳ También anotar en Tareas por Terminar</option>
+          </select>
         </label>
         <div class="notas-fila">
           <button id="ej-guardar" class="notas-btn" type="button">Guardar</button>
@@ -796,7 +813,7 @@
           <span>Guardar como</span>
           <select id="di-tipo">
             <option value="nota">📓 Nota (solo recuerdo de este día)</option>
-            <option value="actividad">🎯 Pendiente (también aparece en Pendientes)</option>
+            <option value="actividad">🎯 Tarea por terminar (también aparece en Tareas por Terminar)</option>
             <option value="trabajo">💼 Trabajo (también aparece en Trabajo)</option>
           </select>
         </label>
@@ -874,6 +891,13 @@
           <span>Descripción</span>
           <textarea id="de-descripcion" rows="4" maxlength="1000000" placeholder="Monto, fechas de pago, detalles…"></textarea>
         </label>
+        <label class="notas-campo">
+          <span>Tarea por terminar (solo al crear)</span>
+          <select id="de-tarea">
+            <option value="">No</option>
+            <option value="actividad">⏳ También anotar en Tareas por Terminar</option>
+          </select>
+        </label>
         <div class="notas-fila">
           <button id="de-guardar" class="notas-btn" type="button">Guardar</button>
           <button id="de-finalizar" class="notas-btn hoy-btn-fin" type="button" hidden>✔ Marcar tarea como finalizada</button>
@@ -942,6 +966,13 @@
           <textarea id="ip-descripcion" rows="6" maxlength="1000000" placeholder="Detalles, datos importantes…"></textarea>
           <span id="ip-contador" class="nt-contador"></span>
         </label>
+        <label class="notas-campo">
+          <span>Tarea por terminar (solo al crear)</span>
+          <select id="ip-tarea">
+            <option value="">No</option>
+            <option value="actividad">⏳ También anotar en Tareas por Terminar</option>
+          </select>
+        </label>
         <div class="notas-fila">
           <button id="ip-guardar" class="notas-btn" type="button">Guardar</button>
           <button id="ip-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
@@ -1007,6 +1038,13 @@
         <label class="notas-campo">
           <span>Descripción</span>
           <textarea id="cm-descripcion" rows="4" maxlength="1000000" placeholder="Qué debe hacer este comando…"></textarea>
+        </label>
+        <label class="notas-campo">
+          <span>Tarea por terminar (solo al crear)</span>
+          <select id="cm-tarea">
+            <option value="">No</option>
+            <option value="actividad">⏳ También anotar en Tareas por Terminar</option>
+          </select>
         </label>
         <div class="notas-fila">
           <button id="cm-guardar" class="notas-btn" type="button">Guardar</button>
@@ -1078,6 +1116,13 @@
         <label class="notas-campo">
           <span>Información</span>
           <textarea id="bz-informacion" rows="4" maxlength="1000000" placeholder="Precio, estado, detalles…"></textarea>
+        </label>
+        <label class="notas-campo">
+          <span>Tarea por terminar (solo al crear)</span>
+          <select id="bz-tarea">
+            <option value="">No</option>
+            <option value="actividad">⏳ También anotar en Tareas por Terminar</option>
+          </select>
         </label>
         <div class="notas-fila">
           <button id="bz-guardar" class="notas-btn" type="button">Guardar</button>
@@ -1376,7 +1421,7 @@
           <span>Etiqueta</span>
           <select id="em-npag-etiqueta">
             <option value="">Sin etiqueta (nota normal)</option>
-            <option value="Actividades">🎯 Pendiente</option>
+            <option value="Actividades">🎯 Tarea por terminar</option>
             <option value="Trabajo">💼 Trabajo</option>
           </select>
         </label>
@@ -1537,7 +1582,7 @@
         <span class="decor decor-5">&#10024;</span>
       </div>
       <header class="notas-cabecera">
-        <h2 id="actividades-titulo">Pendientes</h2>
+        <h2 id="actividades-titulo">Pendientes <small style="font-weight:400;font-size:.6em;opacity:.8">(largo plazo)</small></h2>
         <div class="notas-cab-botones">
           <button id="actividades-actualizar" class="notas-btn-icono" type="button"
                   title="Volver a leer de Google Sheets" aria-label="Actualizar Pendientes">&#8635;</button>
@@ -1574,10 +1619,73 @@
     </div>
   </div>
     </section>
+
+    <!-- NOTAS (las más importantes). Arriba: tus notas personalizadas (etiqueta «Nota Importante»).
+         Abajo: las notas con la etiqueta «Favorito». Viven en la hoja «Notas» de Google Sheets. -->
+    <section id="seccion-notas-imp" class="seccion seccion-pagina" hidden>
+  <div id="panel-notas-imp" class="panel-notas panel-pagina">
+    <div class="notas-caja ejercicio-caja deudas-caja" role="region" aria-labelledby="notas-imp-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#128204;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#128221;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+      </div>
+      <header class="notas-cabecera">
+        <h2 id="notas-imp-titulo">&#128204; Notas</h2>
+        <div class="notas-cab-botones">
+          <button id="notas-imp-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer de Google Sheets" aria-label="Actualizar Notas">&#8635;</button>
+        </div>
+      </header>
+      <div class="notas-cuerpo">
+        <div class="bazar-division" role="separator" aria-label="Mis notas">
+          <span class="bazar-division-linea" aria-hidden="true"></span>
+          <h3 class="bazar-division-titulo">&#128221; Mis notas</h3>
+          <span class="bazar-division-linea" aria-hidden="true"></span>
+        </div>
+        <div id="zona-notas-imp" class="zona-etiqueta"></div>
+        <div class="bazar-division" role="separator" aria-label="Favoritas">
+          <span class="bazar-division-linea" aria-hidden="true"></span>
+          <h3 class="bazar-division-titulo">&#11088; Favoritas</h3>
+          <span class="bazar-division-linea" aria-hidden="true"></span>
+        </div>
+        <div id="zona-notas-fav" class="zona-etiqueta"></div>
+      </div>
+    </div>
+  </div>
+    </section>
+
+    <!-- TAREAS POR TERMINAR: todas las notas con la etiqueta «Actividades» de cualquier zona (Diario, Calendario,
+         proyectos, Notas…). El botón chico «Pendientes» queda para lo de largo plazo. -->
+    <section id="seccion-tareas-pend" class="seccion seccion-pagina" hidden>
+  <div id="panel-tareas-pend" class="panel-notas panel-pagina">
+    <div class="notas-caja ejercicio-caja deudas-caja" role="region" aria-labelledby="tareas-pend-titulo">
+      <div class="notas-decor" aria-hidden="true">
+        <span class="decor decor-1">&#9203;</span>
+        <span class="decor decor-2">&#10024;</span>
+        <span class="decor decor-3">&#128221;</span>
+        <span class="decor decor-4">&#9729;&#65039;</span>
+        <span class="decor decor-5">&#10024;</span>
+      </div>
+      <header class="notas-cabecera">
+        <h2 id="tareas-pend-titulo">&#9203; Tareas por Terminar</h2>
+        <div class="notas-cab-botones">
+          <button id="tareas-pend-actualizar" class="notas-btn-icono" type="button"
+                  title="Volver a leer de Google Sheets" aria-label="Actualizar Tareas por Terminar">&#8635;</button>
+        </div>
+      </header>
+      <div class="notas-cuerpo">
+        <div id="zona-tareas-pend" class="zona-etiqueta"></div>
+      </div>
+    </div>
+  </div>
+    </section>
   </main>
 
   <script src="config.js?v=66"></script>
-  <script src="app.js?v=99"></script>
+  <script src="app.js?v=100"></script>
   <script src="voz.js?v=65"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

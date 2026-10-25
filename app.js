@@ -27,6 +27,7 @@ const VERSION = "64";
     "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
     "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-mover", "em-mover-ayuda", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp", "em-canal", "em-notas-proy-abrir", "em-npag", "em-npag-chips", "em-npag-form", "em-npag-etiqueta", "em-npag-finalizar", "actividades-actualizar", "trabajo-actualizar",
+    "btn-menu-notas-imp", "btn-menu-tareas-pend", "seccion-notas-imp", "seccion-tareas-pend", "zona-notas-imp", "zona-notas-fav", "zona-tareas-pend", "notas-imp-actualizar", "tareas-pend-actualizar", "ej-tarea", "de-tarea", "ip-tarea", "cm-tarea", "bz-tarea",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
   ];
   const problemas = [];
@@ -102,7 +103,9 @@ function mostrarSeccion(id) {
   // Tareas Obligatorias Diarias también es una página
   if (id === "seccion-tareas") entrarTareas();
   // Actividades y Trabajo también muestran las notas de los proyectos que tengan su etiqueta
-  if (id === "actividades" || id === "trabajo") {
+  if (id === "actividades" || id === "trabajo" || id === "seccion-tareas-pend" || id === "seccion-notas-imp") {
+    // Las zonas de esa página (Notas tiene dos: «Mis notas» y «Favoritas») revisan la sesión y se dibujan
+    zonas.filter((z) => (z.cfg.en || z.cfg.seccion) === id).forEach((z) => z.actualizar());
     dibujarZonasEtiqueta();
     asegurarEmpresasEnZonas();
   }
@@ -630,7 +633,7 @@ async function guardarFormCal() {
           tipo: tambien,
         });
       } catch (err2) {
-        avisoAct = "Se guardó en el calendario, pero no se pudo crear en " + (tambien === "trabajo" ? "Trabajo" : "Pendientes") + ": " + err2.message;
+        avisoAct = "Se guardó en el calendario, pero no se pudo crear en " + (tambien === "trabajo" ? "Trabajo" : "Tareas por Terminar") + ": " + err2.message;
       }
     }
     if (seleccion === fecha) {
@@ -1148,9 +1151,14 @@ const ETIQUETAS_NOTA = [
   "Pedidos de Yeso",
   "Actividades",
   "Trabajo",
+  "Nota Importante", // zona «Notas» del menú (arriba)
+  "Favorito", // sale en la zona «Favoritas» de «Notas»
+  "Largo Plazo", // el botón chico «Pendientes»
 ];
-// Nombre que se ve en pantalla. La etiqueta guardada en la hoja sigue siendo «Actividades» (así no se pierden tus datos).
-const nombreEtiqueta = (e) => (e === "Actividades" ? "Pendientes" : e);
+// Nombre que se ve en pantalla. La etiqueta guardada en la hoja sigue siendo «Actividades» (así no se pierden tus datos):
+// ahora es la «Tarea por Terminar» (todas las zonas la usan). «Largo Plazo» es la del botón chico «Pendientes».
+const NOMBRES_ETIQUETA = { Actividades: "Tarea por Terminar", "Largo Plazo": "Pendiente a Largo Plazo" };
+const nombreEtiqueta = (e) => NOMBRES_ETIQUETA[e] || e;
 const COLORES_NOTA = [
   { nombre: "Blanco", hex: "#ffffff" },
   { nombre: "Azul", hex: "#c4e1fb" },
@@ -2853,6 +2861,24 @@ async function crearActividadDeRecuerdo({ idRecuerdo, nombre, dia, texto, tipo }
   }
 }
 
+// «También anotar en Tareas por Terminar» (formularios de Ejercicio, Deudas, Información, Comandos y Bazar):
+// al crear un registro nuevo se puede crear además una tarea con la etiqueta «Actividades», con la fecha de hoy.
+function tareaPedida(selId) {
+  const s = document.getElementById(selId);
+  const si = !!s && s.value === "actividad";
+  if (s) s.value = ""; // para la próxima vez
+  return si;
+}
+async function anotarTareaDeZona({ idRecuerdo, nombre, dia, texto, estadoId }) {
+  const est = document.getElementById(estadoId);
+  try {
+    await crearActividadDeRecuerdo({ idRecuerdo, nombre, dia, texto: texto || nombre, tipo: "actividad" });
+    if (est) setEstado(est, "Guardado ✓ (también está en Tareas por Terminar)", "ok");
+  } catch (err) {
+    if (est) setEstado(est, "Se guardó, pero no se pudo crear la tarea: " + err.message, "error");
+  }
+}
+
 // ---------- Actividades y Trabajo (hoja «Notas» con una etiqueta fija) ----------
 // Cada zona vive dentro de su sección del menú superior y tiene su propio botón de crear, con el
 // mismo formulario de las notas, pero la etiqueta ya viene fija (Actividades o Trabajo).
@@ -2861,10 +2887,11 @@ async function crearActividadDeRecuerdo({ idRecuerdo, nombre, dia, texto, tipo }
 // Las etiquetas deben estar también en ETIQUETAS_NOTA (arriba) y en el Apps Script.
 const ZONAS_ETIQUETA = [
   {
-    seccion: "actividades", etiqueta: "Actividades", datos: "tus pendientes",
+    // Botón chico «Pendientes»: lo de largo plazo (por ejemplo, terminar los estudios). Lo del día a día va en «Tareas por Terminar».
+    seccion: "actividades", etiqueta: "Largo Plazo", datos: "tus pendientes a largo plazo",
     crear: "+ Crear pendiente", nuevo: "Nuevo pendiente", editar: "Editar pendiente",
-    guardar: "Guardar pendiente", marcador: "Escribe un pendiente nuevo…",
-    vacio: "Aún no hay pendientes. ¡Crea el primero! ✨", borrar: "¿Eliminar este pendiente?",
+    guardar: "Guardar pendiente", marcador: "Escribe un pendiente a largo plazo…",
+    vacio: "Aún no hay pendientes a largo plazo. ¡Crea el primero! ✨", borrar: "¿Eliminar este pendiente?",
     cuadritos: true, // las tarjetas se ven como cuadritos (igual que en Ejercicio, Diario, etc.)
     pagina: true, // se ve como Deudas y Bazar: recuadros con «Añadir» y ventana para escribir (sin calendario)
     finalizar: true, // cada tarjeta lleva el botón de finalizar (pasa al Diario y le agrega la fecha de término al recuerdo)
@@ -2882,6 +2909,31 @@ const ZONAS_ETIQUETA = [
     pagina: true, // se ve como Deudas y Bazar: recuadros con «Añadir» y ventana para escribir (sin calendario)
   },
   {
+    // Botón nuevo «Tareas por Terminar»: junta las tareas (etiqueta «Actividades») de todas las zonas:
+    // las creadas desde Diario y Calendario, las de las notas de proyectos y las que se crean aquí mismo.
+    seccion: "tareas-pend", en: "seccion-tareas-pend", etiqueta: "Actividades", datos: "tus tareas por terminar",
+    crear: "+ Crear tarea", nuevo: "Nueva tarea", editar: "Editar tarea",
+    guardar: "Guardar tarea", marcador: "Escribe una tarea por terminar…",
+    vacio: "No tienes tareas por terminar. ¡Qué paz! ✨", borrar: "¿Eliminar esta tarea?",
+    cuadritos: true, pagina: true, finalizar: true, elegirEtiqueta: true, sinNotario: true,
+  },
+  {
+    // Botón nuevo «Notas» (arriba): primera sección con tus notas personalizadas
+    seccion: "notas-imp", en: "seccion-notas-imp", etiqueta: "Nota Importante", datos: "tus notas importantes",
+    crear: "+ Crear nota", nuevo: "Nueva nota", editar: "Editar nota",
+    guardar: "Guardar nota", marcador: "Escribe una nota nueva…",
+    vacio: "Aún no hay notas. ¡Escribe la primera! ✨", borrar: "¿Eliminar esta nota?",
+    cuadritos: true, pagina: true, elegirEtiqueta: true, sinNotario: true,
+  },
+  {
+    // Botón nuevo «Notas» (abajo): las notas con la etiqueta «Favorito» (de cualquier lado)
+    seccion: "notas-fav", en: "seccion-notas-imp", etiqueta: "Favorito", datos: "tus notas favoritas",
+    crear: "+ Crear favorita", nuevo: "Nueva nota favorita", editar: "Editar nota favorita",
+    guardar: "Guardar favorita", marcador: "Escribe una nota favorita…",
+    vacio: "Aún no tienes favoritas. Ponle la etiqueta «Favorito» a cualquier nota. ⭐", borrar: "¿Eliminar esta nota?",
+    cuadritos: true, pagina: true, elegirEtiqueta: true, sinNotario: true,
+  },
+  {
     // Vive dentro de la página de Bazar (debajo de una división; en: «seccion-bazar»). El botón «Pedidos de Yeso» de la barra lateral abre Bazar y baja hasta aquí
     seccion: "pedidos-yeso", en: "seccion-bazar", etiqueta: "Pedidos de Yeso", datos: "tus pedidos de yeso",
     crear: "+ Crear pedido", nuevo: "Nuevo pedido", editar: "Editar pedido",
@@ -2893,7 +2945,7 @@ const ZONAS_ETIQUETA = [
 // Arma una zona: formulario (igual al de Notas), botón de crear y lista de tarjetas de su etiqueta
 function crearZonaEtiqueta(cfg) {
   const cont = document.getElementById("zona-" + cfg.seccion);
-  const textoFin = cfg.etiqueta === "Actividades" ? "pendiente" : "tarea"; // «Marcar … como finalizada»
+  const textoFin = cfg.etiqueta === "Actividades" || cfg.etiqueta === "Largo Plazo" ? "pendiente" : "tarea"; // «Marcar … como finalizada»
   cont.innerHTML = `
     <div class="zona-sin-sesion notas-aviso-sesion" hidden>
       <p>Inicia sesión con tu cuenta de Google para ver y guardar ${cfg.datos}.</p>
@@ -2921,8 +2973,11 @@ function crearZonaEtiqueta(cfg) {
             ${cfg.elegirEtiqueta
               ? `<select class="zona-etiqueta-sel" aria-label="Etiqueta">
               <option value="General">📝 Nota</option>
-              <option value="Actividades">🎯 Pendiente</option>
+              <option value="Actividades">🎯 Tarea por terminar</option>
+              <option value="Largo Plazo">🗓️ Pendiente a largo plazo</option>
               <option value="Trabajo">💼 Trabajo</option>
+              <option value="Nota Importante">📌 Nota importante</option>
+              <option value="Favorito">⭐ Favorito</option>
             </select>`
               : `<input class="zona-etiqueta-fija" type="text" value="${cfg.etiqueta}" readonly tabindex="-1" />`}
           </label>
@@ -3019,6 +3074,11 @@ function crearZonaEtiqueta(cfg) {
     calAnio: new Date().getFullYear(),
     calDia: null, // día elegido en el calendario (null = se ven todas)
   };
+  if (cfg.sinNotario) {
+    cont.classList.add("zona-sin-notario");
+    const opNotario = z.tipo.querySelector('option[value="notario"]');
+    if (opNotario) opNotario.remove();
+  }
   z.mig = montarMigrar(z.destino, {
     accion: "migrar_drive",
     extra: { zona: "nota" },
@@ -3205,8 +3265,9 @@ function crearZonaEtiqueta(cfg) {
     z.tipo.value = "nota";
     z.campoTipo.hidden = true; // al editar no se cambia el tipo
     if (z.etiquetaSel) {
-      z.etiquetaSel.value = cfg.etiqueta; // al editar tampoco se cambia la etiqueta
-      z.etiquetaSel.disabled = true;
+      // Al editar sí se puede cambiar la etiqueta (por ejemplo, ponerle «Favorito»); la nota pasa a la zona de su nueva etiqueta
+      z.etiquetaSel.value = ETIQUETAS_NOTA.includes(n.etiqueta) ? n.etiqueta : cfg.etiqueta;
+      z.etiquetaSel.disabled = false;
     }
     aplicarTipoZona();
     z.guardarBtn.textContent = "Guardar cambios";
@@ -3240,7 +3301,7 @@ function crearZonaEtiqueta(cfg) {
     const datos = {
       nombre: z.nombre.value.trim() || "Sin nombre",
       fecha: inputAFecha(z.fecha.value) || (n && n.fecha) || selloFechaHora(),
-      etiqueta: n || !z.etiquetaSel ? cfg.etiqueta : z.etiquetaSel.value, // la de la zona (o la que se eligió al crear)
+      etiqueta: !z.etiquetaSel ? cfg.etiqueta : z.etiquetaSel.value, // la de la zona (o la que se eligió)
       texto,
       color: z.color,
       identificador: z.ident.value.trim(),
@@ -3260,10 +3321,7 @@ function crearZonaEtiqueta(cfg) {
       limpiarForm();
       mostrarForm(false);
       dibujarNotas(); // redibuja el panel de Notas y todas las zonas
-      const destinoEtiqueta = datos.etiqueta === cfg.etiqueta ? ""
-        : datos.etiqueta === "Trabajo" ? " (quedó en Trabajo)"
-        : datos.etiqueta === "Actividades" ? " (quedó en Pendientes)"
-        : " (quedó en Notas)";
+      const destinoEtiqueta = datos.etiqueta === cfg.etiqueta ? "" : " (quedó en " + nombreEtiqueta(datos.etiqueta) + ")";
       setEstado(z.estadoLista, (n ? "Cambios guardados ✓" : "Guardada ✓") + destinoEtiqueta, "ok");
     } catch (e) {
       setEstado(z.estado, "Error: " + e.message, "error");
@@ -3307,7 +3365,7 @@ function crearZonaEtiqueta(cfg) {
         (j && j.copia) || {},
         { terminado: true }
       ));
-      setEstado(z.estadoLista, (cfg.etiqueta === "Actividades" ? "Pendiente finalizado" : "Trabajo finalizado") + " ✓ (ya está en el Diario)", "ok");
+      setEstado(z.estadoLista, (cfg.etiqueta === "Trabajo" ? "Trabajo finalizado" : "Tarea finalizada") + " ✓ (ya está en el Diario)", "ok");
     } catch (e) {
       botonSi.disabled = false;
       setEstado(z.estadoLista, "Error: " + e.message, "error");
@@ -3378,7 +3436,7 @@ function crearZonaEtiqueta(cfg) {
       fin.textContent = "✔";
       fin.addEventListener("click", (e) => {
         e.stopPropagation();
-        if (window.confirm("¿Marcar como finalizada? Se quitará de " + cfg.etiqueta + " y pasará al Diario con la fecha de hoy.")) {
+        if (window.confirm("¿Marcar como finalizada? Se quitará de " + nombreEtiqueta(cfg.etiqueta) + " y pasará al Diario con la fecha de hoy.")) {
           finalizar(n, fin);
         }
       });
@@ -3453,7 +3511,7 @@ function crearZonaEtiqueta(cfg) {
       conf.hidden = true;
       const aviso = document.createElement("p");
       aviso.className = "tarjeta-fin-aviso";
-      aviso.textContent = "¿Seguro? Se quitará de " + cfg.etiqueta + " y pasará al Diario con la fecha de hoy.";
+      aviso.textContent = "¿Seguro? Se quitará de " + nombreEtiqueta(cfg.etiqueta) + " y pasará al Diario con la fecha de hoy.";
       const si = document.createElement("button");
       si.type = "button";
       si.className = "tarjeta-fin-si";
@@ -3678,7 +3736,7 @@ function crearZonaEtiqueta(cfg) {
     return dentro;
   };
 
-  z.valores = () => JSON.stringify([z.nombre.value, z.color, z.fecha.value, z.ident.value, z.texto.value, z.destino.value, z.tipo.value]);
+  z.valores = () => JSON.stringify([z.nombre.value, z.color, z.fecha.value, z.ident.value, z.texto.value, z.destino.value, z.tipo.value, z.etiquetaSel ? z.etiquetaSel.value : ""]);
   z.sucio = () => !z.form.hidden && z.valores() !== z.snap;
   z.cancelar = cancelar;
   const cancelarConAviso = () => {
@@ -4087,6 +4145,7 @@ async function guardarEj() {
     await llamarNotas(editando ? "ejercicio_editar" : "ejercicio_agregar", e);
     if (editando) ejercicios = ejercicios.map((x) => (x.id === id ? e : x));
     else ejercicios.push(e);
+    if (!editando && tareaPedida("ej-tarea")) await anotarTareaDeZona({ idRecuerdo: id, nombre, dia: e.fecha, texto: e.descripcion, estadoId: "ej-dia-estado" });
     cerrarFormEj();
     dibujarChipsEj();
     dibujarCalendarioEj();
@@ -4504,14 +4563,14 @@ async function guardarDi() {
       try {
         await crearActividadDeRecuerdo({ idRecuerdo: id, nombre, dia: e.fecha, texto: e.descripcion, tipo });
       } catch (err2) {
-        aviso = "El recuerdo se guardó, pero no se pudo crear en " + (tipo === "trabajo" ? "Trabajo" : "Pendientes") + ": " + err2.message;
+        aviso = "El recuerdo se guardó, pero no se pudo crear en " + (tipo === "trabajo" ? "Trabajo" : "Tareas por Terminar") + ": " + err2.message;
       }
     }
     cerrarFormDi();
     dibujarChipsDi();
     dibujarCalendarioDi();
     if (tipo !== "nota") {
-      setEstado(diDiaEstado, aviso || "Guardado ✓ (también está en " + (tipo === "trabajo" ? "Trabajo" : "Pendientes") + ")", aviso ? "error" : "ok");
+      setEstado(diDiaEstado, aviso || "Guardado ✓ (también está en " + (tipo === "trabajo" ? "Trabajo" : "Tareas por Terminar") + ")", aviso ? "error" : "ok");
     }
   } catch (err) {
     setEstado(diFormEstado, "Error: " + err.message, "error");
@@ -5322,6 +5381,7 @@ async function guardarDe() {
     await llamarNotas(editando ? "deuda_editar" : "deuda_agregar", d);
     if (editando) deudas = deudas.map((x) => (x.id === id ? d : x));
     else deudas.push(d);
+    if (!editando && tareaPedida("de-tarea")) await anotarTareaDeZona({ idRecuerdo: id, nombre, dia: d.fecha, texto: d.descripcion, estadoId: "de-estado" });
     cerrarFormDe();
     dibujarChipsDe();
   } catch (err) {
@@ -5550,6 +5610,7 @@ async function guardarIp() {
     await llamarNotas(editando ? "informacion_editar" : "informacion_agregar", d);
     if (editando) informaciones = informaciones.map((x) => (x.id === id ? d : x));
     else informaciones.push(d);
+    if (!editando && tareaPedida("ip-tarea")) await anotarTareaDeZona({ idRecuerdo: id, nombre, dia: d.fecha, texto: d.descripcion, estadoId: "ip-estado" });
     cerrarFormIp();
     dibujarChipsIp();
   } catch (err) {
@@ -5743,6 +5804,7 @@ async function guardarCm() {
     await llamarNotas(editando ? "comando_editar" : "comando_agregar", d);
     if (editando) comandosLista = comandosLista.map((x) => (x.id === id ? d : x));
     else comandosLista.push(d);
+    if (!editando && tareaPedida("cm-tarea")) await anotarTareaDeZona({ idRecuerdo: id, nombre, dia: d.fecha, texto: d.descripcion, estadoId: "cm-estado" });
     cerrarFormCm();
     dibujarChipsCm();
   } catch (err) {
@@ -5950,6 +6012,7 @@ async function guardarBz() {
     await llamarNotas(editando ? "bazar_editar" : "bazar_agregar", d);
     if (editando) bazarLista = bazarLista.map((x) => (x.id === id ? d : x));
     else bazarLista.push(d);
+    if (!editando && tareaPedida("bz-tarea")) await anotarTareaDeZona({ idRecuerdo: id, nombre, dia: "", texto: d.informacion, estadoId: "bz-estado" });
     cerrarFormBz();
     dibujarChipsBz();
   } catch (err) {
@@ -10401,7 +10464,7 @@ emEl("em-notas-proy-abrir").addEventListener("click", abrirNotasProy);
 emEl("em-npag-volver").addEventListener("click", cerrarConfigNp);
 emEl("em-nv-volver").addEventListener("click", cerrarNotasProy);
 emEl("em-nv-config").addEventListener("click", abrirConfigNp);
-["actividades", "trabajo"].forEach((clave) => {
+["actividades", "trabajo", "notas-imp", "tareas-pend"].forEach((clave) => {
   const b = document.getElementById(clave + "-actualizar");
   const z = zonas.find((x) => x.cfg.seccion === clave);
   if (b && z) b.addEventListener("click", () => z.recargar());
@@ -11739,7 +11802,7 @@ function hyArmar(clave, f) {
   (f.notas || []).forEach((n) => {
     const fn = hyDeNota(n.fecha);
     if (!fn || fn.dia !== clave) return;
-    const zona = n.etiqueta === "Actividades" ? "actividades"
+    const zona = n.etiqueta === "Actividades" || n.etiqueta === "Largo Plazo" ? "actividades"
       : n.etiqueta === "Trabajo" ? "trabajo"
       : n.etiqueta === "Pedidos de Yeso" ? "yeso"
       : "notas";

@@ -129,6 +129,39 @@ main { position: relative; z-index: 1; }
   .btn-menu-hoy .btn-menu-icono { font-size: 1.7rem; }
 }
 
+/* Fila superior: «Notas» y «Tareas por Terminar». Dos cuadrados iguales, cada uno 50 % más alto que «Día de Hoy»
+   (que mide --lado de alto), centrados sobre la fila de abajo. */
+.menu-superior {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  gap: var(--gap);
+}
+.btn-menu.btn-menu-grande {
+  width: calc(var(--lado) * 1.5);
+  height: calc(var(--lado) * 1.5);
+  aspect-ratio: 1 / 1;
+  gap: 8px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #ffffff, var(--acento-claro));
+}
+.btn-menu.btn-menu-grande:hover { background: var(--acento-claro); }
+.btn-menu.btn-menu-grande.activo { background: var(--acento); }
+.btn-menu-grande .btn-menu-icono { font-size: 3rem; }
+@media (max-width: 600px) {
+  .btn-menu.btn-menu-grande { font-size: 0.85rem; gap: 5px; border-radius: 18px; }
+  .btn-menu-grande .btn-menu-icono { font-size: 2.3rem; }
+}
+@media (max-width: 420px) {
+  .btn-menu.btn-menu-grande { font-size: 0.66rem; gap: 3px; border-radius: 16px; }
+  .btn-menu-grande .btn-menu-icono { font-size: 1.8rem; }
+}
+
+/* Zonas de etiqueta que no manejan Notarios: se oculta el selector de «Tipo» */
+.zona-sin-notario .zona-campo-tipo { display: none !important; }
+
 .btn-menu:hover { background: var(--acento-claro); }
 
 .btn-menu.activo {
