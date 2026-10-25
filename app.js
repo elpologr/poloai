@@ -118,7 +118,7 @@ botonesMenu.forEach((b) => {
 // ---------- Datos (Google Sheets mediante Apps Script) ----------
 // Columnas de la hoja: A Fecha | B Actividades | C Descripcion | D Anotaciones
 const CAMPOS = [
-  { clave: "actividades", etiqueta: "Actividades" },
+  { clave: "actividades", etiqueta: "Pendientes" },
   { clave: "descripcion", etiqueta: "Descripción" },
   { clave: "anotaciones", etiqueta: "Anotaciones" },
 ];
@@ -458,7 +458,7 @@ const calFormEstado = document.getElementById("cal-form-estado");
 
 // Tipos de recuadro que se dibujan en la página del día (la descripción va en su propio botón)
 const CAL_TIPOS = {
-  actividades: { icono: "🎯", nombre: "Actividad", confirmar: "¿Eliminar esta actividad?" },
+  actividades: { icono: "🎯", nombre: "Pendiente", confirmar: "¿Eliminar este pendiente?" },
   anotaciones: { icono: "📝", nombre: "Anotación", confirmar: "¿Eliminar esta anotación?" },
 };
 
@@ -534,7 +534,7 @@ function dibujarChipsCal(fecha) {
   const nuevo = document.createElement("button");
   nuevo.type = "button";
   nuevo.className = "ej-chip ej-chip-nuevo";
-  nuevo.setAttribute("aria-label", "Añadir una actividad o anotación");
+  nuevo.setAttribute("aria-label", "Añadir un pendiente o anotación");
   nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
   nuevo.addEventListener("click", () => abrirFormCal("nuevo", null));
   calChips.appendChild(nuevo);
@@ -630,7 +630,7 @@ async function guardarFormCal() {
           tipo: tambien,
         });
       } catch (err2) {
-        avisoAct = "Se guardó en el calendario, pero no se pudo crear en " + (tambien === "trabajo" ? "Trabajo" : "Actividades") + ": " + err2.message;
+        avisoAct = "Se guardó en el calendario, pero no se pudo crear en " + (tambien === "trabajo" ? "Trabajo" : "Pendientes") + ": " + err2.message;
       }
     }
     if (seleccion === fecha) {
@@ -1149,6 +1149,8 @@ const ETIQUETAS_NOTA = [
   "Actividades",
   "Trabajo",
 ];
+// Nombre que se ve en pantalla. La etiqueta guardada en la hoja sigue siendo «Actividades» (así no se pierden tus datos).
+const nombreEtiqueta = (e) => (e === "Actividades" ? "Pendientes" : e);
 const COLORES_NOTA = [
   { nombre: "Blanco", hex: "#ffffff" },
   { nombre: "Azul", hex: "#c4e1fb" },
@@ -1235,7 +1237,7 @@ function crearMuestraColor(valor, hex, titulo) {
 ETIQUETAS_NOTA.forEach((e) => {
   const op = document.createElement("option");
   op.value = e;
-  op.textContent = e;
+  op.textContent = nombreEtiqueta(e);
   notasEtiqueta.appendChild(op);
 });
 COLORES_NOTA.forEach((c) => notasColores.appendChild(crearMuestraColor(c.nombre, c.hex, c.nombre)));
@@ -1857,7 +1859,7 @@ function crearTarjetaNota(n) {
   nombre.textContent = n.nombre || "Sin nombre";
   const etiqueta = document.createElement("span");
   etiqueta.className = "tarjeta-etiqueta";
-  etiqueta.textContent = n.etiqueta || "General";
+  etiqueta.textContent = nombreEtiqueta(n.etiqueta || "General");
   const meta = document.createElement("div");
   meta.className = "tarjeta-meta";
   meta.appendChild(etiqueta);
@@ -1921,7 +1923,7 @@ function dibujarNotas() {
     const titulo = document.createElement("h3");
     titulo.className = "notas-grupo-titulo";
     const nombreEt = document.createElement("span");
-    nombreEt.textContent = etiqueta;
+    nombreEt.textContent = nombreEtiqueta(etiqueta);
     const cuenta = document.createElement("span");
     cuenta.className = "notas-grupo-cuenta";
     cuenta.textContent = String(lista.length);
@@ -1973,7 +1975,7 @@ function dibujarSubmenu() {
     cerrarSubmenu();
     return;
   }
-  notasSubTitulo.textContent = etiquetaAbierta + " (" + lista.length + ")";
+  notasSubTitulo.textContent = nombreEtiqueta(etiquetaAbierta) + " (" + lista.length + ")";
   notasSubLista.innerHTML = "";
   lista.forEach((n) => notasSubLista.appendChild(crearTarjetaNota(n)));
 }
@@ -2859,10 +2861,10 @@ async function crearActividadDeRecuerdo({ idRecuerdo, nombre, dia, texto, tipo }
 // Las etiquetas deben estar también en ETIQUETAS_NOTA (arriba) y en el Apps Script.
 const ZONAS_ETIQUETA = [
   {
-    seccion: "actividades", etiqueta: "Actividades", datos: "tus actividades",
-    crear: "+ Crear actividad", nuevo: "Nueva actividad", editar: "Editar actividad",
-    guardar: "Guardar actividad", marcador: "Escribe una actividad nueva…",
-    vacio: "Aún no hay actividades. ¡Crea la primera! ✨", borrar: "¿Eliminar esta actividad?",
+    seccion: "actividades", etiqueta: "Actividades", datos: "tus pendientes",
+    crear: "+ Crear pendiente", nuevo: "Nuevo pendiente", editar: "Editar pendiente",
+    guardar: "Guardar pendiente", marcador: "Escribe un pendiente nuevo…",
+    vacio: "Aún no hay pendientes. ¡Crea el primero! ✨", borrar: "¿Eliminar este pendiente?",
     cuadritos: true, // las tarjetas se ven como cuadritos (igual que en Ejercicio, Diario, etc.)
     pagina: true, // se ve como Deudas y Bazar: recuadros con «Añadir» y ventana para escribir (sin calendario)
     finalizar: true, // cada tarjeta lleva el botón de finalizar (pasa al Diario y le agrega la fecha de término al recuerdo)
@@ -2891,7 +2893,7 @@ const ZONAS_ETIQUETA = [
 // Arma una zona: formulario (igual al de Notas), botón de crear y lista de tarjetas de su etiqueta
 function crearZonaEtiqueta(cfg) {
   const cont = document.getElementById("zona-" + cfg.seccion);
-  const textoFin = cfg.etiqueta === "Actividades" ? "actividad" : "tarea"; // «Marcar … como finalizada»
+  const textoFin = cfg.etiqueta === "Actividades" ? "pendiente" : "tarea"; // «Marcar … como finalizada»
   cont.innerHTML = `
     <div class="zona-sin-sesion notas-aviso-sesion" hidden>
       <p>Inicia sesión con tu cuenta de Google para ver y guardar ${cfg.datos}.</p>
@@ -2919,7 +2921,7 @@ function crearZonaEtiqueta(cfg) {
             ${cfg.elegirEtiqueta
               ? `<select class="zona-etiqueta-sel" aria-label="Etiqueta">
               <option value="General">📝 Nota</option>
-              <option value="Actividades">🎯 Actividad</option>
+              <option value="Actividades">🎯 Pendiente</option>
               <option value="Trabajo">💼 Trabajo</option>
             </select>`
               : `<input class="zona-etiqueta-fija" type="text" value="${cfg.etiqueta}" readonly tabindex="-1" />`}
@@ -3260,7 +3262,7 @@ function crearZonaEtiqueta(cfg) {
       dibujarNotas(); // redibuja el panel de Notas y todas las zonas
       const destinoEtiqueta = datos.etiqueta === cfg.etiqueta ? ""
         : datos.etiqueta === "Trabajo" ? " (quedó en Trabajo)"
-        : datos.etiqueta === "Actividades" ? " (quedó en Actividades)"
+        : datos.etiqueta === "Actividades" ? " (quedó en Pendientes)"
         : " (quedó en Notas)";
       setEstado(z.estadoLista, (n ? "Cambios guardados ✓" : "Guardada ✓") + destinoEtiqueta, "ok");
     } catch (e) {
@@ -3305,7 +3307,7 @@ function crearZonaEtiqueta(cfg) {
         (j && j.copia) || {},
         { terminado: true }
       ));
-      setEstado(z.estadoLista, (cfg.etiqueta === "Actividades" ? "Actividad finalizada" : "Trabajo finalizado") + " ✓ (ya está en el Diario)", "ok");
+      setEstado(z.estadoLista, (cfg.etiqueta === "Actividades" ? "Pendiente finalizado" : "Trabajo finalizado") + " ✓ (ya está en el Diario)", "ok");
     } catch (e) {
       botonSi.disabled = false;
       setEstado(z.estadoLista, "Error: " + e.message, "error");
@@ -3340,7 +3342,7 @@ function crearZonaEtiqueta(cfg) {
       c.classList.add("zona-cuadrito-extra");
       const tag = document.createElement("span");
       tag.className = "zona-cuadrito-tag";
-      tag.textContent = "📦 " + (n.etiqueta || "");
+      tag.textContent = "📦 " + nombreEtiqueta(n.etiqueta || "");
       c.appendChild(tag);
       c.tabIndex = 0;
       c.setAttribute("role", "button");
@@ -4353,7 +4355,7 @@ function dibujarChipsDi() {
     b.setAttribute("aria-label", "Ver o editar la anotación " + e.nombre);
     b.innerHTML = '<span class="ej-chip-icono" aria-hidden="true"></span><span class="ej-chip-nombre"></span>';
     b.querySelector(".ej-chip-icono").textContent = e.terminado ? "✅" : "📓";
-    if (e.terminado) b.title = e.nombre + (e.marca === "Actividad finalizada" ? " (actividad terminada)" : " (trabajo terminado)");
+    if (e.terminado) b.title = e.nombre + (e.marca === "Actividad finalizada" ? " (pendiente terminado)" : " (trabajo terminado)");
     if (e.marca === "Tarea finalizada") {
       b.classList.add("ej-chip-finalizada");
       b.title = e.nombre + " (Anotación de Tarea Finalizada)";
@@ -4448,7 +4450,7 @@ function abrirFormDi(e) {
     ? e.marca === "Tarea finalizada"
       ? "Anotación de Tarea Finalizada ✅"
       : e.marca === "Actividad finalizada"
-      ? "Editar actividad terminada ✅"
+      ? "Editar pendiente terminado ✅"
       : e.terminado
       ? "Editar trabajo terminado ✅"
       : "Editar anotación"
@@ -4487,7 +4489,7 @@ async function guardarDi() {
   };
   const tipo = editando ? "nota" : diTipo.value; // nota | actividad | trabajo
   if (tipo !== "nota" && !e.descripcion) {
-    setEstado(diFormEstado, "Escribe la descripción para guardarla como " + (tipo === "trabajo" ? "trabajo" : "actividad"), "error");
+    setEstado(diFormEstado, "Escribe la descripción para guardarla como " + (tipo === "trabajo" ? "trabajo" : "pendiente"), "error");
     return;
   }
   diGuardar.disabled = true;
@@ -4502,14 +4504,14 @@ async function guardarDi() {
       try {
         await crearActividadDeRecuerdo({ idRecuerdo: id, nombre, dia: e.fecha, texto: e.descripcion, tipo });
       } catch (err2) {
-        aviso = "El recuerdo se guardó, pero no se pudo crear en " + (tipo === "trabajo" ? "Trabajo" : "Actividades") + ": " + err2.message;
+        aviso = "El recuerdo se guardó, pero no se pudo crear en " + (tipo === "trabajo" ? "Trabajo" : "Pendientes") + ": " + err2.message;
       }
     }
     cerrarFormDi();
     dibujarChipsDi();
     dibujarCalendarioDi();
     if (tipo !== "nota") {
-      setEstado(diDiaEstado, aviso || "Guardado ✓ (también está en " + (tipo === "trabajo" ? "Trabajo" : "Actividades") + ")", aviso ? "error" : "ok");
+      setEstado(diDiaEstado, aviso || "Guardado ✓ (también está en " + (tipo === "trabajo" ? "Trabajo" : "Pendientes") + ")", aviso ? "error" : "ok");
     }
   } catch (err) {
     setEstado(diFormEstado, "Error: " + err.message, "error");
@@ -6429,7 +6431,7 @@ function abrirVisorDeNota(n, abrirAjustes) {
     nombre: n.nombre || "Sin nombre",
     texto: n.texto || "",
     fondo: hexDeColor(n.color),
-    subtitulo: [n.etiqueta || "General", n.fecha].filter(Boolean).join(" · "),
+    subtitulo: [nombreEtiqueta(n.etiqueta || "General"), n.fecha].filter(Boolean).join(" · "),
     placeholder: "Escribe tu nota…",
     permitirVacio: false, // una nota no puede quedar vacía (igual que en el formulario)
     guardarTexto: (texto) => guardarCambiosNota(n, { texto: texto.trim() }),
@@ -9836,7 +9838,7 @@ const npBorrar = emEl("em-npag-borrar");
 const npFormEstado = emEl("em-npag-form-estado");
 const npEtiqueta = emEl("em-npag-etiqueta");
 const npFinalizar = emEl("em-npag-finalizar");
-const NP_ETIQ_TEXTO = { Actividades: "🎯 Actividad", Trabajo: "💼 Trabajo" };
+const NP_ETIQ_TEXTO = { Actividades: "🎯 Pendiente", Trabajo: "💼 Trabajo" };
 let npEditando = null; // nota abierta en la ventana (null = nota nueva)
 let npModoTodo = false; // true = se edita TODO el texto (anotaciones anteriores incluidas)
 const npHist = emEl("em-npag-hist");
@@ -11659,7 +11661,7 @@ const HY_ZONAS = [
   { id: "calendario", icono: "📅", titulo: "Calendario", seccion: "calendario" },
   { id: "notas", icono: "📝", titulo: "Notas", seccion: "seccion-notas" },
   { id: "ejercicio", icono: "💪", titulo: "Ejercicio", seccion: "seccion-ejercicio" },
-  { id: "actividades", icono: "🎯", titulo: "Actividades", seccion: "actividades" },
+  { id: "actividades", icono: "🎯", titulo: "Pendientes", seccion: "actividades" },
   { id: "trabajo", icono: "💼", titulo: "Trabajo", seccion: "trabajo" },
   { id: "diario", icono: "📓", titulo: "Diario", seccion: "seccion-diario" },
   { id: "informacion", icono: "⭐", titulo: "Información Primordial", seccion: "seccion-informacion" },
@@ -11764,7 +11766,7 @@ function hyArmar(clave, f) {
         hora: hf ? hf[1].padStart(5, "0") : "",
         marca: d.marca === "Tarea finalizada" ? "✅ Tarea finalizada" : d.terminado ? "✅ Terminado" : "",
         texto: d.descripcion,
-        extra: d.marca === "Tarea finalizada" ? "Anotación de Tarea Finalizada" : d.marca === "Actividad finalizada" ? "Actividad terminada" : d.terminado ? "Trabajo terminado" : "",
+        extra: d.marca === "Tarea finalizada" ? "Anotación de Tarea Finalizada" : d.marca === "Actividad finalizada" ? "Pendiente terminado" : d.terminado ? "Trabajo terminado" : "",
         finalizada: d.marca === "Tarea finalizada",
       });
     }

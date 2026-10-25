@@ -246,7 +246,7 @@
 
   <header class="encabezado">
     <h1>Polo AI</h1>
-    <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Deudas, Bazar, Ejercicio, Diario, Actividades, Trabajo, Información Primordial, Comandos. Arriba de todos va el botón grande «Día de Hoy».
+    <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Deudas, Bazar, Ejercicio, Diario, Pendientes, Trabajo, Información Primordial, Comandos. Arriba de todos va el botón grande «Día de Hoy».
          Cada botón abre su propia sección (Ejercicio y Diario con su propio calendario). -->
     <nav class="menu" aria-label="Secciones">
       <button id="btn-menu-hoy" class="btn-menu btn-menu-hoy" type="button" data-seccion="seccion-hoy">
@@ -279,7 +279,7 @@
         <span class="btn-menu-icono" aria-hidden="true">&#128211;</span><span class="btn-menu-texto">Diario</span>
       </button>
       <button class="btn-menu" type="button" data-seccion="actividades">
-        <span class="btn-menu-icono" aria-hidden="true">&#127919;</span><span class="btn-menu-texto">Actividades</span>
+        <span class="btn-menu-icono" aria-hidden="true">&#127919;</span><span class="btn-menu-texto">Pendientes</span>
       </button>
       <button class="btn-menu" type="button" data-seccion="trabajo">
         <span class="btn-menu-icono" aria-hidden="true">&#128188;</span><span class="btn-menu-texto">Trabajo</span>
@@ -384,13 +384,13 @@
         </div>
         </div>
 
-        <!-- Ventana para escribir la descripción del día o para agregar / editar una actividad o anotación -->
+        <!-- Ventana para escribir la descripción del día o para agregar / editar un pendiente o anotación -->
         <div id="cal-form" class="notas-nueva modo-editar" hidden>
           <h3 id="cal-form-titulo" class="notas-form-titulo">Descripción del día</h3>
           <label id="cal-tipo-campo" class="notas-campo" hidden>
             <span>Tipo</span>
             <select id="cal-tipo">
-              <option value="actividades">Actividad</option>
+              <option value="actividades">Pendiente</option>
               <option value="anotaciones">Anotación</option>
             </select>
           </label>
@@ -398,7 +398,7 @@
             <span>Anotar también en</span>
             <select id="cal-tambien">
               <option value="">Solo en el calendario</option>
-              <option value="actividad">🎯 Actividades (con botón de finalizar)</option>
+              <option value="actividad">🎯 Pendientes (con botón de finalizar)</option>
               <option value="trabajo">💼 Trabajo (con botón de finalizar)</option>
             </select>
           </label>
@@ -416,7 +416,7 @@
       </div>
     </section>
 
-    <!-- NOTAS (página, como Calendario, Actividades y Trabajo) -->
+    <!-- NOTAS (página, como Calendario, Pendientes y Trabajo) -->
     <section id="seccion-notas" class="seccion seccion-notas" hidden>
     <!-- Página de Notas (azul pastel). Las notas viven en la hoja «Notas» de Google Sheets -->
     <div id="panel-notas" class="panel-notas panel-pagina" hidden>
@@ -796,7 +796,7 @@
           <span>Guardar como</span>
           <select id="di-tipo">
             <option value="nota">📓 Nota (solo recuerdo de este día)</option>
-            <option value="actividad">🎯 Actividad (también aparece en Actividades)</option>
+            <option value="actividad">🎯 Pendiente (también aparece en Pendientes)</option>
             <option value="trabajo">💼 Trabajo (también aparece en Trabajo)</option>
           </select>
         </label>
@@ -1376,7 +1376,7 @@
           <span>Etiqueta</span>
           <select id="em-npag-etiqueta">
             <option value="">Sin etiqueta (nota normal)</option>
-            <option value="Actividades">🎯 Actividad</option>
+            <option value="Actividades">🎯 Pendiente</option>
             <option value="Trabajo">💼 Trabajo</option>
           </select>
         </label>
@@ -1525,7 +1525,7 @@
   </div>
     </section>
 
-    <!-- ACTIVIDADES (página, como Deudas y Bazar: recuadros + «Añadir»; la zona la arma app.js con la hoja «Notas» y las notas de proyectos con esta etiqueta) -->
+    <!-- PENDIENTES (id interno «actividades»; página, como Deudas y Bazar: recuadros + «Añadir»; la zona la arma app.js con la hoja «Notas» y las notas de proyectos con esta etiqueta) -->
     <section id="actividades" class="seccion seccion-pagina" hidden>
   <div id="panel-actividades" class="panel-notas panel-pagina">
     <div class="notas-caja ejercicio-caja deudas-caja" role="region" aria-labelledby="actividades-titulo">
@@ -1537,10 +1537,10 @@
         <span class="decor decor-5">&#10024;</span>
       </div>
       <header class="notas-cabecera">
-        <h2 id="actividades-titulo">Actividades</h2>
+        <h2 id="actividades-titulo">Pendientes</h2>
         <div class="notas-cab-botones">
           <button id="actividades-actualizar" class="notas-btn-icono" type="button"
-                  title="Volver a leer de Google Sheets" aria-label="Actualizar Actividades">&#8635;</button>
+                  title="Volver a leer de Google Sheets" aria-label="Actualizar Pendientes">&#8635;</button>
         </div>
       </header>
       <div class="notas-cuerpo">
@@ -1577,8 +1577,8 @@
   </main>
 
   <script src="config.js?v=66"></script>
-  <script src="app.js?v=98"></script>
-  <script src="voz.js?v=64"></script>
+  <script src="app.js?v=99"></script>
+  <script src="voz.js?v=65"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>
 </html>
