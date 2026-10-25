@@ -1916,10 +1916,6 @@ function crearTarjetaNota(n) {
 function dibujarNotas() {
   notasLista.innerHTML = "";
   if (!notas.length) {
-    const p = document.createElement("p");
-    p.className = "notas-vacio";
-    p.textContent = "Aún no hay notas. ¡Escribe la primera! ✨";
-    notasLista.appendChild(p);
     cerrarSubmenu();
     dibujarZonasEtiqueta(); // Actividades y Trabajo usan las mismas notas
     return;
@@ -3703,24 +3699,12 @@ function crearZonaEtiqueta(cfg) {
       extra = ordenadas.filter((n) => (cfg.tambien || []).includes(n.etiqueta) && claveDeNota(n) === z.calDia);
     }
     const deProyectos = cfg.pagina ? notasDeProyectosConEtiqueta(cfg.etiqueta) : [];
-    if (!lista.length && !extra.length && !deProyectos.length) {
-      const p = document.createElement("p");
-      p.className = "notas-vacio";
-      p.textContent = calCuad && z.calDia ? "No hay nada en este día." : cfg.vacio;
-      z.lista.appendChild(p);
-    }
+    // Si no hay nada, simplemente no se muestra ningún texto
     lista.forEach((n) => z.lista.appendChild(crearTarjeta(n)));
     deProyectos.forEach((x) => z.lista.appendChild(crearCuadritoProyecto(x.d, x.n)));
     extra.forEach((n) => z.lista.appendChild(crearCuadrito(n, true)));
     if (cfg.pagina) {
-      // Último recuadro «Añadir», igual que en Deudas y Bazar
-      const nuevo = document.createElement("button");
-      nuevo.type = "button";
-      nuevo.className = "ej-chip ej-chip-nuevo";
-      nuevo.setAttribute("aria-label", cfg.crear.replace(/^\+\s*/, ""));
-      nuevo.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">+</span><span class="ej-chip-nombre">Añadir</span>';
-      nuevo.addEventListener("click", () => mostrarForm(true));
-      z.lista.appendChild(nuevo);
+      // El «+» para crear vive junto al nombre de la sección (se arma una sola vez, abajo)
     }
   };
 
@@ -3764,6 +3748,31 @@ function crearZonaEtiqueta(cfg) {
     if (caja) caja.appendChild(z.form);
   }
   q(".zona-ir-login").addEventListener("click", abrirLateral);
+
+  // Botón «+» pequeño, a la derecha del nombre de la sección (el título de su división o, si no hay, el de la página)
+  if (cfg.pagina) {
+    const mas = document.createElement("button");
+    mas.type = "button";
+    mas.className = "zona-mas-titulo";
+    mas.textContent = "+";
+    mas.title = cfg.crear.replace(/^\+\s*/, "");
+    mas.setAttribute("aria-label", mas.title);
+    mas.addEventListener("click", () => { if (sesionVigente()) mostrarForm(true); else abrirLateral(); });
+    const prev = cont.previousElementSibling;
+    const divTitulo = prev && prev.classList.contains("bazar-division") ? prev.querySelector(".bazar-division-titulo") : null;
+    if (divTitulo) {
+      divTitulo.after(mas);
+    } else {
+      const caja = cont.closest(".notas-caja");
+      const h2 = caja && caja.querySelector(".notas-cabecera h2");
+      if (h2) {
+        const fila = document.createElement("div");
+        fila.className = "zona-titulo-fila";
+        h2.replaceWith(fila);
+        fila.append(h2, mas);
+      }
+    }
+  }
   return z;
 }
 
