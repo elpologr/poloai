@@ -29,6 +29,8 @@ const VERSION = "73";
     "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-mover", "em-mover-ayuda", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp", "em-canal", "em-notas-proy-abrir", "em-npag", "em-npag-chips", "em-npag-form", "em-npag-etiqueta", "em-npag-finalizar", "actividades-actualizar", "trabajo-actualizar",
     "btn-menu-notas-imp", "btn-menu-tareas-pend", "btn-volver-menu", "seccion-notas-imp", "seccion-tareas-pend", "zona-notas-imp", "zona-notas-fav", "zona-tareas-pend", "notas-imp-actualizar", "notas-favorita", "tareas-pend-actualizar", "ej-tarea", "de-tarea", "ip-tarea", "cm-tarea", "bz-tarea",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
+    "di-cu-proy-toggle", "di-cu-proy-resumen", "di-cu-links", "di-cu-ver-claude", "di-cu-claude", "di-cu-cl-volver", "di-cu-cl-cuenta",
+    "di-cu-cl-hora", "di-cu-cl-cuando", "di-cu-cl-guardar", "di-cu-cl-quitar", "di-cu-cl-estado", "di-cu-cl-info", "di-cu-cl-registro",
   ];
   const problemas = [];
 
@@ -5337,6 +5339,7 @@ async function cargarCuentas() {
     cuCargadas = true;
     setEstado(cuEstado, "");
     dibujarCuentas();
+    cuClaudeSincronizar(cuentas); // mantiene al día los avisos de «Claude» (por si la hora se cambió desde otro dispositivo)
     return true;
   } catch (err) {
     setEstado(cuEstado, "Error: " + err.message, "error");
@@ -5381,9 +5384,67 @@ cuImgProy.addEventListener("change", () => {
   cuImgProy.value = "";
 });
 
+// La lista de proyectos para vincular se ve solo al desplegarla con su botón
+const cuProyToggle = diEl("di-cu-proy-toggle");
+const cuProyResumen = diEl("di-cu-proy-resumen");
+const cuLinksCaja = diEl("di-cu-links");
+function cuPonerListaAbierta(abierta) {
+  cuListaProy.hidden = !abierta;
+  cuProyToggle.setAttribute("aria-expanded", String(abierta));
+  cuProyToggle.classList.toggle("abierto", abierta);
+}
+cuProyToggle.addEventListener("click", () => cuPonerListaAbierta(cuListaProy.hidden));
+function cuActualizarResumenProy() {
+  const n = cuSeleccion.size;
+  cuProyResumen.textContent = n ? n + (n === 1 ? " vinculado" : " vinculados") : "ninguno";
+}
+// Zona con los links de los proyectos vinculados (los mismos que salen como recuadros en la zona de la cuenta)
+function dibujarLinksCu() {
+  cuLinksCaja.innerHTML = "";
+  let total = 0;
+  empresas.filter((e) => cuSeleccion.has(e.id)).forEach((e) => {
+    const hrefs = cuLinksDeProyecto(e);
+    if (!hrefs.length) return;
+    total += hrefs.length;
+    const bloque = document.createElement("div");
+    bloque.className = "di-cu-links-bloque";
+    const nom = document.createElement("p");
+    nom.className = "di-cu-links-nombre";
+    nom.textContent = e.nombre;
+    bloque.appendChild(nom);
+    hrefs.forEach((href) => {
+      const red = emRedDeLink(href);
+      const a = document.createElement("a");
+      a.className = "di-cu-link-fila";
+      a.href = href;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      const r = document.createElement("span");
+      r.className = "di-cu-link-red";
+      r.textContent = red.nombre.replace(/ \(.*\)$/, "");
+      const u = document.createElement("span");
+      u.className = "di-cu-link-url";
+      u.textContent = href;
+      a.append(r, u);
+      bloque.appendChild(a);
+    });
+    cuLinksCaja.appendChild(bloque);
+  });
+  if (!total) {
+    const p = document.createElement("p");
+    p.className = "di-cu-vacio";
+    p.textContent = cuSeleccion.size
+      ? (emCargadas ? "Los proyectos vinculados no tienen links." : "Leyendo tus proyectos…")
+      : "Vincula un proyecto para ver aquí sus links.";
+    cuLinksCaja.appendChild(p);
+  }
+}
+
 function dibujarListaProyectosCu() {
   cuLlenarSelectImagen();
   cuListaProy.innerHTML = "";
+  cuActualizarResumenProy();
+  dibujarLinksCu();
   if (!empresas.length) {
     const p = document.createElement("p");
     p.className = "di-cu-vacio";
@@ -5397,7 +5458,11 @@ function dibujarListaProyectosCu() {
     const ch = document.createElement("input");
     ch.type = "checkbox";
     ch.checked = cuSeleccion.has(e.id);
-    ch.addEventListener("change", () => { if (ch.checked) cuSeleccion.add(e.id); else cuSeleccion.delete(e.id); });
+    ch.addEventListener("change", () => {
+      if (ch.checked) cuSeleccion.add(e.id); else cuSeleccion.delete(e.id);
+      cuActualizarResumenProy();
+      dibujarLinksCu();
+    });
     const t = document.createElement("span");
     t.textContent = e.nombre + " ";
     const z = document.createElement("small");
@@ -5473,6 +5538,7 @@ function abrirFormCu(c) {
   cuImagenNueva = null;
   cuUrlImg.value = "";
   cuSeleccion = new Set(c && Array.isArray(c.proyectos) ? c.proyectos : []);
+  cuPonerListaAbierta(false); // la lista de proyectos empieza cerrada
   cuFormTitulo.textContent = c ? "Editar cuenta" : "Nueva cuenta";
   cuNombre.value = c ? c.nombre : "";
   cuCorreo.value = c ? c.correo || "" : "";
@@ -5513,7 +5579,11 @@ async function guardarCu() {
     // Si ya se leyeron los proyectos, solo se conservan los que todavía existen
     const existentes = new Set(empresas.map((e) => e.id));
     const proyectos = Array.from(cuSeleccion).filter((x) => !emCargadas || existentes.has(x));
-    const c = { id, nombre, correo, imagen: cuImagenUrl, proyectos };
+    const c = {
+      id, nombre, correo, imagen: cuImagenUrl, proyectos,
+      claudeDisponible: editando ? editando.claudeDisponible || "" : "", // la hora de Claude no se toca al editar la cuenta
+      claudeRegistro: editando ? editando.claudeRegistro || [] : [],
+    };
     await llamarNotas(editando ? "cuenta_editar" : "cuenta_agregar", c);
     const pos = editando ? cuentas.indexOf(editando) : -1;
     if (pos !== -1) cuentas[pos] = c;
@@ -5553,6 +5623,7 @@ async function borrarCu() {
     cerrarFormCu();
     cerrarVerCu();
     dibujarCuentas();
+    cuClaudeSincronizar(cuentas);
     setEstado(cuEstado, "Eliminada", "ok");
   } catch (err) {
     setEstado(cuFormEstado, "Error: " + err.message, "error");
@@ -5582,6 +5653,7 @@ function dibujarVerCu() {
   cuVerNombre.textContent = c.nombre;
   cuVerCorreo.textContent = c.correo || "";
   cuVerCorreo.hidden = !c.correo;
+  dibujarClaudeBoton(); // botón «Claude», debajo del de «Ir al proyecto»
   // Botón(es) hacia el proyecto vinculado en Empresas/Proyectos
   cuVerBotones.innerHTML = "";
   const mapa = {};
@@ -5623,8 +5695,8 @@ function dibujarVerCu() {
   });
 }
 
-// Recuadros de redes de un proyecto: su link principal y los de la zona de links (sin repetir; solo direcciones válidas)
-function cuRedesDeProyecto(d) {
+// Links de un proyecto: su link principal y los de la zona de links (sin repetir; solo direcciones válidas)
+function cuLinksDeProyecto(d) {
   const vistos = new Set();
   const lista = [];
   [d.link].concat(enlacesDeTexto(d.links)).forEach((l) => {
@@ -5632,6 +5704,11 @@ function cuRedesDeProyecto(d) {
       if (!vistos.has(href)) { vistos.add(href); lista.push(href); }
     });
   });
+  return lista;
+}
+// Recuadros de redes de un proyecto (los mismos links, como cuadritos con el icono de cada red)
+function cuRedesDeProyecto(d) {
+  const lista = cuLinksDeProyecto(d);
   return lista.map((href) => {
     const red = emRedDeLink(href);
     const el = document.createElement("a");
@@ -5660,9 +5737,292 @@ function abrirVerCu(c) {
   if (!emCargadas) cargarEmpresas().then(() => { if (!cuVer.hidden) dibujarVerCu(); });
 }
 function cerrarVerCu() {
+  cuClaudeCerrar();
   cuVer.hidden = true;
   cuVerActual = null;
 }
+
+// ----- «Claude»: anotar la hora en que vuelve la sesión de una cuenta y recibir un aviso -----
+// La hora se guarda en la hoja «Cuentas» (columnas F y G) junto con el registro de cuándo se cambió, así que se ve
+// igual en todos tus dispositivos. El aviso: en la app de Android se programa como notificación del sistema (suena con la
+// app cerrada); en el navegador solo llega mientras Polo AI esté abierta o en segundo plano.
+const cuVerClaude = diEl("di-cu-ver-claude");
+const clPanel = diEl("di-cu-claude");
+const clCuenta = diEl("di-cu-cl-cuenta");
+const clHora = diEl("di-cu-cl-hora");
+const clCuando = diEl("di-cu-cl-cuando");
+const clGuardar = diEl("di-cu-cl-guardar");
+const clQuitar = diEl("di-cu-cl-quitar");
+const clEstado = diEl("di-cu-cl-estado");
+const clInfo = diEl("di-cu-cl-info");
+const clRegistro = diEl("di-cu-cl-registro");
+const CL_CLAVE_ESPEJO = "polo-claude-pendientes"; // [{ id, nombre, disponible }] de las cuentas con hora pendiente
+const CL_CLAVE_AVISADAS = "polo-claude-avisadas";  // avisos del navegador que ya salieron
+const CL_CLAVE_NATIVAS = "polo-claude-nativas";    // ids de las notificaciones programadas en el celular
+const CL_FORMATO = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/;
+
+function clLeer(clave, defecto) {
+  try { const v = JSON.parse(localStorage.getItem(clave)); return v === null || v === undefined ? defecto : v; } catch (e) { return defecto; }
+}
+function clEscribir(clave, valor) {
+  try { localStorage.setItem(clave, JSON.stringify(valor)); } catch (e) {}
+}
+const clDos = (n) => String(n).padStart(2, "0");
+function clParsear(txt) { // «AAAA-MM-DD HH:MM» -> Date (hora local) o null
+  const m = CL_FORMATO.exec(String(txt || ""));
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null;
+}
+function clTexto(d) {
+  return d.getFullYear() + "-" + clDos(d.getMonth() + 1) + "-" + clDos(d.getDate()) + " " + clDos(d.getHours()) + ":" + clDos(d.getMinutes());
+}
+function clHora12(d) {
+  const h = d.getHours();
+  return (h % 12 || 12) + ":" + clDos(d.getMinutes()) + " " + (h < 12 ? "am" : "pm");
+}
+function clDiaTexto(d) { // «hoy», «mañana» o la fecha
+  const hoy = new Date();
+  const dia = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const dif = Math.round((dia(d) - dia(hoy)) / 86400000);
+  if (dif === 0) return "hoy";
+  if (dif === 1) return "mañana";
+  if (dif === -1) return "ayer";
+  return "el " + clDos(d.getDate()) + "/" + clDos(d.getMonth() + 1) + "/" + d.getFullYear();
+}
+// La próxima vez que el reloj marque esa hora (si ya pasó hoy, es mañana)
+function clProxima(hhmm) {
+  const m = /^(\d{2}):(\d{2})$/.exec(String(hhmm || ""));
+  if (!m) return null;
+  const ahora = new Date();
+  const d = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), +m[1], +m[2]);
+  if (d.getTime() <= ahora.getTime()) d.setDate(d.getDate() + 1);
+  return d;
+}
+
+function dibujarClaudeBoton() {
+  cuVerClaude.innerHTML = "";
+  const c = cuVerActual;
+  if (!c) return;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "notas-btn di-cu-ver-ir di-cu-ver-claude";
+  const t = document.createElement("span");
+  t.textContent = "✳ Claude";
+  b.appendChild(t);
+  const f = clParsear(c.claudeDisponible);
+  if (f) {
+    const sub = document.createElement("span");
+    sub.className = "di-cu-ver-claude-sub";
+    sub.textContent = (f.getTime() > Date.now() ? "Vuelve " : "Disponible desde ") + clDiaTexto(f) + " a las " + clHora12(f);
+    b.appendChild(sub);
+  }
+  b.addEventListener("click", abrirClaudeCu);
+  cuVerClaude.appendChild(b);
+}
+
+function clVistaPrevia() {
+  const f = clProxima(clHora.value);
+  clCuando.textContent = f ? "Te aviso " + clDiaTexto(f) + " a las " + clHora12(f) : "";
+}
+function dibujarRegistroClaude() {
+  const c = cuVerActual;
+  clRegistro.innerHTML = "";
+  const reg = c && Array.isArray(c.claudeRegistro) ? c.claudeRegistro : [];
+  if (!reg.length) {
+    const li = document.createElement("li");
+    li.className = "di-cu-cl-vacio";
+    li.textContent = "Aún no hay cambios.";
+    clRegistro.appendChild(li);
+    return;
+  }
+  reg.forEach((r) => {
+    const li = document.createElement("li");
+    const f = clParsear(r.disponible);
+    li.textContent = f ? "Disponible " + clDiaTexto(f) + " a las " + clHora12(f) : "Aviso quitado";
+    const sm = document.createElement("small");
+    sm.textContent = "Anotado el " + r.cuando;
+    li.appendChild(sm);
+    clRegistro.appendChild(li);
+  });
+}
+function abrirClaudeCu() {
+  const c = cuVerActual;
+  if (!c) return;
+  clCuenta.textContent = c.nombre;
+  const f = clParsear(c.claudeDisponible);
+  clHora.value = f ? clDos(f.getHours()) + ":" + clDos(f.getMinutes()) : "";
+  clQuitar.hidden = !(f && f.getTime() > Date.now());
+  setEstado(clEstado, "");
+  clInfo.textContent = "";
+  clVistaPrevia();
+  dibujarRegistroClaude();
+  clPanel.hidden = false;
+  clPanel.scrollTop = 0;
+}
+function cuClaudeCerrar() {
+  if (clPanel) clPanel.hidden = true;
+}
+
+// Permiso para avisar (se pide al tocar el botón, que es cuando el navegador lo permite)
+async function cuClaudePermiso() {
+  try {
+    if (esAppNativa()) return await nativoPermisoNotif();
+    if ("Notification" in window) return Notification.permission === "default" ? await Notification.requestPermission() : Notification.permission;
+  } catch (e) {}
+  return "";
+}
+function clMensajeAviso(permiso, hayHora) {
+  if (!hayHora) return "";
+  if (esAppNativa()) {
+    return permiso === "granted"
+      ? "🔔 Aviso programado en este celular: llegará a la hora aunque la app esté cerrada. Si no llega, en Ajustes del celular → Apps → Polo AI → Batería, elige «Sin restricciones»."
+      : "⚠️ Falta el permiso de notificaciones: actívalo en Ajustes del celular → Apps → Polo AI → Notificaciones.";
+  }
+  if (permiso === "granted") {
+    return "🔔 Aviso listo. En el navegador solo llega mientras Polo AI esté abierta o en segundo plano. Para que llegue con el celular bloqueado, abre una vez la app de Android de Polo AI: ahí se programa como notificación del sistema.";
+  }
+  return "⚠️ Este navegador no tiene permiso para avisar (" + (permiso || "no disponible") + "). La hora sí se guardó.";
+}
+
+async function guardarClaudeCu(quitar) {
+  const c = cuVerActual;
+  if (!c) return;
+  let f = null;
+  if (!quitar) {
+    f = clProxima(clHora.value);
+    if (!f) { setEstado(clEstado, "Elige primero la hora", "error"); return; }
+  }
+  const cuando = selloFechaHora();
+  const disponible = f ? clTexto(f) : "";
+  clGuardar.disabled = true;
+  clQuitar.disabled = true;
+  setEstado(clEstado, "Guardando…");
+  try {
+    const permiso = f ? await cuClaudePermiso() : "";
+    await llamarNotas("cuenta_claude_guardar", { id: c.id, disponible, cuando });
+    c.claudeDisponible = disponible;
+    c.claudeRegistro = [{ cuando, disponible }].concat(Array.isArray(c.claudeRegistro) ? c.claudeRegistro : []).slice(0, 20);
+    cuClaudeSincronizar(cuentas);
+    dibujarRegistroClaude();
+    dibujarClaudeBoton();
+    clQuitar.hidden = !f;
+    clVistaPrevia();
+    setEstado(clEstado, f ? "Guardado ✓" : "Aviso quitado ✓", "ok");
+    clInfo.textContent = clMensajeAviso(permiso, !!f);
+  } catch (err) {
+    setEstado(clEstado, "Error: " + err.message, "error");
+  } finally {
+    clGuardar.disabled = false;
+    clQuitar.disabled = false;
+  }
+}
+clGuardar.addEventListener("click", () => guardarClaudeCu(false));
+clQuitar.addEventListener("click", () => guardarClaudeCu(true));
+clHora.addEventListener("input", clVistaPrevia);
+diEl("di-cu-cl-volver").addEventListener("click", cuClaudeCerrar);
+
+// Lista de cuentas con hora pendiente (se guarda en este dispositivo para revisarla sin abrir Cuentas)
+function cuClaudeEspejo(lista) {
+  clEscribir(CL_CLAVE_ESPEJO, (lista || []).filter((c) => clParsear(c.claudeDisponible)).map((c) => ({ id: c.id, nombre: c.nombre, disponible: c.claudeDisponible })));
+}
+const clIdNativo = (cuentaId) => nativoIdNumerico("claude-" + cuentaId);
+function clIdsNativos() { return clLeer(CL_CLAVE_NATIVAS, []); }
+let clNativoOcupado = false;
+// App de Android: deja programada UNA notificación del sistema por cada cuenta con hora pendiente (y quita las que ya no valen)
+async function cuClaudeNativasSync(lista) {
+  if (!esAppNativa() || clNativoOcupado) return;
+  clNativoOcupado = true;
+  try {
+    const ahora = Date.now();
+    const deseadas = (lista || []).map((c) => ({ c, f: clParsear(c.claudeDisponible) })).filter((x) => x.f && x.f.getTime() > ahora);
+    const idsDeseados = deseadas.map((x) => clIdNativo(x.c.id));
+    const previos = clIdsNativos().filter((id) => idsDeseados.indexOf(id) === -1);
+    if (previos.length) await nativo("LocalNotifications", "cancel", { notifications: previos.map((id) => ({ id })) });
+    if (deseadas.length && (await nativoPermisoNotif()) === "granted") {
+      await nativo("LocalNotifications", "createChannel", {
+        id: NATIVO_CANAL, name: "Avisos de tareas", description: "Notificaciones diarias de Polo AI",
+        importance: 4, visibility: 1, vibration: true, lights: true, lightColor: "#7A44D6",
+      });
+      await nativo("LocalNotifications", "schedule", {
+        notifications: deseadas.map((x) => ({
+          id: clIdNativo(x.c.id),
+          title: "✳ Claude ya está disponible",
+          body: "Ya puedes volver a usar tu sesión de Claude en «" + x.c.nombre + "».",
+          channelId: NATIVO_CANAL,
+          smallIcon: "ic_stat_polo",
+          largeIcon: "polo_loto",
+          iconColor: "#D97757",
+          autoCancel: true,
+          schedule: { at: x.f.toISOString(), allowWhileIdle: true },
+          extra: { destino: "cuentas", cuenta: x.c.id },
+        })),
+      });
+      clEscribir(CL_CLAVE_NATIVAS, idsDeseados);
+    } else {
+      clEscribir(CL_CLAVE_NATIVAS, deseadas.length ? clIdsNativos().filter((id) => idsDeseados.indexOf(id) !== -1) : []);
+    }
+  } catch (e) {
+    console.warn("No se pudo programar el aviso de Claude:", nativoMensaje(e));
+  } finally {
+    clNativoOcupado = false;
+  }
+}
+// Un solo punto de entrada: actualiza el espejo local y los avisos del celular
+function cuClaudeSincronizar(lista) {
+  cuClaudeEspejo(lista);
+  cuClaudeNativasSync(lista);
+}
+// Navegador (app abierta o en segundo plano): cuando llega la hora, sale el aviso una sola vez
+async function cuClaudeRevisarWeb() {
+  const espejo = clLeer(CL_CLAVE_ESPEJO, []);
+  if (!espejo.length) return;
+  const ahora = Date.now();
+  const avisadas = clLeer(CL_CLAVE_AVISADAS, {});
+  const vigentes = {};
+  let cambio = false;
+  for (const e of espejo) {
+    const f = clParsear(e.disponible);
+    if (!f) continue;
+    const clave = e.id + "|" + e.disponible;
+    if (avisadas[clave]) { vigentes[clave] = 1; continue; }
+    if (ahora < f.getTime()) continue;
+    vigentes[clave] = 1;
+    cambio = true;
+    if (esAppNativa()) continue; // en la app de Android ya avisa la notificación del sistema
+    if (ahora - f.getTime() > 12 * 3600 * 1000) continue; // pasó hace mucho: ya no tiene caso avisar
+    const texto = "Ya puedes volver a usar tu sesión de Claude en «" + e.nombre + "».";
+    ofAviso("✳ " + texto, true);
+    try {
+      if ("Notification" in window && Notification.permission === "granted" && navigator.serviceWorker) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) {
+          await reg.showNotification("✳ Claude ya está disponible", {
+            body: texto,
+            icon: new URL("imagenes/perfil.webp", document.baseURI).href,
+            tag: "polo-claude-" + e.id,
+            renotify: true,
+            vibrate: [200, 100, 200],
+            data: { destino: "cuentas" },
+          });
+        }
+      }
+    } catch (err) {}
+  }
+  if (cambio || Object.keys(avisadas).length !== Object.keys(vigentes).length) {
+    Object.keys(vigentes).forEach((k) => { vigentes[k] = 1; });
+    clEscribir(CL_CLAVE_AVISADAS, vigentes);
+  }
+}
+// App de Android: al abrir (y cada 10 minutos) lee las cuentas para programar los avisos aunque la hora se haya puesto en otro dispositivo
+let clUltimaLectura = 0;
+async function cuClaudeLeerParaAvisos() {
+  if (!esAppNativa() || !sesionVigente() || Date.now() - clUltimaLectura < 10 * 60 * 1000) return;
+  clUltimaLectura = Date.now();
+  try {
+    const j = await llamarNotas("cuenta_listar");
+    cuClaudeSincronizar(Array.isArray(j.cuentas) ? j.cuentas : []);
+  } catch (e) {}
+}
+setInterval(() => { cuClaudeRevisarWeb().catch(() => {}); cuClaudeLeerParaAvisos(); }, 15000);
 
 // Redirige a la ficha del proyecto en Empresas/Proyectos
 async function irAProyectoDeCuenta(id) {
@@ -5797,6 +6157,7 @@ cuBorrar.addEventListener("click", borrarCu);
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelDi.hidden) return;
   if (!cuForm.hidden) cerrarFormCu();
+  else if (!clPanel.hidden) cuClaudeCerrar();
   else if (!cuVer.hidden) cerrarVerCu();
   else if (!cuSub.hidden) cerrarCuentasDi();
 });
@@ -12818,10 +13179,13 @@ async function nativoPermisoNotif() {
   if (p.display !== "granted" && p.display !== "denied") p = await nativo("LocalNotifications", "requestPermissions");
   return p.display;
 }
-async function nativoCancelarPendientes() {
+async function nativoCancelarPendientes(todas) {
   const p = await nativo("LocalNotifications", "getPending");
   if (p && p.notifications && p.notifications.length) {
-    await nativo("LocalNotifications", "cancel", { notifications: p.notifications.map((n) => ({ id: n.id })) });
+    // Los avisos de «Claude» (zona Cuentas) se programan aparte: solo se quitan al cerrar sesión
+    const claude = clIdsNativos();
+    const cancelar = todas ? p.notifications : p.notifications.filter((n) => claude.indexOf(n.id) === -1 && !(n.extra && n.extra.destino === "cuentas"));
+    if (cancelar.length) await nativo("LocalNotifications", "cancel", { notifications: cancelar.map((n) => ({ id: n.id })) });
   }
 }
 async function tdNativasSync(forzar) {
@@ -12871,7 +13235,8 @@ async function tdNativasSync(forzar) {
 function nativoAlCerrarSesion() {
   if (!esAppNativa()) return;
   try { localStorage.removeItem(NATIVO_CLAVE_FIRMA); } catch (e) {}
-  nativoCancelarPendientes().catch(() => {});
+  try { [CL_CLAVE_ESPEJO, CL_CLAVE_AVISADAS, CL_CLAVE_NATIVAS].forEach((k) => localStorage.removeItem(k)); } catch (e) {}
+  nativoCancelarPendientes(true).catch(() => {});
   nativo("SocialLogin", "logout", { provider: "google" }).catch(() => {});
 }
 
@@ -12997,7 +13362,7 @@ function irAEscribirDiario() {
 // desde la notificación), espera hasta 10 segundos.
 let poloDestinoPendiente = "";
 function poloAbrirDestino(destino) {
-  if (destino !== "diario" && destino !== "tareas") return;
+  if (destino !== "diario" && destino !== "tareas" && destino !== "cuentas") return;
   poloDestinoPendiente = destino;
   let intentos = 0;
   const probar = () => {
@@ -13006,6 +13371,11 @@ function poloAbrirDestino(destino) {
       if (!sesionVigente() && intentos++ < 20) { setTimeout(probar, 500); return; }
       poloDestinoPendiente = "";
       irAEscribirDiario();
+    } else if (destino === "cuentas") {
+      if (!sesionVigente() && intentos++ < 20) { setTimeout(probar, 500); return; }
+      poloDestinoPendiente = "";
+      mostrarSeccion("seccion-diario");
+      if (navSec === "seccion-diario") abrirCuentasDi();
     } else {
       poloDestinoPendiente = "";
       mostrarSeccion("seccion-tareas");
@@ -13545,7 +13915,7 @@ if ("serviceWorker" in navigator) {
 // La notificación del navegador abre «index.html?abrir=diario» cuando la app estaba cerrada
 try {
   const abrir = new URLSearchParams(location.search).get("abrir");
-  if (abrir === "diario" || abrir === "tareas") {
+  if (abrir === "diario" || abrir === "tareas" || abrir === "cuentas") {
     history.replaceState(history.state, "", location.pathname + location.hash);
     poloAbrirDestino(abrir);
   }

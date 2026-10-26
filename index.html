@@ -773,7 +773,33 @@
           <h3 id="di-cu-ver-nombre" class="di-cu-ver-nombre"></h3>
           <p id="di-cu-ver-correo" class="di-cu-ver-correo"></p>
           <div id="di-cu-ver-botones" class="di-cu-ver-botones"></div>
+          <!-- Botón «Claude» (debajo de «Ir al proyecto»): abre la zona para anotar la hora en que vuelve la sesión -->
+          <div id="di-cu-ver-claude" class="di-cu-ver-botones di-cu-ver-claude-caja"></div>
           <p id="di-cu-ver-estado" class="notas-estado"></p>
+        </div>
+      </div>
+
+      <!-- Zona «Claude» de una cuenta: hora en que vuelve a estar disponible la sesión, aviso en el celular y registro -->
+      <div id="di-cu-claude" class="notas-submenu di-cu-claude" hidden>
+        <header class="notas-sub-cabecera">
+          <button id="di-cu-cl-volver" class="notas-btn notas-btn-sec" type="button">&#8249; Volver</button>
+          <h3>&#10035; Claude</h3>
+        </header>
+        <div class="notas-sub-cuerpo di-cu-cl-cuerpo">
+          <p id="di-cu-cl-cuenta" class="di-cu-cl-cuenta"></p>
+          <label class="di-cu-cl-campo" for="di-cu-cl-hora">
+            <span>&iquest;A qu&eacute; hora vuelve a estar disponible tu sesi&oacute;n de Claude?</span>
+            <input id="di-cu-cl-hora" type="time" step="60" />
+          </label>
+          <p id="di-cu-cl-cuando" class="di-cu-cl-cuando"></p>
+          <div class="notas-fila di-cu-cl-botones">
+            <button id="di-cu-cl-guardar" class="notas-btn di-cu-cl-guardar" type="button">&#128276; Guardar y avisarme</button>
+            <button id="di-cu-cl-quitar" class="notas-btn notas-btn-sec" type="button" hidden>Quitar aviso</button>
+          </div>
+          <p id="di-cu-cl-estado" class="notas-estado"></p>
+          <p id="di-cu-cl-info" class="di-cu-cl-info"></p>
+          <h4 class="di-cu-cl-titulo-reg">Registro de cambios</h4>
+          <ul id="di-cu-cl-registro" class="di-cu-cl-registro"></ul>
         </div>
       </div>
 
@@ -808,8 +834,18 @@
               <input id="di-cu-correo" type="text" maxlength="200" placeholder="Ej. Correo 3 · el rojo" autocomplete="off" />
             </label>
             <div class="notas-campo">
-              <span>Vincular a empresas / proyectos</span>
-              <div id="di-cu-proyectos" class="di-cu-lista"></div>
+              <!-- La lista de proyectos solo se ve al desplegarla con este botón -->
+              <button id="di-cu-proy-toggle" class="notas-btn notas-btn-sec di-cu-desplegar" type="button" aria-expanded="false" aria-controls="di-cu-proyectos">
+                <span class="di-cu-desplegar-texto">Vincular a empresas / proyectos</span>
+                <span id="di-cu-proy-resumen" class="di-cu-desplegar-info"></span>
+                <span class="di-cu-flecha" aria-hidden="true">&#9662;</span>
+              </button>
+              <div id="di-cu-proyectos" class="di-cu-lista" hidden></div>
+            </div>
+            <!-- Los mismos links que se ven como recuadros en la zona de la cuenta (de los proyectos vinculados) -->
+            <div class="notas-campo">
+              <span>Links de los proyectos vinculados</span>
+              <div id="di-cu-links" class="di-cu-links"></div>
             </div>
           </div>
         </div>

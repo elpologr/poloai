@@ -3766,3 +3766,46 @@ body.en-seccion .menu { display: none; }
 @media (max-width: 700px) { .nt-pagina .nt-pag-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 @media (max-width: 480px) { .nt-pagina .nt-pag-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; } }
 .nt-ed-nombre { width: 100%; margin-bottom: 8px; }
+
+
+/* ---------- Cuentas: lista de proyectos desplegable y zona de links ---------- */
+.di-cu-lista[hidden] { display: none; }
+.di-cu-desplegar { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; }
+.di-cu-desplegar-texto { flex: 1 1 auto; }
+.di-cu-desplegar-info { flex: none; font-size: 0.8rem; font-weight: 600; opacity: 0.8; }
+.di-cu-flecha { flex: none; transition: transform 0.15s; }
+.di-cu-desplegar.abierto .di-cu-flecha { transform: rotate(180deg); }
+.di-cu-links { display: flex; flex-direction: column; gap: 8px; padding: 6px 8px; background: rgba(255, 255, 255, 0.6); border: 1px solid var(--nb-borde); border-radius: 10px; }
+.di-cu-links-bloque { display: flex; flex-direction: column; gap: 4px; }
+.di-cu-links-bloque + .di-cu-links-bloque { padding-top: 6px; border-top: 1px solid var(--nb-borde); }
+.di-cu-links-nombre { margin: 0; font-size: 0.85rem; font-weight: 800; color: var(--nb-texto); }
+.di-cu-link-fila { display: flex; flex-direction: column; padding: 4px 6px; font-size: 0.85rem; text-decoration: none; color: var(--nb-texto); background: rgba(255, 255, 255, 0.8); border: 1px solid var(--nb-borde); border-radius: 8px; }
+.di-cu-link-fila:hover { background: #eef6ff; }
+.di-cu-link-red { font-weight: 800; }
+.di-cu-link-url { font-size: 0.75rem; color: var(--nb-suave); overflow-wrap: anywhere; }
+
+/* ---------- Botón y zona «Claude» (colores de Claude: terracota y crema) ---------- */
+.di-cu-ver-claude-caja { margin-top: 0; }
+.notas-btn.di-cu-ver-claude {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  color: #faf6ef; font-weight: 800;
+  background: linear-gradient(135deg, #e08a6b, #d97757 55%, #c4613f);
+  border: 1px solid #f0b39b;
+  box-shadow: 0 6px 16px rgba(217, 119, 87, 0.4);
+}
+.notas-btn.di-cu-ver-claude:hover { background: linear-gradient(135deg, #e6967a, #de8160 55%, #cb6a47); }
+.di-cu-ver-claude-sub { font-size: 0.75rem; font-weight: 600; color: #fff3ea; }
+.di-cu-cl-cuerpo { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding-top: 8px; }
+.di-cu-cl-cuenta { margin: 0; font-size: 1.1rem; font-weight: 800; color: #f0b39b; overflow-wrap: anywhere; }
+.di-cu-cl-campo { display: flex; flex-direction: column; align-items: center; gap: 8px; width: min(100%, 360px); font-weight: 700; color: #faf6ef; }
+.di-cu-cl-campo input[type="time"] { width: 100%; padding: 12px; font-size: 1.6rem; font-weight: 800; text-align: center; color: #2b160d; background: #faf6ef; border: 2px solid #d97757; border-radius: 12px; }
+.di-cu-cl-cuando { margin: 0; min-height: 1.3em; font-size: 0.95rem; font-weight: 700; color: #f0b39b; }
+.di-cu-cl-botones { justify-content: center; }
+.notas-btn.di-cu-cl-guardar { color: #faf6ef; font-weight: 800; background: linear-gradient(135deg, #e08a6b, #d97757 55%, #c4613f); border: 1px solid #f0b39b; }
+.di-cu-cl-info { margin: 0; max-width: 420px; font-size: 0.82rem; line-height: 1.35; color: #d9cfc4; }
+.di-cu-cl-info:empty { display: none; }
+.di-cu-cl-titulo-reg { margin: 10px 0 0; font-size: 0.95rem; color: #faf6ef; }
+.di-cu-cl-registro { list-style: none; margin: 0; padding: 0; width: min(100%, 420px); display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.di-cu-cl-registro li { padding: 6px 10px; font-size: 0.85rem; color: #faf6ef; background: rgba(217, 119, 87, 0.16); border: 1px solid rgba(240, 179, 155, 0.35); border-radius: 10px; }
+.di-cu-cl-registro li small { display: block; color: #d9cfc4; }
+.di-cu-cl-vacio { color: #d9cfc4; background: none !important; border: none !important; }
