@@ -325,17 +325,18 @@
           <button id="td-ir-login" class="notas-btn" type="button">Iniciar sesión</button>
         </div>
         <div id="td-contenido">
+          <div id="td-fijo" class="td-fijo"></div>
           <div class="td-nueva">
             <input id="td-nuevo" type="text" maxlength="300" autocomplete="off" placeholder="Escribe una tarea obligatoria…" aria-label="Nueva tarea obligatoria diaria" />
             <input id="td-hora-nueva" class="td-hora-campo" type="time" aria-label="Horario (opcional)" title="Horario (opcional)" />
-            <select id="td-alarma-nueva" aria-label="Alarma" title="Dónde suena la alarma (solo si pones horario)"></select>
+            <select id="td-alarma-nueva" aria-label="Alarma" title="Dónde llega la notificación (solo si pones horario)"></select>
             <button id="td-agregar" class="notas-btn" type="button">+ Agregar</button>
           </div>
           <div class="td-alarmas-barra">
-            <button id="td-activar" class="notas-btn td-btn-sec" type="button">🔔 Activar alarmas en este dispositivo</button>
+            <button id="td-activar" class="notas-btn td-btn-sec" type="button">🔔 Activar avisos en este dispositivo</button>
             <label class="td-pantalla"><input id="td-pantalla" type="checkbox" /> Mantener la pantalla encendida</label>
           </div>
-          <p id="td-alarmas-info" class="td-info">Las alarmas suenan mientras la app esté abierta. Toca «Activar alarmas» una vez en cada dispositivo.</p>
+          <p id="td-alarmas-info" class="td-info">Recibes una notificación con la flor de loto a la hora de cada tarea. Toca «Activar avisos» una vez en cada dispositivo.</p>
           <p id="td-estado" class="notas-estado proy-estado-lista"></p>
           <div id="td-grid" class="td-grid"></div>
         </div>

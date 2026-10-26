@@ -4749,7 +4749,10 @@ async function guardarDi() {
   try {
     await llamarNotas(editando ? "diario_editar" : "diario_agregar", e);
     if (editando) diarios = diarios.map((x) => (x.id === id ? e : x));
-    else diarios.push(e);
+    else {
+      diarios.push(e);
+      tdMarcarDiarioEscrito(e.fecha); // si es de hoy, el aviso de las 10:00 pm de hoy ya no hace falta
+    }
     // Actividad o trabajo: el recuerdo se queda en este día y además se crea en Actividades / Trabajo
     let aviso = "";
     if (tipo !== "nota") {
@@ -12462,7 +12465,8 @@ async function loginGoogleNativo() {
 
 // Alarmas de las tareas diarias como notificaciones programadas del sistema: suenan con la app cerrada y con la
 // pantalla apagada, todos los días a su hora, y se vuelven a programar solas al reiniciar el celular.
-const NATIVO_CANAL = "polo-alarmas-v1"; // el sonido de un canal no se puede cambiar después: si lo cambias, usa otro nombre
+const NATIVO_CANAL = "polo-avisos-v1"; // el sonido/importancia de un canal no se puede cambiar después: si lo cambias, usa otro nombre
+const NATIVO_CANAL_VIEJO = "polo-alarmas-v1"; // canal de la versión con alarma (se borra)
 const NATIVO_CLAVE_FIRMA = "polo-nativo-firma"; // resumen de lo último que se programó (evita reprogramar sin necesidad)
 function nativoIdNumerico(idTexto) {
   let h = 7;
@@ -12484,8 +12488,10 @@ async function nativoCancelarPendientes() {
 }
 async function tdNativasSync(forzar) {
   if (!esAppNativa() || nativoOcupado || !tdCargadas || !sesionVigente()) return;
-  const deseadas = tareasDiarias.filter((t) => TD_HORA_OK.test(t.hora || "") && (t.alarma === "celular" || t.alarma === "ambos"));
-  const firma = JSON.stringify(deseadas.map((t) => [t.id, t.hora, t.texto]).sort());
+  const deseadas = tareasDiarias
+    .filter((t) => TD_HORA_OK.test(t.hora || "") && (t.alarma === "celular" || t.alarma === "ambos"))
+    .concat([TD_DIARIO]); // «Escribir Diario» a las 10:00 pm siempre se programa
+  const firma = "v2|" + JSON.stringify(deseadas.map((t) => [t.id, t.hora, t.texto]).sort());
   let guardada = "";
   try { guardada = localStorage.getItem(NATIVO_CLAVE_FIRMA) || ""; } catch (e) {}
   if (!forzar && firma === guardada) return;
@@ -12493,9 +12499,10 @@ async function tdNativasSync(forzar) {
   try {
     if ((await nativoPermisoNotif()) !== "granted") return; // sin permiso no se programa nada (se reintenta después)
     await nativo("LocalNotifications", "createChannel", {
-      id: NATIVO_CANAL, name: "Alarmas de tareas", description: "Alarmas diarias de Polo AI",
-      importance: 5, visibility: 1, sound: "alarma.wav", vibration: true, lights: true, lightColor: "#7A44D6",
+      id: NATIVO_CANAL, name: "Avisos de tareas", description: "Notificaciones diarias de Polo AI",
+      importance: 4, visibility: 1, vibration: true, lights: true, lightColor: "#7A44D6",
     });
+    nativo("LocalNotifications", "deleteChannel", { id: NATIVO_CANAL_VIEJO }).catch(() => {});
     await nativoCancelarPendientes();
     if (deseadas.length) {
       await nativo("LocalNotifications", "schedule", {
@@ -12503,15 +12510,15 @@ async function tdNativasSync(forzar) {
           const p = t.hora.split(":").map(Number);
           return {
             id: nativoIdNumerico(t.id),
-            title: "⏰ " + t.hora + " · Polo AI",
-            body: t.texto.slice(0, 200),
+            title: t.fijo ? "📓 Escribir Diario" : "🔔 " + t.hora + " · Polo AI",
+            body: t.fijo ? "Son las 10:00 pm. Toca para escribir tu nota de hoy." : t.texto.slice(0, 200),
             channelId: NATIVO_CANAL,
-            sound: "alarma.wav",
             smallIcon: "ic_stat_polo",
+            largeIcon: "polo_loto", // imagen de la flor de loto (android/app/src/main/res/drawable/polo_loto.webp)
             iconColor: "#4A2685",
             autoCancel: true,
             schedule: { on: { hour: p[0], minute: p[1] }, allowWhileIdle: true },
-            extra: { tarea: t.id },
+            extra: { tarea: t.id, destino: t.fijo ? "diario" : "tareas" },
           };
         }),
       });
@@ -12540,6 +12547,7 @@ const tdSinSesion = document.getElementById("td-sin-sesion");
 const tdContenido = document.getElementById("td-contenido");
 const tdEstado = document.getElementById("td-estado");
 const tdGrid = document.getElementById("td-grid");
+const tdFijo = document.getElementById("td-fijo");
 const tdNuevo = document.getElementById("td-nuevo");
 const tdHoraNueva = document.getElementById("td-hora-nueva");
 const tdAlarmaNueva = document.getElementById("td-alarma-nueva");
@@ -12551,11 +12559,15 @@ const CLAVE_TD_PANTALLA = "polo-tareas-diarias-pantalla"; // "1" si se quiere ma
 const TD_ES_ANDROID = /Android/i.test(navigator.userAgent);
 const TD_HORA_OK = /^([01]\d|2[0-3]):[0-5]\d$/;
 const TD_ALARMAS = [
-  ["", "🔕 Sin alarma"],
-  ["celular", "📱 Alarma en el celular (Android)"],
-  ["pc", "💻 Alarma en la PC"],
+  ["", "🔕 Sin aviso"],
+  ["celular", "🔔 Notificación en el celular (Android)"],
+  ["pc", "🔔 Notificación en la PC"],
   ["ambos", "📱💻 En celular y PC"],
 ];
+
+// Tarea obligatoria FIJA (no está en la hoja de Google: siempre existe, aparece aparte y avisa todos los días a las 10:00 pm)
+const TD_DIARIO = { id: "fijo-escribir-diario", texto: "Escribir Diario", hora: "22:00", alarma: "ambos", fijo: true };
+const CLAVE_TD_DIARIO = "polo-escribir-diario-hecho"; // «AAAA-MM-DD» del último día en que se guardó una nota nueva en el Diario
 let tareasDiarias = [];
 let tdCargadas = false;
 let tdCargando = false;
@@ -12598,7 +12610,74 @@ function tdOrdenadas() {
   });
 }
 
+// ----- Tarea obligatoria fija «Escribir Diario» (aparece aparte de las demás) -----
+const tdDiarioEscritoHoy = () => { try { return localStorage.getItem(CLAVE_TD_DIARIO) === tdHoyClave(); } catch (e) { return false; } };
+// Se llama al guardar una nota NUEVA en el Diario: si es de hoy, el aviso de las 10:00 pm de hoy ya no hace falta
+function tdMarcarDiarioEscrito(fecha) {
+  if (fecha !== tdHoyClave()) return;
+  try { localStorage.setItem(CLAVE_TD_DIARIO, fecha); } catch (e) {}
+  tdDibujarFijo();
+}
+function tdDibujarFijo() {
+  if (!tdFijo) return;
+  tdFijo.innerHTML = "";
+  const hecho = tdDiarioEscritoHoy();
+  const caja = document.createElement("div");
+  caja.className = "td-fijo-caja" + (hecho ? " td-fijo-hecho" : "");
+  const info = document.createElement("div");
+  const et = document.createElement("div");
+  et.className = "td-fijo-etiqueta";
+  et.textContent = "Tarea obligatoria fija";
+  const ti = document.createElement("h3");
+  ti.className = "td-fijo-titulo";
+  ti.textContent = "📓 " + TD_DIARIO.texto;
+  const de = document.createElement("p");
+  de.className = "td-fijo-detalle";
+  de.textContent = "🕙 10:00 pm · 🔔 aviso todos los días · " + (hecho ? "✓ Hoy ya escribiste" : "Aún no escribes hoy");
+  info.append(et, ti, de);
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "td-fijo-btn";
+  btn.textContent = "✍️ Escribir ahora";
+  btn.addEventListener("click", irAEscribirDiario);
+  caja.append(info, btn);
+  tdFijo.appendChild(caja);
+}
+
+// Lleva directo al Diario de HOY con una nota nueva abierta para escribir
+function irAEscribirDiario() {
+  mostrarSeccion("seccion-diario");
+  if (navSec !== "seccion-diario" || !sesionVigente()) return; // sin sesión se ve el aviso de «Iniciar sesión»
+  abrirDiaDi(tdHoyClave());
+  abrirFormDi(null);
+  const n = new Date();
+  diNombre.value = "Diario " + dos(n.getDate()) + "/" + dos(n.getMonth() + 1) + "/" + n.getFullYear();
+  diDescripcion.focus();
+}
+
+// A dónde llevar al tocar un aviso: «diario» (nota nueva de hoy) o «tareas». Si la sesión aún no carga (app recién abierta
+// desde la notificación), espera hasta 10 segundos.
+let poloDestinoPendiente = "";
+function poloAbrirDestino(destino) {
+  if (destino !== "diario" && destino !== "tareas") return;
+  poloDestinoPendiente = destino;
+  let intentos = 0;
+  const probar = () => {
+    if (poloDestinoPendiente !== destino) return;
+    if (destino === "diario") {
+      if (!sesionVigente() && intentos++ < 20) { setTimeout(probar, 500); return; }
+      poloDestinoPendiente = "";
+      irAEscribirDiario();
+    } else {
+      poloDestinoPendiente = "";
+      mostrarSeccion("seccion-tareas");
+    }
+  };
+  probar();
+}
+
 function dibujarTareasDiarias() {
+  tdDibujarFijo();
   tdGrid.innerHTML = "";
   if (!sesionVigente()) return;
   if (!tareasDiarias.length) {
@@ -12907,12 +12986,13 @@ async function tdNotificar(t) {
     if (!("Notification" in window) || Notification.permission !== "granted" || !navigator.serviceWorker) return;
     const reg = await navigator.serviceWorker.getRegistration();
     if (!reg) return;
-    await reg.showNotification("⏰ " + t.hora + " · " + t.texto, {
-      body: "Toca para abrir la app y desactivar la alarma",
+    await reg.showNotification(t.fijo ? "📓 Escribir Diario" : "🔔 " + t.hora + " · " + t.texto, {
+      body: t.fijo ? "Son las 10:00 pm. Toca para escribir tu nota de hoy." : "Toca para abrir Polo AI",
+      icon: new URL("imagenes/perfil.webp", document.baseURI).href, // la flor de loto
       tag: "polo-alarma-" + t.id,
       renotify: true,
-      requireInteraction: true,
-      vibrate: [500, 200, 500, 200, 500],
+      vibrate: [200, 100, 200],
+      data: { destino: t.fijo ? "diario" : "tareas" },
     });
   } catch (e) {}
 }
@@ -12967,6 +13047,28 @@ function tdVentanaAlarma() {
   return v;
 }
 
+// Aviso suave (notificación, sin sonido de alarma): marca que ya avisó hoy, manda la notificación del sistema
+// (en la app de Android ya la manda el sistema solo) y muestra un cartelito dentro de la app que lleva al destino.
+let tdToast = null;
+let tdToastTimer = null;
+function tdAvisar(t) {
+  tdEscribir(CLAVE_TD_SONADAS, t.id, tdHoyClave());
+  if (!esAppNativa()) tdNotificar(t);
+  if (!tdToast) {
+    tdToast = document.createElement("div");
+    tdToast.className = "aviso-flotante td-toast";
+    tdToast.setAttribute("role", "status");
+    tdToast.style.cursor = "pointer";
+    document.body.appendChild(tdToast);
+  }
+  tdToast.textContent = t.fijo ? "📓 Son las 10:00 pm: toca aquí para escribir tu Diario" : "🔔 " + t.hora + " · " + t.texto;
+  tdToast.onclick = () => { tdToast.hidden = true; poloAbrirDestino(t.fijo ? "diario" : "tareas"); };
+  tdToast.hidden = false;
+  clearTimeout(tdToastTimer);
+  tdToastTimer = setTimeout(() => { tdToast.hidden = true; }, 20000);
+}
+
+// (Sonido de alarma de la versión anterior: ya no se usa; se conserva por si algún día se quiere volver a activar)
 function tdSonar(t) {
   if (tdSonando) return;
   tdSonando = t;
@@ -13015,19 +13117,22 @@ function tdRevisarAlarmas() {
   const min = ahora.getHours() * 60 + ahora.getMinutes();
   const sonadas = tdLeer(CLAVE_TD_SONADAS);
   const hechas = tdLeerHechas();
-  const ordenadas = tdOrdenadas();
+  const ordenadas = tdOrdenadas().concat([TD_DIARIO]); // la tarea fija «Escribir Diario» siempre se revisa
   for (let i = 0; i < ordenadas.length; i++) {
     const t = ordenadas[i];
     if (!tdSuenaAqui(t)) continue;
+    if (t.fijo && tdDiarioEscritoHoy()) continue; // ya escribiste en el Diario hoy: no hace falta avisar
     if (hechas[t.id] && hechas[t.id].slice(0, 10) === hoy) continue;
     if (tdPospuestas[t.id]) {
-      if (Date.now() >= tdPospuestas[t.id]) { delete tdPospuestas[t.id]; tdSonar(t); return; }
+      if (Date.now() >= tdPospuestas[t.id]) { delete tdPospuestas[t.id]; tdAvisar(t); return; }
       continue;
     }
     if (sonadas[t.id] === hoy) continue;
     const p = t.hora.split(":").map(Number);
     const tmin = p[0] * 60 + p[1];
-    if (min >= tmin && min <= tmin + 15) { tdSonar(t); return; }
+    // Las tareas avisan hasta 15 minutos después de su hora; el Diario, hasta el fin del día (por si abres la app tarde)
+    const tope = t.fijo ? 24 * 60 - 1 : tmin + 15;
+    if (min >= tmin && min <= tope) { tdAvisar(t); return; }
   }
 }
 setInterval(tdRevisarAlarmas, 15000);
@@ -13053,9 +13158,6 @@ document.addEventListener("visibilitychange", () => {
 
 // Botón «Activar alarmas en este dispositivo»: desbloquea el sonido y pide permiso para avisos
 document.getElementById("td-activar").addEventListener("click", async () => {
-  tdDesbloquearAudio();
-  tdPitido();
-  tdVibrar();
   let permiso = "no disponible";
   try { if ("Notification" in window) permiso = await Notification.requestPermission(); } catch (e) {}
   if (esAppNativa()) {
@@ -13064,12 +13166,13 @@ document.getElementById("td-activar").addEventListener("click", async () => {
   }
   tdInfo.textContent = esAppNativa()
     ? (permiso === "granted"
-      ? "🔔 Alarmas programadas en el sistema: suenan todos los días a su hora aunque la app esté cerrada o la pantalla apagada. Si alguna no suena, en Ajustes del celular → Apps → Polo AI → Batería, elige «Sin restricciones»."
+      ? "🔔 Avisos programados en el sistema: llegan todos los días a su hora (Escribir Diario a las 10:00 pm) aunque la app esté cerrada. Si alguno no llega, en Ajustes del celular → Apps → Polo AI → Batería, elige «Sin restricciones»."
       : "⚠️ Falta el permiso de notificaciones: actívalo en Ajustes del celular → Apps → Polo AI → Notificaciones.")
     :
-    "🔔 Alarmas listas en este " + (TD_ES_ANDROID ? "celular Android" : "dispositivo") + ". Avisos en segundo plano: " +
-    (permiso === "granted" ? "permitidos" : "no permitidos (" + permiso + ")") +
-    ". Deja la app abierta: con la pantalla apagada o la app cerrada el celular no la deja sonar.";
+    "🔔 Avisos listos en este " + (TD_ES_ANDROID ? "celular Android" : "dispositivo") + ". Notificaciones: " +
+    (permiso === "granted" ? "permitidas (te mandé una de prueba)" : "no permitidas (" + permiso + ")") +
+    ". En el navegador llegan mientras Polo AI esté abierta o en segundo plano; con la app cerrada del todo solo la app de Android puede avisar.";
+  if (!esAppNativa() && permiso === "granted") tdNotificar({ id: "prueba", hora: "", texto: "Así se verán tus avisos 🪷" });
 });
 const tdPantalla = document.getElementById("td-pantalla");
 tdPantalla.checked = localStorage.getItem(CLAVE_TD_PANTALLA) === "1";
@@ -13078,6 +13181,37 @@ tdPantalla.addEventListener("change", () => {
   tdAplicarPantalla();
 });
 tdAplicarPantalla();
+
+// ----- Al tocar un aviso se abre el destino correcto -----
+function nativoEscuchar(plugin, evento, fn) {
+  try {
+    const p = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins[plugin];
+    if (p && p.addListener) { p.addListener(evento, fn); return true; }
+  } catch (e) {}
+  try { if (Capacitor.addListener) { Capacitor.addListener(plugin, evento, fn); return true; } } catch (e) {}
+  try { if (Capacitor.nativeCallback) { Capacitor.nativeCallback(plugin, "addListener", { eventName: evento }, fn); return true; } } catch (e) {}
+  return false;
+}
+if (esAppNativa()) {
+  nativoEscuchar("LocalNotifications", "localNotificationActionPerformed", (accion) => {
+    const ex = (accion && accion.notification && accion.notification.extra) || {};
+    poloAbrirDestino(ex.destino || (ex.tarea === TD_DIARIO.id ? "diario" : "tareas"));
+    tdQuitarNotificaciones();
+  });
+}
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (e) => {
+    if (e.data && e.data.tipo === "polo-abrir") poloAbrirDestino(e.data.destino);
+  });
+}
+// La notificación del navegador abre «index.html?abrir=diario» cuando la app estaba cerrada
+try {
+  const abrir = new URLSearchParams(location.search).get("abrir");
+  if (abrir === "diario" || abrir === "tareas") {
+    history.replaceState(history.state, "", location.pathname + location.hash);
+    poloAbrirDestino(abrir);
+  }
+} catch (e) {}
 
 function actualizarPanelTareas() {
   if (!sesionVigente()) {

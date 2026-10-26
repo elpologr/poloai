@@ -4,7 +4,7 @@
 // 2) Las actualizaciones se revisan en segundo plano (la página lo pide unos segundos después de abrir). Si hay una versión
 //    nueva, se guarda COMPLETA de una sola vez (nunca a medias) y la página avisa «Hay una versión nueva» para recargar.
 // 3) «sin-internet.html» queda solo como último recurso (si nunca se abrió la app con internet en este dispositivo).
-const CACHE = "polo-app-v4";
+const CACHE = "polo-app-v5";
 const PAGINA_OFFLINE = "sin-internet.html";
 const LIMITE_RED = 15000; // ms máximos por archivo al revisar actualizaciones en segundo plano
 
@@ -145,13 +145,20 @@ self.addEventListener("message", (e) => {
   if (e.data && e.data.tipo === "revisar") e.waitUntil(revisarActualizacion());
 });
 
-// Al tocar un aviso de alarma se abre (o se enfoca) la app
+// Al tocar un aviso se abre (o se enfoca) la app y se lleva a su destino: «diario» (nota nueva de hoy) o «tareas»
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
+  const destino = (e.notification.data && e.notification.data.destino) || "";
+  const url = BASE + "index.html" + (destino ? "?abrir=" + destino : "");
   e.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
-      for (const c of cs) { if ("focus" in c) return c.focus(); }
-      return self.clients.openWindow("index.html");
+      for (const c of cs) {
+        if ("focus" in c) {
+          const avisar = () => { try { c.postMessage({ tipo: "polo-abrir", destino }); } catch (err) {} };
+          return c.focus().then(avisar, avisar);
+        }
+      }
+      return self.clients.openWindow(url);
     })
   );
 });

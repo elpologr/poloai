@@ -2700,6 +2700,16 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
 .td-horario { font-size: 0.78rem; font-weight: 700; min-height: 1em; }
 .td-tile .td-ok { width: 100%; padding: 7px 8px; font: inherit; font-size: 0.85rem; font-weight: 700; color: #fff; background: #2f9e5a; border: 0; border-radius: 9px; cursor: pointer; white-space: nowrap; }
 .td-tile .td-ok:disabled { opacity: 0.6; cursor: default; }
+
+/* Tarea obligatoria fija «Escribir Diario» (aparte de las demás) */
+.td-fijo { margin-top: 14px; }
+.td-fijo-caja { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 16px; color: #fff; background: linear-gradient(135deg, #4a2685, #7a44d6); border-radius: 16px; box-shadow: 0 6px 14px rgba(60, 30, 100, 0.28); }
+.td-fijo-caja.td-fijo-hecho { background: linear-gradient(135deg, #1f7a45, #2f9e5a); }
+.td-fijo-etiqueta { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.85; }
+.td-fijo-titulo { margin: 2px 0 4px; font-size: 1.15rem; font-weight: 800; }
+.td-fijo-detalle { margin: 0; font-size: 0.82rem; opacity: 0.95; }
+.td-fijo-btn { padding: 11px 18px; font: inherit; font-weight: 800; color: #4a2685; background: #fff; border: 0; border-radius: 12px; cursor: pointer; white-space: nowrap; }
+.td-fijo-btn:active { transform: scale(0.97); }
 .td-dialogo { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(30, 10, 60, 0.6); }
 .td-dialogo-caja { width: min(420px, 100%); background: #fff; color: #2b2140; border-radius: 16px; padding: 18px; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4); }
 .td-dialogo-caja h3 { margin: 0 0 10px; }
