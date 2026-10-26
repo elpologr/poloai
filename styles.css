@@ -3478,14 +3478,22 @@ body.en-seccion .menu { display: none; }
   .menu-tres .btn-menu-hoy .btn-menu-icono { font-size: 1.4rem; }
 }
 
-/* Solo en PC (pantalla ancha): con una zona abierta, arriba siguen los 3 botones en fila y los 10 botones quedan en
-   las paredes exteriores de la zona, en columna de arriba a abajo (izquierda: Calendario → Ejercicio; derecha: Diario → Comandos). */
+/* Solo en PC (pantalla ancha): con una zona abierta, arriba siguen los 3 botones en fila y los botones quedan en
+   las paredes exteriores de la zona, en columna de arriba a abajo:
+   - Izquierda: Notas (grande) → Calendario → Revisar Notas → Deudas → Bazar → Ejercicio
+   - Derecha: Tareas por Terminar (grande) → Diario → Pendientes → Trabajo → Información Primordial → Comandos
+   Todo el bloque (botón grande + 5 botones) se centra en la pantalla y se baja un poco (--desp) para que no se vea amontonado
+   contra los 3 botones de arriba. Los 2 botones grandes miden 1.2 veces el lado de los demás. */
 @media (min-width: 1060px) {
   body.en-seccion .menu {
     display: block;
-    --lado-rail: min(104px, calc((100vw - 820px) / 2 - 32px), calc((100vh - 150px) / 5));
+    --lado-rail: min(104px, calc((100vw - 852px) / 2.4), calc((100vh - 170px) / 6.2));
+    --grande: calc(var(--lado-rail) * 1.2);
+    --pila: calc(var(--lado-rail) * 6.2 + 50px); /* alto total: botón grande + separación + 5 botones con sus separaciones */
+    --desp: 24px; /* cuánto se baja todo el bloque respecto al centro de la pantalla */
+    --tope: calc(50% + var(--desp) - var(--pila) / 2); /* borde superior del bloque */
   }
-  body.en-seccion .menu-superior { display: none; } /* Notas / Tareas por Terminar solo se ven en el menú principal */
+  body.en-seccion .menu-superior { display: contents; } /* los 2 botones grandes se colocan solos, ver abajo */
   body.en-seccion .menu-tres { max-width: 788px; margin: 0 auto; } /* mismo ancho que la zona */
   body.en-seccion .menu-izq,
   body.en-seccion .menu-der {
@@ -3493,8 +3501,7 @@ body.en-seccion .menu { display: none; }
     flex-direction: column;
     gap: 10px;
     position: fixed;
-    top: 50%;
-    transform: translateY(-50%);
+    top: calc(var(--tope) + var(--grande) + 10px); /* justo debajo del botón grande */
     z-index: 5;
   }
   body.en-seccion .menu-izq { right: calc(50% + 410px); } /* pegado a la pared izquierda de la zona (con 16 px de aire) */
@@ -3503,6 +3510,22 @@ body.en-seccion .menu { display: none; }
   body.en-seccion .menu-der .btn-menu { width: var(--lado-rail); font-size: 0.8rem; }
   body.en-seccion .menu-izq .btn-menu-icono,
   body.en-seccion .menu-der .btn-menu-icono { font-size: 1.8rem; }
+
+  /* Notas (izquierda, arriba de Calendario) y Tareas por Terminar (derecha, arriba de Diario) */
+  body.en-seccion .menu-superior .btn-menu.btn-menu-grande {
+    position: fixed;
+    top: var(--tope);
+    z-index: 5;
+    width: var(--grande);
+    height: var(--grande);
+    gap: 4px;
+    padding: 4px;
+    font-size: 0.9rem;
+    border-radius: 18px;
+  }
+  body.en-seccion .menu-superior .btn-menu-grande .btn-menu-icono { font-size: 2.3rem; }
+  body.en-seccion #btn-menu-notas-imp { right: calc(50% + 410px); }
+  body.en-seccion #btn-menu-tareas-pend { left: calc(50% + 410px); }
 }
 .btn-volver-menu {
   display: inline-flex;
