@@ -1257,6 +1257,15 @@ async function alternarFavorito(n, boton) {
   try {
     await llamarNotas("nota_favorito", { id: n.id, favorito: nuevo });
     n.favorito = nuevo;
+    // Se guarda también en la copia de este dispositivo; si no, al recargar (F5) volvería a verse la marca vieja
+    try {
+      const c = ofLeerLista("nota_listar");
+      if (c && c.j && Array.isArray(c.j.notas)) {
+        const x = c.j.notas.find((y) => String(y.id) === String(n.id));
+        if (x) x.favorito = nuevo;
+        ofEscribirLista("nota_listar", c);
+      }
+    } catch (e) { /* si no se pudo, la próxima lectura de Google lo corrige */ }
     dibujarNotas(); // redibuja el panel de Notas y todas las zonas
   } catch (e) {
     if (boton) boton.disabled = false;
@@ -4937,7 +4946,7 @@ function dibujarNotarioZonaDi() {
   diNtUso.textContent = ntFmt(largo) + " / " + ntFmt(lim) + " caracteres · quedan " + ntFmt(Math.max(0, lim - largo));
   n.notas.slice().reverse().forEach((nota) => {
     const primera = String(nota.texto || "").split(/\r?\n/).map((x) => x.trim()).find(Boolean) || "Sin texto";
-    const titulo = primera.length > 40 ? primera.slice(0, 40) + "…" : primera;
+    const titulo = nota.nombre || (primera.length > 40 ? primera.slice(0, 40) + "…" : primera);
     const b = nvCrearChip(titulo, nota.fecha ? String(nota.fecha).split(" ")[0] : "", resumenCorto(String(nota.texto || ""), 90), "", "nt-pag-chip");
     b.setAttribute("aria-label", "Ver o editar esta nota del notario " + n.nombre);
     b.addEventListener("click", () => ntAbrirEditor(n, nota));
@@ -13596,10 +13605,12 @@ var NT = { lista: [], cargados: false, cargando: false, montajes: [], abierto: n
 
 const ntFmt = (n) => Number(n).toLocaleString("es-MX");
 const ntLimpiar = (t) => String(t || "").split(NT_MARCA).join("~~✂~~").trim();
+// Nombre de una nota del notario: una sola línea, sin «|» (igual que en el Apps Script), máximo 60 caracteres
+const ntLimpiarNombre = (t) => String(t || "").replace(/[\r\n|]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
 const ntNuevoId = () => String(Date.now() * 1000 + Math.floor(Math.random() * 1000));
 // Largo EXACTO que tendrá la celda (con encabezados y separadores), tal como lo calcula el Apps Script
 function ntLargo(notas) {
-  return notas.map((n) => "#" + n.id + "|" + n.fecha + "\n" + n.texto).join(NT_SEPARADOR).length;
+  return notas.map((n) => "#" + n.id + "|" + n.fecha + (n.nombre ? "|" + n.nombre : "") + "\n" + n.texto).join(NT_SEPARADOR).length;
 }
 // Tope de un notario: depende de dónde se guarda (Sheets: una celda; Drive: archivo .txt)
 const ntLimiteDe = (n) => (n && n.limite) || (n && n.destino === "sheets" ? NT_LIMITE_SHEETS : NT_LIMITE);
@@ -13749,6 +13760,7 @@ ntNotaModal.innerHTML = `
       <button type="button" class="nt-cerrar nt-ed-cerrar" aria-label="Cerrar" title="Cerrar">&times;</button>
     </div>
     <div class="nt-ed-fecha" hidden></div>
+    <input type="text" class="nt-texto nt-ed-nombre" maxlength="60" placeholder="Nombre de la nota (opcional)" aria-label="Nombre de la nota" autocomplete="off" />
     <textarea class="nt-texto nt-ed-texto" rows="9" placeholder="Escribe tu nota…" aria-label="Texto de la nota"></textarea>
     <div class="nt-contador nt-ed-contador"></div>
     <div class="nt-fila">
@@ -13762,6 +13774,7 @@ document.body.appendChild(ntNotaModal);
 const ntEd = {
   titulo: ntNotaModal.querySelector(".nt-ed-titulo"),
   fecha: ntNotaModal.querySelector(".nt-ed-fecha"),
+  nombre: ntNotaModal.querySelector(".nt-ed-nombre"),
   texto: ntNotaModal.querySelector(".nt-ed-texto"),
   contador: ntNotaModal.querySelector(".nt-ed-contador"),
   guardar: ntNotaModal.querySelector(".nt-ed-guardar"),
@@ -13816,9 +13829,10 @@ function ntEdRevisar() {
   const e = NT.editor;
   if (!e) return;
   const t = ntLimpiar(ntEd.texto.value);
+  const nom = ntLimpiarNombre(ntEd.nombre.value);
   const lista = e.nota
-    ? e.n.notas.map((x) => (x.id === e.nota.id ? { id: x.id, fecha: x.fecha, texto: t } : x))
-    : e.n.notas.concat([{ id: "0000000000000000", fecha: selloFechaHora(), texto: t }]);
+    ? e.n.notas.map((x) => (x.id === e.nota.id ? { id: x.id, fecha: x.fecha, nombre: nom, texto: t } : x))
+    : e.n.notas.concat([{ id: "0000000000000000", fecha: selloFechaHora(), nombre: nom, texto: t }]);
   const total = ntLargo(lista);
   const lim = ntLimiteDe(e.n);
   const sobran = total - lim;
@@ -13841,6 +13855,7 @@ function ntAbrirEditor(n, nota) {
   ntEd.titulo.textContent = nota ? "Editar nota" : "Nueva nota";
   ntEd.fecha.textContent = nota ? nota.fecha || "" : "";
   ntEd.fecha.hidden = !nota;
+  ntEd.nombre.value = nota ? nota.nombre || "" : "";
   ntEd.texto.value = nota ? nota.texto : "";
   ntEd.borrar.hidden = !nota;
   setEstado(ntEd.estado, "");
@@ -13853,9 +13868,12 @@ function ntCerrarEditor(preguntar) {
   const e = NT.editor;
   const original = e && e.nota ? e.nota.texto : "";
   const escrito = ntEd.texto.value.trim();
-  if (preguntar && escrito && escrito !== String(original).trim() && !window.confirm("Tienes cambios sin guardar. ¿Cerrar y descartarlos?")) return;
+  const nombreOriginal = e && e.nota ? e.nota.nombre || "" : "";
+  const cambioNombre = ntLimpiarNombre(ntEd.nombre.value) !== nombreOriginal;
+  if (preguntar && escrito && (escrito !== String(original).trim() || cambioNombre) && !window.confirm("Tienes cambios sin guardar. ¿Cerrar y descartarlos?")) return;
   ntNotaModal.hidden = true;
   NT.editor = null;
+  ntEd.nombre.value = "";
   ntEd.texto.value = "";
 }
 async function ntEdGuardar() {
@@ -13866,10 +13884,11 @@ async function ntEdGuardar() {
     setEstado(ntEd.estado, "Escribe algo primero", "error");
     return;
   }
+  const nom = ntLimpiarNombre(ntEd.nombre.value);
   const nota = e.nota || { id: ntNuevoId(), fecha: selloFechaHora(), texto: t };
   const lista = e.nota
-    ? e.n.notas.map((x) => (x.id === nota.id ? { id: x.id, fecha: x.fecha, texto: t } : x))
-    : e.n.notas.concat([{ id: nota.id, fecha: nota.fecha, texto: t }]);
+    ? e.n.notas.map((x) => (x.id === nota.id ? { id: x.id, fecha: x.fecha, nombre: nom, texto: t } : x))
+    : e.n.notas.concat([{ id: nota.id, fecha: nota.fecha, nombre: nom, texto: t }]);
   const sobran = ntLargo(lista) - ntLimiteDe(e.n);
   if (sobran > 0) {
     setEstado(ntEd.estado, "No cabe: te pasas por " + ntFmt(sobran) + " caracteres", "error");
@@ -13878,9 +13897,9 @@ async function ntEdGuardar() {
   ntEd.guardar.disabled = true;
   setEstado(ntEd.estado, "Guardando…");
   try {
-    await llamarNotas("notario_nota_guardar", { id: e.n.id, notaId: nota.id, fecha: nota.fecha, texto: t });
-    if (e.nota) e.nota.texto = t;
-    else e.n.notas.push({ id: nota.id, fecha: nota.fecha, texto: t });
+    await llamarNotas("notario_nota_guardar", { id: e.n.id, notaId: nota.id, fecha: nota.fecha, nombre: nom, texto: t });
+    if (e.nota) { e.nota.texto = t; e.nota.nombre = nom; }
+    else e.n.notas.push({ id: nota.id, fecha: nota.fecha, nombre: nom, texto: t });
     ntCerrarEditor(false);
     ntDibujarTodo();
   } catch (err) {

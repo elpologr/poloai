@@ -3752,3 +3752,17 @@ body.en-seccion .menu { display: none; }
 @media (max-width: 480px) { #di-form .di-notario-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .ej-chip-notario { border-color: #4f94d4; }
  /* tres veces más alto que antes */
+
+
+/* ---------- Notario: notas a la mitad del tamaño (el doble de cuadros por fila) y campo «Nombre de la nota» ---------- */
+.nt-pagina .nt-pag-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; }
+.nt-pagina .nt-pag-grid .ej-chip { padding: 4px; gap: 2px; border-radius: 8px; }
+.nt-pagina .nt-pag-grid .ej-chip-resumen { padding: 5px; }
+.nt-pagina .nt-pag-grid .ej-chip-nombre { font-size: 0.6rem; line-height: 1.12; -webkit-line-clamp: 3; }
+.nt-pagina .nt-pag-grid .ej-chip-fecha { font-size: 0.5rem; }
+.nt-pagina .nt-pag-grid .ej-chip-desc { display: none; } /* el resumen sale completo al tocar la nota; aquí solo caben nombre y fecha */
+.nt-pagina .nt-pag-grid .ej-chip-nuevo .ej-chip-icono { font-size: 1.3rem; }
+.nt-pagina .nt-pag-grid .ej-chip-nuevo .ej-chip-nombre { font-size: 0.55rem; }
+@media (max-width: 700px) { .nt-pagina .nt-pag-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .nt-pagina .nt-pag-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; } }
+.nt-ed-nombre { width: 100%; margin-bottom: 8px; }
