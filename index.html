@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=104" />
+  <link rel="stylesheet" href="styles.css?v=105" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -346,15 +346,15 @@
   </div>
     </section>
 
-    <!-- JUEGOS (se abre desde la barra lateral) -->
+    <!-- JUEGOS (se abre desde la barra lateral): los juegos viven en otro repositorio (CONFIG.JUEGOS_URL) y se ven dentro de este marco -->
     <section id="seccion-juegos" class="seccion" hidden>
       <h2>&#127918; Juegos</h2>
-      <!-- Catálogo: mini recuadros. Un juego solo se carga al tocar su recuadro (se arma en app.js, «catalogoJuegos») -->
-      <div id="jg-catalogo" class="jg-catalogo"></div>
-      <div id="jg-vista" class="jg-vista" hidden>
-        <button id="jg-volver" class="notas-btn notas-btn-sec" type="button">&#8249; Volver a juegos</button>
-        <div id="jg-caja" class="jj-caja"></div>
+      <div class="jg-barra">
+        <a id="jg-abrir-fuera" class="notas-btn notas-btn-sec" href="#" target="_blank" rel="noopener noreferrer">&#8599; Abrir en otra pesta&ntilde;a</a>
+        <button id="jg-recargar" class="notas-btn notas-btn-sec" type="button">&#8635; Recargar</button>
       </div>
+      <p id="jg-estado" class="notas-estado"></p>
+      <iframe id="jg-marco" class="jg-marco" title="Juegos" allow="autoplay; fullscreen"></iframe>
     </section>
 
     <!-- CALENDARIO -->
@@ -1807,8 +1807,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=67"></script>
-  <script src="app.js?v=111"></script>
+  <script src="config.js?v=68"></script>
+  <script src="app.js?v=112"></script>
   <script src="voz.js?v=66"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

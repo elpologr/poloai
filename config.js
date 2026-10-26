@@ -5,6 +5,8 @@ const CONFIG = {
   APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxjCmUQAc5m-VX6jrGe3UGjGCaOZ-rlHWkp7Nx6m7jGkdvgmSPkLbbdcei8PnmKstvx/exec",
   // Debe ser EXACTAMENTE igual al TOKEN de google-apps-script.gs
   TOKEN: "polodulce",
+  // Página de los juegos (otro repositorio). La zona «Juegos» la muestra dentro de un marco y ofrece abrirla en otra pestaña.
+  JUEGOS_URL: "https://elpolodancer.github.io/PoloAijuegos/index.html",
   // ID de cliente de Google para "Iniciar sesión con Google" (termina en
   // .apps.googleusercontent.com). Sigue los pasos del README. Si lo dejas vacío,
   // la barra lateral avisa que falta configurarlo.

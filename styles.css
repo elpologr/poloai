@@ -3555,36 +3555,6 @@ body.en-seccion .menu { display: none; }
 .btn-volver-menu:hover { background: var(--acento-claro); }
 
 
-/* ---------- Juegos: Saltarín del Loto ---------- */
-.jj-caja { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.jj-titulo { margin: 0; font-size: 1.15rem; color: var(--acento-oscuro); }
-.jj-canvas {
-  display: block;
-  width: 100%;
-  max-width: 380px;
-  aspect-ratio: 360 / 560;
-  border: 3px solid var(--acento);
-  border-radius: 16px;
-  box-shadow: 0 8px 22px rgba(40, 10, 80, 0.35);
-  background: #f4edff;
-  touch-action: none; /* en el celular, tocar el juego no mueve la página */
-  user-select: none;
-  -webkit-user-select: none;
-  cursor: pointer;
-}
-.jj-botones { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-.jj-ayuda { margin: 0; max-width: 420px; font-size: 0.82rem; line-height: 1.4; text-align: center; color: var(--suave); }
-
-
-/* ---------- Juegos: Piano Mágico ---------- */
-.pt-opciones { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; width: 100%; max-width: 380px; }
-.pt-cancion {
-  flex: 1 1 160px; min-width: 0; padding: 8px 10px; font: inherit; font-weight: 600;
-  color: var(--texto); background: #fff; border: 2px solid var(--acento); border-radius: 12px;
-}
-.pt-canvas { background: #fff; }
-
-
 /* ---------- Notas (botón de arriba): línea central, notas a la izquierda y notarios a la derecha ---------- */
 .zona-dos-col {
   display: grid;
@@ -3627,37 +3597,10 @@ body.en-seccion .menu { display: none; }
 }
 
 
-/* ---------- Zona Juegos: catálogo de mini recuadros ---------- */
-.jg-catalogo { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-top: 8px; }
-.jg-catalogo[hidden], .jg-vista[hidden] { display: none; }
-.jg-tarjeta {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  aspect-ratio: 1 / 1;
-  padding: 10px;
-  font: inherit;
-  text-align: center;
-  color: var(--texto);
-  background: linear-gradient(135deg, #ffffff, var(--acento-claro));
-  border: 1px solid var(--borde);
-  border-radius: 14px;
-  box-shadow: 0 4px 12px rgba(40, 10, 80, 0.22);
-  cursor: pointer;
-  transition: transform 0.12s, box-shadow 0.12s;
-}
-.jg-tarjeta:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(40, 10, 80, 0.32); }
-.jg-tarjeta:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
-.jg-tarjeta-icono { font-size: 2.4rem; line-height: 1; }
-.jg-tarjeta-nombre { font-size: 0.9rem; font-weight: 700; line-height: 1.15; }
-.jg-tarjeta-desc { font-size: 0.7rem; line-height: 1.2; color: var(--suave); }
-.jg-tarjeta-info { position: absolute; right: 7px; bottom: 5px; font-size: 0.7rem; font-weight: 700; color: var(--acento-oscuro); }
-.jg-vista { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.jg-vista > .notas-btn { align-self: flex-start; }
-@media (max-width: 480px) { .jg-catalogo { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; } }
+/* ---------- Zona Juegos: los juegos viven en otro repositorio y se ven dentro de un marco ---------- */
+.jg-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 8px 0; }
+.jg-barra a.notas-btn { display: inline-flex; align-items: center; text-decoration: none; }
+.jg-marco { display: block; width: 100%; height: 78vh; height: 78dvh; min-height: 460px; background: #0f1220; border: 1px solid var(--borde); border-radius: 14px; }
 
 /* ---------- Favoritas (⭐ aparte de la etiqueta) ---------- */
 .tarjeta-fav {
