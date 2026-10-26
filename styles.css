@@ -3446,6 +3446,62 @@ button.em-canal-ficha-texto { cursor: pointer; }
 
 /* Con una zona abierta se ocultan los botones del menú principal */
 body.en-seccion .menu { display: none; }
+
+/* ---------- Menú: los 3 botones grandes en fila y los 10 botones en dos grupos de 5 ---------- */
+/* En el menú principal los grupos de 5 no estorban: sus botones siguen formando las 2 filas de 5 de siempre */
+.menu-izq,
+.menu-der { display: contents; }
+.menu-tres {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--gap);
+}
+.menu-tres .btn-menu.btn-menu-hoy {
+  flex-direction: column;
+  gap: 4px;
+  height: auto;
+  min-height: calc(var(--lado) * 1.3);
+  padding: 8px 6px;
+  font-size: 1.05rem;
+  text-align: center;
+}
+.menu-tres .btn-menu-hoy .btn-menu-icono { font-size: 2.2rem; }
+@media (max-width: 600px) {
+  .menu-tres .btn-menu.btn-menu-hoy { gap: 3px; padding: 6px 4px; font-size: 0.8rem; }
+  .menu-tres .btn-menu-hoy .btn-menu-icono { font-size: 1.7rem; }
+}
+@media (max-width: 420px) {
+  .menu-tres .btn-menu.btn-menu-hoy { font-size: 0.62rem; }
+  .menu-tres .btn-menu-hoy .btn-menu-icono { font-size: 1.4rem; }
+}
+
+/* Solo en PC (pantalla ancha): con una zona abierta, arriba siguen los 3 botones en fila y los 10 botones quedan en
+   las paredes exteriores de la zona, en columna de arriba a abajo (izquierda: Calendario → Ejercicio; derecha: Diario → Comandos). */
+@media (min-width: 1060px) {
+  body.en-seccion .menu {
+    display: block;
+    --lado-rail: min(104px, calc((100vw - 820px) / 2 - 32px), calc((100vh - 150px) / 5));
+  }
+  body.en-seccion .menu-superior { display: none; } /* Notas / Tareas por Terminar solo se ven en el menú principal */
+  body.en-seccion .menu-tres { max-width: 788px; margin: 0 auto; } /* mismo ancho que la zona */
+  body.en-seccion .menu-izq,
+  body.en-seccion .menu-der {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 5;
+  }
+  body.en-seccion .menu-izq { right: calc(50% + 410px); } /* pegado a la pared izquierda de la zona (con 16 px de aire) */
+  body.en-seccion .menu-der { left: calc(50% + 410px); }
+  body.en-seccion .menu-izq .btn-menu,
+  body.en-seccion .menu-der .btn-menu { width: var(--lado-rail); font-size: 0.8rem; }
+  body.en-seccion .menu-izq .btn-menu-icono,
+  body.en-seccion .menu-der .btn-menu-icono { font-size: 1.8rem; }
+}
 .btn-volver-menu {
   display: inline-flex;
   align-items: center;

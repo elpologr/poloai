@@ -259,6 +259,8 @@
           <span class="btn-menu-icono" aria-hidden="true">&#9203;</span><span class="btn-menu-texto">Tareas por Terminar</span>
         </button>
       </div>
+      <!-- Los 3 botones grandes van SIEMPRE en fila (izquierda a derecha) -->
+      <div class="menu-tres">
       <button id="btn-menu-hoy" class="btn-menu btn-menu-hoy" type="button" data-seccion="seccion-hoy">
         <span class="btn-menu-icono" aria-hidden="true">&#9728;&#65039;</span><span class="btn-menu-texto">Día de Hoy</span>
       </button>
@@ -270,6 +272,10 @@
       <button id="btn-menu-tareas" class="btn-menu btn-menu-hoy btn-menu-tareas" type="button" data-seccion="seccion-tareas">
         <span class="btn-menu-icono" aria-hidden="true">&#128203;</span><span class="btn-menu-texto">Tareas Obligatorias Diarias</span>
       </button>
+      </div>
+      <!-- Los 10 botones: 5 a la izquierda (Calendario → Ejercicio) y 5 a la derecha (Diario → Comandos). En PC, dentro de una zona
+           se muestran como columnas en las paredes exteriores de la zona. -->
+      <div class="menu-izq">
       <button class="btn-menu" type="button" data-seccion="calendario">
         <span class="btn-menu-icono" aria-hidden="true">&#128197;</span><span class="btn-menu-texto">Calendario</span>
       </button>
@@ -285,6 +291,8 @@
       <button id="btn-menu-ejercicio" class="btn-menu" type="button" data-seccion="seccion-ejercicio">
         <span class="btn-menu-icono" aria-hidden="true">&#128170;</span><span class="btn-menu-texto">Ejercicio</span>
       </button>
+      </div>
+      <div class="menu-der">
       <button id="btn-menu-diario" class="btn-menu" type="button" data-seccion="seccion-diario">
         <span class="btn-menu-icono" aria-hidden="true">&#128211;</span><span class="btn-menu-texto">Diario</span>
       </button>
@@ -300,6 +308,7 @@
       <button id="btn-menu-comandos" class="btn-menu" type="button" data-seccion="seccion-comandos">
         <span class="btn-menu-icono" aria-hidden="true">&#127897;</span><span class="btn-menu-texto">Comandos</span>
       </button>
+      </div>
     </nav>
   </header>
 
