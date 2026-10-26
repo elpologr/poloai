@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "72";
+const VERSION = "73";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -14792,9 +14792,10 @@ function montarSaltarinDelLoto(caja) {
 }
 
 // ---------- Juego: «Piano Mágico» (teclas de piano que caen, como Piano Tiles / My Talking Tom) ----------
-// Caen teclas negras por 4 carriles. Toca SIEMPRE la tecla de más abajo: cada toque hace sonar la siguiente nota de la
-// canción (piano sintetizado con Web Audio: no necesita archivos de audio y funciona sin internet). Si tocas un carril
-// equivocado o dejas pasar una tecla, pierdes. La canción se va armando nota por nota.
+// Hay teclas negras en 4 carriles. Toca SIEMPRE la tecla de más abajo: cada toque hace sonar la siguiente nota de la
+// canción (piano sintetizado con Web Audio: no necesita archivos de audio y funciona sin internet), la tecla desaparece y
+// la banda baja lo más rápido posible a cerrar el hueco. La banda NO avanza sola: la velocidad la pone tu agilidad
+// (se muestra en notas por segundo). Si tocas un carril equivocado, pierdes.
 // Controles: tocar el carril (celular) · teclas D F J K (o 1 2 3 4) en computadora · Espacio o P = pausa.
 // Para agregar una canción: una línea más en PIANO_CANCIONES. Notas separadas por espacio: «C4», «F#4», «Bb3»;
 // «:2» al final = nota larga (suena más tiempo). El mejor avance de cada canción se guarda en este dispositivo.
@@ -14815,15 +14816,15 @@ function pianoLeerNotas(texto) {
   }).filter(Boolean);
 }
 const PIANO_CANCIONES = [
-  { id: "estrellita", nombre: "Estrellita", autor: "Mozart", vel: 0.8,
+  { id: "estrellita", nombre: "Estrellita", autor: "Mozart",
     notas: "C4 C4 G4 G4 A4 A4 G4:2 F4 F4 E4 E4 D4 D4 C4:2 G4 G4 F4 F4 E4 E4 D4:2 G4 G4 F4 F4 E4 E4 D4:2 C4 C4 G4 G4 A4 A4 G4:2 F4 F4 E4 E4 D4 D4 C4:2" },
-  { id: "alegria", nombre: "Himno a la Alegría", autor: "Beethoven", vel: 0.9,
+  { id: "alegria", nombre: "Himno a la Alegría", autor: "Beethoven",
     notas: "E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 E4:1.5 D4:.5 D4:2 E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 D4:1.5 C4:.5 C4:2 D4 D4 E4 C4 D4 E4:.5 F4:.5 E4 C4 D4 E4:.5 F4:.5 E4 D4 C4 D4 G3:2 E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 D4:1.5 C4:.5 C4:2" },
-  { id: "minueto", nombre: "Minueto en Sol", autor: "Petzold", vel: 0.95,
+  { id: "minueto", nombre: "Minueto en Sol", autor: "Petzold",
     notas: "D5 G4 A4 B4 C5 D5 G4 G4 E5 C5 D5 E5 F#5 G5 G4 G4 C5 D5 C5 B4 A4 B4 C5 B4 A4 G4 F#4 G4 A4 B4 G4 G4:3" },
-  { id: "canon", nombre: "Canon en Re", autor: "Pachelbel", vel: 0.95,
+  { id: "canon", nombre: "Canon en Re", autor: "Pachelbel",
     notas: "F#5 E5 D5 C#5 B4 A4 B4 C#5 D5 C#5 B4 A4 G4 F#4 G4 A4 F#5 E5 D5 C#5 B4 A4 B4 C#5 D5 C#5 B4 A4 G4 F#4 G4 A4 D5:3" },
-  { id: "elisa", nombre: "Para Elisa", autor: "Beethoven", vel: 1.05,
+  { id: "elisa", nombre: "Para Elisa", autor: "Beethoven",
     notas: "E5:.5 D#5:.5 E5:.5 D#5:.5 E5:.5 B4:.5 D5:.5 C5:.5 A4:1.5 C4:.5 E4:.5 A4:.5 B4:1.5 E4:.5 G#4:.5 B4:.5 C5:1.5 E4:.5 E5:.5 D#5:.5 E5:.5 D#5:.5 E5:.5 B4:.5 D5:.5 C5:.5 A4:1.5 C4:.5 E4:.5 A4:.5 B4:1.5 E4:.5 C5:.5 B4:.5 A4:3" },
 ].map((c) => { c.lista = pianoLeerNotas(c.notas); return c; });
 
@@ -14833,11 +14834,6 @@ function montarPianoMagico(caja) {
     <h3 class="jj-titulo">&#127929; Piano M&aacute;gico</h3>
     <div class="pt-opciones">
       <select class="pt-cancion" aria-label="Elegir canci&oacute;n"></select>
-      <div class="pt-vel" role="group" aria-label="Velocidad">
-        <button class="notas-btn td-btn-sec" type="button" data-v="0.8">Lento</button>
-        <button class="notas-btn td-btn-sec" type="button" data-v="1">Normal</button>
-        <button class="notas-btn td-btn-sec" type="button" data-v="1.3">R&aacute;pido</button>
-      </div>
     </div>
     <canvas class="jj-canvas pt-canvas" aria-label="Juego Piano M&aacute;gico: toca las teclas negras que caen para tocar la canci&oacute;n"></canvas>
     <div class="jj-botones">
@@ -14845,14 +14841,14 @@ function montarPianoMagico(caja) {
       <button class="notas-btn td-btn-sec pt-pausa" type="button" disabled>&#9208; Pausa</button>
       <button class="notas-btn td-btn-sec pt-sonido" type="button" aria-label="Sonido">&#128266;</button>
     </div>
-    <p class="jj-ayuda">Toca la tecla negra de m&aacute;s abajo: cada toque toca la siguiente nota de la canci&oacute;n. No toques carriles vac&iacute;os ni dejes pasar una tecla.
+    <p class="jj-ayuda">Toca la tecla negra de m&aacute;s abajo: suena la siguiente nota, la tecla desaparece y la banda baja sola a ocupar el hueco.
+      No avanza si t&uacute; no tocas: entre m&aacute;s r&aacute;pido toques, m&aacute;s r&aacute;pido va. Un carril equivocado termina la partida.
       En computadora usa D F J K (o 1 2 3 4). Espacio o P = pausa.</p>`;
   const cv = caja.querySelector(".pt-canvas");
   const selCan = caja.querySelector(".pt-cancion");
   const bJugar = caja.querySelector(".pt-jugar");
   const bPausa = caja.querySelector(".pt-pausa");
   const bSon = caja.querySelector(".pt-sonido");
-  const bVel = Array.from(caja.querySelectorAll(".pt-vel .notas-btn"));
   if (!sec || !cv || !cv.getContext) { caja.innerHTML = ""; return null; }
   const ctx = cv.getContext("2d");
   let vivo = true;
@@ -14874,8 +14870,8 @@ function montarPianoMagico(caja) {
   let estado = "listo"; // listo | jugando | pausa | fin
   let cancion = PIANO_CANCIONES[0];
   let notas = cancion.lista;
-  let filas, scroll, sig, aciertos, fx, falla, gano, tFin;
-  let mult = Number(leer("polo-piano-vel", "1")) || 1;
+  let filas, scroll, objetivo, sig, aciertos, fx, falla, gano, tFin;
+  let hits, veloAct, tInicio, tPausa, tFinJuego; // marcas de tiempo para medir tu velocidad (notas por segundo)
   let silencio = leer("polo-piano-silencio", "0") === "1";
   let mejores = {};
   try { mejores = JSON.parse(leer(PIANO_CLAVE, "{}")) || {}; } catch (e) { mejores = {}; }
@@ -14967,6 +14963,10 @@ function montarPianoMagico(caja) {
       filas.push(l);
     }
     scroll = 0;
+    objetivo = 0; // hasta dónde debe bajar la banda (una fila por cada tecla tocada)
+    hits = [];
+    veloAct = 0;
+    tInicio = tPausa = tFinJuego = 0;
     sig = 0;
     aciertos = 0;
     fx = [];
@@ -14974,9 +14974,11 @@ function montarPianoMagico(caja) {
     gano = false;
   }
   const filaY = (r) => H - ALTO * (r + 1) + scroll;
-  const velocidad = () => 190 * mult * cancion.vel * (1 + 0.55 * (aciertos / notas.length));
 
   function poner(nuevo) {
+    const ahora = performance.now();
+    if (nuevo === "pausa" && estado === "jugando") tPausa = ahora;
+    else if (nuevo === "jugando" && estado === "pausa") tInicio += ahora - tPausa; // el tiempo en pausa no cuenta
     estado = nuevo;
     bPausa.disabled = !(estado === "jugando" || estado === "pausa");
     bPausa.innerHTML = estado === "pausa" ? "&#9654; Seguir" : "&#9208; Pausa";
@@ -14985,26 +14987,32 @@ function montarPianoMagico(caja) {
   }
   function alternarPausa() {
     if (estado === "jugando") poner("pausa");
-    else if (estado === "pausa") { scroll -= 30; poner("jugando"); } // un respiro al volver
+    else if (estado === "pausa") poner("jugando");
   }
 
   function golpear(carril, px, py) {
     if (estado === "listo") {
       if (carril !== filas[0]) return;
-      tPrev = performance.now();
+      tInicio = performance.now();
       estado = "jugando";
       poner("jugando");
     } else if (estado !== "jugando") return;
     const y = filaY(sig);
-    if (y + ALTO <= 0) return; // esa tecla ya está arriba, fuera de la vista: no cuenta
     if (carril === filas[sig]) {
       const n = notas[sig];
+      const ahora = performance.now();
       tono(n.midi, n.beats);
       vibrar(12);
-      fx.push({ x: carril * AN + AN / 2, y: y + ALTO / 2, t: 0, txt: n.nombre });
+      // La tecla desaparece (queda un destello) y la banda baja una fila para cerrar el hueco
+      fx.push({ x: carril * AN + AN / 2, y: y + ALTO / 2, ty: y, carril, t: 0, txt: n.nombre });
+      hits.push(ahora);
+      if (hits.length > 6) hits.shift();
+      if (hits.length >= 2) veloAct = (hits.length - 1) / ((hits[hits.length - 1] - hits[0]) / 1000);
       sig++;
       aciertos++;
+      objetivo = ALTO * sig;
       if (sig >= notas.length) terminar(true);
+      else arrancar();
     } else {
       falla = { tipo: "carril", carril, x: px, y: py };
       terminar(false);
@@ -15018,17 +15026,16 @@ function montarPianoMagico(caja) {
       mejores[cancion.id] = aciertos;
       guardar(PIANO_CLAVE, JSON.stringify(mejores));
     }
-    tFin = performance.now();
+    tFin = tFinJuego = performance.now();
     poner("fin");
+    arrancar(); // que termine de bajar la banda y se vea el destello
   }
 
-  function actualizar(dt) {
-    scroll += velocidad() * dt;
-    if (filaY(sig) >= H) { // se escapó una tecla
-      falla = { tipo: "tecla", fila: sig };
-      scroll = ALTO * sig; // la tecla perdida queda visible abajo
-      terminar(false);
-    }
+  // La banda baja sola SOLO hacia donde ya tocaste: muy rápido, y más rápido aún si llevas varias teclas de ventaja
+  function mover(dt) {
+    const d = objetivo - scroll;
+    if (d <= 0.3) { scroll = objetivo; return; }
+    scroll = Math.min(objetivo, scroll + Math.max(d * (1 - Math.exp(-dt * 34)), 2000 * dt));
   }
 
   // ----- Ciclo -----
@@ -15036,10 +15043,10 @@ function montarPianoMagico(caja) {
     if (!vivo) { corriendo = false; return; }
     const dt = Math.min(0.05, (t - tPrev) / 1000);
     tPrev = t;
-    if (estado === "jugando") actualizar(dt);
+    mover(dt);
     for (let i = fx.length - 1; i >= 0; i--) { fx[i].t += dt; if (fx[i].t > 0.6) fx.splice(i, 1); }
     dibujar();
-    if (estado === "jugando" || fx.length) requestAnimationFrame(ciclo);
+    if (fx.length || scroll < objetivo) requestAnimationFrame(ciclo);
     else corriendo = false;
   }
   function arrancar() {
@@ -15071,30 +15078,18 @@ function montarPianoMagico(caja) {
     const y = filaY(r);
     if (y > H || y + ALTO < 0) return;
     const x = filas[r] * AN + 4, w = AN - 8, h = ALTO - 6, yy = y + 3;
-    const tocada = r < sig;
-    const perdida = falla && falla.tipo === "tecla" && falla.fila === r;
-    if (tocada) {
-      const g = ctx.createLinearGradient(x, yy, x, yy + h);
-      g.addColorStop(0, "#e6d6ff");
-      g.addColorStop(1, "#c9acff");
-      ctx.fillStyle = g;
-      rr(x, yy, w, h, 10);
-      ctx.fill();
-      texto(notas[r].nombre, x + w / 2, yy + h / 2 + 7, 20, "#4a2685");
-      return;
-    }
     const g = ctx.createLinearGradient(x, yy, x, yy + h);
-    if (perdida) { g.addColorStop(0, "#f0657c"); g.addColorStop(1, "#c42a47"); }
-    else { g.addColorStop(0, "#32205f"); g.addColorStop(1, "#0d0720"); }
+    g.addColorStop(0, "#32205f");
+    g.addColorStop(1, "#0d0720");
     ctx.fillStyle = g;
     rr(x, yy, w, h, 10);
     ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,0.13)"; // brillo de tecla
     rr(x + 5, yy + 5, w * 0.34, h - 10, 6);
     ctx.fill();
-    if (r === sig && estado !== "fin") {
+    if (r === sig) { // la tecla que toca: lila; si perdiste, verde para que veas dónde era
       ctx.lineWidth = 3;
-      ctx.strokeStyle = "#b794ff";
+      ctx.strokeStyle = estado === "fin" && !gano ? "#5fe0a0" : "#b794ff";
       rr(x, yy, w, h, 10);
       ctx.stroke();
     }
@@ -15134,10 +15129,17 @@ function montarPianoMagico(caja) {
       ctx.fillRect(falla.carril * AN, 0, AN, H);
       texto("✖", falla.x, falla.y + 12, 36, "#e0405a", "#ffffff");
     }
-    for (let r = 0; r < notas.length; r++) dibujarTecla(r);
+    for (let r = sig; r < notas.length; r++) dibujarTecla(r); // las teclas ya tocadas desaparecen
 
-    fx.forEach((e) => { // onda y nombre de la nota que sube
+    fx.forEach((e) => { // destello de la tecla que desapareció, onda y nombre de la nota que sube
       const k = e.t / 0.6;
+      if (e.t < 0.22) {
+        ctx.globalAlpha = 0.85 * (1 - e.t / 0.22);
+        ctx.fillStyle = "#c9acff";
+        rr(e.carril * AN + 4, e.ty + 3, AN - 8, ALTO - 6, 10);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
       ctx.lineWidth = 4;
       ctx.strokeStyle = "rgba(122, 68, 214, " + (0.55 * (1 - k)) + ")";
       ctx.beginPath();
@@ -15159,14 +15161,16 @@ function montarPianoMagico(caja) {
     }
     texto(String(aciertos), W / 2, 62, 40, "#4a2685", "#ffffff");
     texto(cancion.nombre, W / 2, 84, 13, "#6f6585", "#ffffff");
+    if (aciertos >= 3 && estado !== "listo") texto("⚡ " + veloAct.toFixed(1) + " notas/s", W / 2, 104, 14, "#6234b8", "#ffffff");
 
     const mej = mejores[cancion.id] || 0;
     if (estado === "listo") {
-      panel(100, 150, cancion.nombre, [cancion.autor + " · " + notas.length + " notas", "Toca la tecla marcada para empezar", mej ? "Mejor: " + mej + " / " + notas.length : "¡Tú puedes!"]);
+      panel(110, 150, cancion.nombre, [cancion.autor + " · " + notas.length + " notas", "Toca la tecla marcada para empezar", mej ? "Mejor: " + mej + " / " + notas.length : "La banda baja cuando tú tocas"]);
     } else if (estado === "pausa") {
       panel(150, 130, "Pausa", ["Toca para seguir"]);
     } else if (estado === "fin") {
-      panel(130, 190, gano ? "¡Terminaste! 🎉" : "¡Uy, fallaste!", [aciertos + " de " + notas.length + " notas", "Mejor: " + mej + " / " + notas.length, "Toca para jugar otra vez"]);
+      const seg = Math.max(0.001, (tFinJuego - tInicio) / 1000);
+      panel(120, 215, gano ? "¡Terminaste! 🎉" : "¡Uy, fallaste!", [aciertos + " de " + notas.length + " notas", seg.toFixed(1) + " s · promedio " + (aciertos / seg).toFixed(1) + " notas/s", "Mejor: " + mej + " / " + notas.length, "Toca para jugar otra vez"]);
     }
   }
 
@@ -15217,13 +15221,10 @@ function montarPianoMagico(caja) {
     selCan.appendChild(o);
   });
   selCan.addEventListener("change", () => { cargar(Number(selCan.value)); selCan.blur(); });
-  const marcarVel = () => bVel.forEach((b) => b.classList.toggle("activo", Number(b.dataset.v) === mult));
-  bVel.forEach((b) => b.addEventListener("click", () => { mult = Number(b.dataset.v); guardar("polo-piano-vel", mult); marcarVel(); }));
   const marcarSon = () => { bSon.innerHTML = silencio ? "&#128263;" : "&#128266;"; };
   bSon.addEventListener("click", () => { silencio = !silencio; guardar("polo-piano-silencio", silencio ? "1" : "0"); marcarSon(); audio(); });
   bJugar.addEventListener("click", () => { audio(); nueva(); poner("listo"); });
   bPausa.addEventListener("click", alternarPausa);
-  marcarVel();
   marcarSon();
 
   // Al salir de la zona o cambiar de pestaña, el juego se pausa solo
