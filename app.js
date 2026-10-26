@@ -29,7 +29,7 @@ const VERSION = "73";
     "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-mover", "em-mover-ayuda", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp", "em-canal", "em-notas-proy-abrir", "em-npag", "em-npag-chips", "em-npag-form", "em-npag-etiqueta", "em-npag-finalizar", "actividades-actualizar", "trabajo-actualizar",
     "btn-menu-notas-imp", "btn-menu-tareas-pend", "btn-volver-menu", "seccion-notas-imp", "seccion-tareas-pend", "zona-notas-imp", "zona-notas-fav", "zona-tareas-pend", "notas-imp-actualizar", "notas-favorita", "tareas-pend-actualizar", "ej-tarea", "de-tarea", "ip-tarea", "cm-tarea", "bz-tarea",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
-    "di-cu-proy-toggle", "di-cu-proy-resumen", "di-cu-links", "di-cu-ver-claude", "di-cu-claude", "di-cu-cl-volver", "di-cu-cl-cuenta",
+    "di-cu-proy-toggle", "di-cu-proy-resumen", "di-cu-links", "di-cu-ver-claude", "di-cu-ver-personales", "di-cu-personales", "di-cu-personales-vista", "di-cu-claude", "di-cu-cl-volver", "di-cu-cl-cuenta",
     "di-cu-cl-hora", "di-cu-cl-cuando", "di-cu-cl-guardar", "di-cu-cl-quitar", "di-cu-cl-estado", "di-cu-cl-info", "di-cu-cl-registro",
   ];
   const problemas = [];
@@ -5230,6 +5230,9 @@ const cuArchivo = diEl("di-cu-archivo");
 const cuUrlImg = diEl("di-cu-url-img");
 const cuNombre = diEl("di-cu-nombre");
 const cuCorreo = diEl("di-cu-correo"); // «Referencia del correo»: texto libre, no el correo real
+const cuPersonales = diEl("di-cu-personales"); // Links de Proyectos Personales (uno por línea)
+const cuPersonalesVista = diEl("di-cu-personales-vista");
+const cuVerPersonales = diEl("di-cu-ver-personales");
 const cuImgProy = diEl("di-cu-img-proyecto");
 const cuListaProy = diEl("di-cu-proyectos");
 const cuGuardar = diEl("di-cu-guardar");
@@ -5542,6 +5545,8 @@ function abrirFormCu(c) {
   cuFormTitulo.textContent = c ? "Editar cuenta" : "Nueva cuenta";
   cuNombre.value = c ? c.nombre : "";
   cuCorreo.value = c ? c.correo || "" : "";
+  cuPersonales.value = c ? c.personales || "" : "";
+  dibujarPersonalesForm();
   cuBorrar.hidden = !c;
   setEstado(cuFormEstado, "");
   cuDibujarVistaImagen();
@@ -5581,6 +5586,7 @@ async function guardarCu() {
     const proyectos = Array.from(cuSeleccion).filter((x) => !emCargadas || existentes.has(x));
     const c = {
       id, nombre, correo, imagen: cuImagenUrl, proyectos,
+      personales: persLinksDeTexto(cuPersonales.value).join("\n"), // Links de Proyectos Personales (uno por línea)
       claudeDisponible: editando ? editando.claudeDisponible || "" : "", // la hora de Claude no se toca al editar la cuenta
       claudeRegistro: editando ? editando.claudeRegistro || [] : [],
     };
@@ -5632,6 +5638,105 @@ async function borrarCu() {
   }
 }
 
+// ----- Links de Proyectos Personales: las apps que más usas, con su logo (se ve en la zona de la cuenta) -----
+// El nombre se reconoce por el dominio; el logo se pide al servicio de iconos de Google según el dominio del link,
+// así que funciona con cualquier app sin tener que agregarla aquí. Si no carga (sin internet), sale la inicial.
+const PERS_APPS = [
+  { nombre: "Claude", hosts: ["claude.ai", "anthropic.com"] },
+  { nombre: "Firebase", hosts: ["firebase.google.com", "firebase.com", "firebaseapp.com", "web.app"] },
+  { nombre: "imgbb", hosts: ["imgbb.com", "ibb.co"] },
+  { nombre: "GitHub", hosts: ["github.com", "github.io"] },
+  { nombre: "Apps Script", hosts: ["script.google.com"] },
+  { nombre: "Google Sheets", hosts: ["docs.google.com"] },
+  { nombre: "Google Drive", hosts: ["drive.google.com"] },
+  { nombre: "ChatGPT", hosts: ["chatgpt.com", "chat.openai.com", "openai.com"] },
+  { nombre: "Gemini", hosts: ["gemini.google.com"] },
+  { nombre: "Canva", hosts: ["canva.com"] },
+  { nombre: "Figma", hosts: ["figma.com"] },
+  { nombre: "Notion", hosts: ["notion.so", "notion.site"] },
+  { nombre: "Vercel", hosts: ["vercel.com"] },
+  { nombre: "Netlify", hosts: ["netlify.com", "netlify.app"] },
+  { nombre: "Cloudflare", hosts: ["cloudflare.com", "pages.dev", "workers.dev"] },
+];
+// Links de un texto (uno por línea; con o sin «https://»), sin repetir
+function persLinksDeTexto(texto) {
+  const vistos = new Set();
+  const lista = [];
+  enlacesDeTexto(texto).forEach((l) => {
+    emLinksDeLinea(l).forEach((href) => {
+      if (!vistos.has(href)) { vistos.add(href); lista.push(href); }
+    });
+  });
+  return lista.slice(0, 30);
+}
+function persInfoDeLink(href) {
+  let host = "";
+  try { host = new URL(href).hostname.toLowerCase().replace(/^(www|m)\./, ""); } catch (e) {}
+  const app = PERS_APPS.find((x) => x.hosts.some((h) => host === h || host.endsWith("." + h)));
+  let nombre = app ? app.nombre : "";
+  if (!nombre) {
+    // Sin app conocida: se usa la parte principal del dominio («midominio.com.mx» → «Midominio»)
+    const partes = host.split(".").filter(Boolean);
+    let i = partes.length - 2;
+    if (i > 0 && partes[i].length <= 3 && partes[i + 1].length <= 3) i--; // «.com.mx», «.co.uk»
+    const base = partes[Math.max(i, 0)] || "Enlace";
+    nombre = base.charAt(0).toUpperCase() + base.slice(1);
+  }
+  return { host, nombre };
+}
+// Un recuadro con el logo de la app y su nombre
+function persRecuadro(href) {
+  const info = persInfoDeLink(href);
+  const el = document.createElement("a");
+  el.className = "em-red di-cu-red di-cu-pers";
+  el.href = href;
+  el.target = "_blank";
+  el.rel = "noopener noreferrer";
+  el.title = info.nombre + " · " + href;
+  el.setAttribute("aria-label", "Abrir " + info.nombre);
+  const ico = document.createElement("span");
+  ico.className = "em-red-ico di-cu-pers-ico";
+  ico.setAttribute("aria-hidden", "true");
+  const inicial = () => { ico.textContent = info.nombre.charAt(0).toUpperCase(); };
+  if (info.host) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.loading = "lazy";
+    img.referrerPolicy = "no-referrer";
+    img.addEventListener("error", () => { img.remove(); inicial(); });
+    img.src = "https://www.google.com/s2/favicons?sz=128&domain=" + encodeURIComponent(info.host);
+    ico.appendChild(img);
+  } else {
+    inicial();
+  }
+  const n = document.createElement("span");
+  n.className = "di-cu-red-nombre";
+  n.textContent = info.nombre;
+  el.append(ico, n);
+  return el;
+}
+// Zona «Mis apps» dentro de la cuenta (solo se ve si hay links)
+function dibujarPersonalesVer() {
+  const c = cuVerActual;
+  cuVerPersonales.innerHTML = "";
+  const hrefs = c ? persLinksDeTexto(c.personales) : [];
+  cuVerPersonales.hidden = !hrefs.length;
+  if (!hrefs.length) return;
+  const t = document.createElement("p");
+  t.className = "di-cu-pers-titulo";
+  t.textContent = "Mis apps";
+  const fila = document.createElement("div");
+  fila.className = "di-cu-redes";
+  hrefs.forEach((h) => fila.appendChild(persRecuadro(h)));
+  cuVerPersonales.append(t, fila);
+}
+// Vista previa en el formulario: se ve el logo al pegar el link
+function dibujarPersonalesForm() {
+  cuPersonalesVista.innerHTML = "";
+  persLinksDeTexto(cuPersonales.value).forEach((h) => cuPersonalesVista.appendChild(persRecuadro(h)));
+}
+cuPersonales.addEventListener("input", dibujarPersonalesForm);
+
 // ----- Zona de una cuenta: imagen, nombre del proyecto, referencia del correo y botón al proyecto -----
 
 function dibujarVerCu() {
@@ -5655,7 +5760,10 @@ function dibujarVerCu() {
   cuVerCorreo.hidden = !c.correo;
   dibujarClaudeBoton(); // botón «Claude», debajo del de «Ir al proyecto»
   // Botón(es) hacia el proyecto vinculado en Empresas/Proyectos
+  // El botón «Claude» vuelve a su lugar original antes de limpiar (si no, se perdería al vaciar los botones)
+  cuVerBotones.after(cuVerClaude);
   cuVerBotones.innerHTML = "";
+  dibujarPersonalesVer(); // «Mis apps» (Links de Proyectos Personales)
   const mapa = {};
   empresas.forEach((e) => { mapa[e.id] = e; });
   const ids = (c.proyectos || []);
@@ -5681,6 +5789,8 @@ function dibujarVerCu() {
     b.textContent = vigentes.length === 1 ? "🏢 Ir al proyecto" : "🏢 " + (e ? e.nombre : "Ir al proyecto");
     b.addEventListener("click", () => irAProyectoDeCuenta(id));
     bloque.appendChild(b);
+    // «Claude» va justo debajo del primer «Ir al proyecto» y arriba de las redes sociales
+    if (cuVerBotones.children.length === 0) bloque.appendChild(cuVerClaude);
     // Debajo del botón: las redes de ese proyecto (recuadros chiquitos con el icono de cada red)
     if (e) {
       const redes = cuRedesDeProyecto(e);

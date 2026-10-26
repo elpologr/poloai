@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=102" />
+  <link rel="stylesheet" href="styles.css?v=103" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -775,6 +775,8 @@
           <div id="di-cu-ver-botones" class="di-cu-ver-botones"></div>
           <!-- Botón «Claude» (debajo de «Ir al proyecto»): abre la zona para anotar la hora en que vuelve la sesión -->
           <div id="di-cu-ver-claude" class="di-cu-ver-botones di-cu-ver-claude-caja"></div>
+          <!-- Mis apps (Links de Proyectos Personales): recuadros con el logo de cada app, debajo de las redes -->
+          <div id="di-cu-ver-personales" class="di-cu-pers-zona" hidden></div>
           <p id="di-cu-ver-estado" class="notas-estado"></p>
         </div>
       </div>
@@ -846,6 +848,12 @@
             <div class="notas-campo">
               <span>Links de los proyectos vinculados</span>
               <div id="di-cu-links" class="di-cu-links"></div>
+            </div>
+            <!-- Las apps que más usas: pega un link por línea y el logo aparece solo -->
+            <div class="notas-campo">
+              <span>Links de Proyectos Personales</span>
+              <textarea id="di-cu-personales" rows="4" maxlength="3000" placeholder="https://claude.ai/new&#10;https://console.firebase.google.com&#10;https://imgbb.com" autocomplete="off" spellcheck="false"></textarea>
+              <div id="di-cu-personales-vista" class="di-cu-pers-vista"></div>
             </div>
           </div>
         </div>
@@ -1783,8 +1791,8 @@
     </section>
   </main>
 
-  <script src="config.js?v=66"></script>
-  <script src="app.js?v=109"></script>
+  <script src="config.js?v=67"></script>
+  <script src="app.js?v=110"></script>
   <script src="voz.js?v=66"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

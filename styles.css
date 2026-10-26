@@ -3809,3 +3809,13 @@ body.en-seccion .menu { display: none; }
 .di-cu-cl-registro li { padding: 6px 10px; font-size: 0.85rem; color: #faf6ef; background: rgba(217, 119, 87, 0.16); border: 1px solid rgba(240, 179, 155, 0.35); border-radius: 10px; }
 .di-cu-cl-registro li small { display: block; color: #d9cfc4; }
 .di-cu-cl-vacio { color: #d9cfc4; background: none !important; border: none !important; }
+
+/* ---------- Links de Proyectos Personales («Mis apps»): recuadros con el logo de cada app ---------- */
+.di-cu-pers-zona { display: flex; flex-direction: column; align-items: center; gap: 8px; width: min(100%, 360px); margin-top: 8px; }
+.di-cu-pers-zona[hidden] { display: none; }
+.di-cu-pers-titulo { margin: 0; font-size: 0.85rem; font-weight: 800; color: #cfdcf0; letter-spacing: 0.04em; text-transform: uppercase; }
+.em-red.di-cu-pers { --red-fondo: #262b3d; }
+.di-cu-pers .di-cu-pers-ico { overflow: hidden; background: #fff; color: #262b3d; font-size: 1.1rem; font-weight: 800; }
+.di-cu-pers .di-cu-pers-ico img { display: block; width: 26px; height: 26px; object-fit: contain; }
+.di-cu-pers-vista { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.di-cu-pers-vista:empty { display: none; }
