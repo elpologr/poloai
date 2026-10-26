@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "67";
+const VERSION = "68";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -173,6 +173,12 @@ window.addEventListener("popstate", (ev) => {
   const s = ev.state;
   if (!s || !s.polo) return; // entrada que no es de la app
   const previo = navEstadoActual();
+  if (!confirmarAbandonoEdicion()) { // hay algo escrito sin guardar y se decidió no salir: se deja la entrada de donde estaba
+    history.pushState(previo, "");
+    navN = previo.n;
+    navClaveActual = navClave(previo);
+    return;
+  }
   navAplicando = true;
   try {
     if (s.sec !== navSec || !!s.menu !== navMenu) {
@@ -1831,7 +1837,7 @@ function confirmarAbandonoNota() {
   return !notaFormSucio() || window.confirm(MENSAJE_ABANDONAR);
 }
 function hayEdicionSinGuardar() {
-  return notaFormSucio() || zonas.some((z) => z.sucio());
+  return notaFormSucio() || zonas.some((z) => z.sucio()) || formulariosEscritos().length > 0;
 }
 // Pregunta si hay algo sin guardar; si se acepta, el borrador se descarta
 function confirmarAbandonoEdicion() {
@@ -1844,6 +1850,7 @@ function confirmarAbandonoEdicion() {
   zonas.forEach((z) => {
     if (z.sucio()) z.cancelar();
   });
+  descartarFormulariosEscritos();
   return true;
 }
 // Cerrar o recargar la página con una nota a medias también avisa
@@ -1853,6 +1860,92 @@ window.addEventListener("beforeunload", (e) => {
     e.returnValue = "";
   }
 });
+
+// ---------- Aviso general: texto escrito sin guardar (en todas las zonas) ----------
+// Cualquier formulario o ventana donde se haya escrito algo (Día de Hoy, Bazar, Deudas, Diario, Empresas…) avisa antes de
+// perderse: al tocar fuera de la ventana, al cerrar con la «×», al presionar Esc, al cambiar de página o con «regresar».
+// Además, seleccionar texto con el mouse y soltar fuera de la ventana ya no la cierra.
+const formsEscritos = new Set(); // formularios / ventanas donde el usuario ya escribió
+const CONT_ESCRITURA = ".notas-nueva, .td-dialogo-caja, .em-hoja-dialogo-caja, .nt-caja";
+document.addEventListener("input", (e) => {
+  const c = e.target && e.target.closest ? e.target.closest(CONT_ESCRITURA) : null;
+  if (c) formsEscritos.add(c);
+}, true);
+// Cuando un formulario (o lo que lo contiene) se oculta o se quita, empieza de cero la próxima vez que se abra
+new MutationObserver(() => {
+  formsEscritos.forEach((c) => {
+    if (!c.isConnected || c.closest("[hidden]")) formsEscritos.delete(c);
+  });
+}).observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["hidden"] });
+function contenedorConTexto(c) {
+  return Array.from(c.querySelectorAll("input, textarea")).some((el) => {
+    const t = (el.type || "").toLowerCase();
+    if (["hidden", "file", "checkbox", "radio", "button", "submit"].indexOf(t) !== -1) return false;
+    return el.value.trim() !== "";
+  });
+}
+// Formularios o ventanas visibles con texto escrito (solo los de «raiz» si se indica)
+function formulariosEscritos(raiz) {
+  return Array.from(formsEscritos).filter(
+    (c) => c.isConnected && (!raiz || raiz.contains(c)) && !c.closest("[hidden]") && contenedorConTexto(c)
+  );
+}
+// Si se acepta abandonar, los formularios de página se vacían y se cierran
+function descartarFormulariosEscritos() {
+  formulariosEscritos().forEach((c) => {
+    if (!c.classList.contains("notas-nueva")) return;
+    c.querySelectorAll("input, textarea").forEach((el) => {
+      const t = (el.type || "").toLowerCase();
+      if (["hidden", "file", "checkbox", "radio", "button", "submit"].indexOf(t) === -1) el.value = "";
+    });
+    formsEscritos.delete(c);
+    c.hidden = true;
+  });
+}
+let bajoEn = null; // dónde se presionó el mouse (para distinguir «tocar fuera» de «seleccionar texto y soltar fuera»)
+document.addEventListener("pointerdown", (e) => { bajoEn = e.target; }, true);
+const FONDO_CLIC = ".td-dialogo, .panel-notas, .nt-modal";   // se cierran con un clic en el fondo
+const FONDO_BAJAR = ".em-hoja-dialogo";                       // se cierran al presionar en el fondo
+function guardiaFondo(e) {
+  const t = e.target;
+  if (!t || !t.matches) return;
+  const porClic = e.type === "click" && t.matches(FONDO_CLIC);
+  const porBajar = e.type === "pointerdown" && t.matches(FONDO_BAJAR);
+  if (!porClic && !porBajar) return;
+  if (porClic && bajoEn !== t) { e.stopPropagation(); return; } // el clic empezó dentro de la ventana: no es «tocar fuera»
+  if (t.matches(".nt-modal-nota")) return; // el editor de notarios ya pregunta por su cuenta
+  const hay = t.matches(".panel-notas") ? hayEdicionSinGuardar() : formulariosEscritos(t).length > 0;
+  if (hay && !window.confirm(MENSAJE_ABANDONAR)) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+}
+document.addEventListener("click", guardiaFondo, true);
+document.addEventListener("pointerdown", guardiaFondo, true);
+// El editor de notarios ya pregunta por su cuenta, pero seleccionar texto y soltar fuera tampoco debe cerrarlo
+document.addEventListener("click", (e) => {
+  if (e.target && e.target.matches && e.target.matches(".nt-modal-nota") && bajoEn !== e.target) e.stopPropagation();
+}, true);
+// Botón «×» de cada página: avisa si hay algo escrito sin guardar
+document.addEventListener("click", (e) => {
+  const b = e.target && e.target.closest ? e.target.closest(".notas-cabecera .notas-btn-icono[id$='-cerrar']") : null;
+  if (!b || !b.closest(".panel-notas")) return;
+  if (hayEdicionSinGuardar() && !window.confirm(MENSAJE_ABANDONAR)) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+}, true);
+// Esc dentro de una ventana con texto escrito: pregunta primero
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  const abiertas = Array.from(document.querySelectorAll(".td-dialogo, .em-hoja-dialogo, .nt-modal:not(.nt-modal-nota)")).filter((m) => !m.hidden);
+  const m = abiertas[abiertas.length - 1];
+  if (!m || !formulariosEscritos(m).length) return;
+  if (!window.confirm(MENSAJE_ABANDONAR)) {
+    e.stopImmediatePropagation();
+    e.preventDefault();
+  }
+}, true);
 
 // Fecha de una tarjeta: texto + lápiz para cambiarla
 function dibujarFechaNota(cont, n) {
@@ -12107,7 +12200,7 @@ function hyAbrirNuevaNota() {
   guardar.addEventListener("click", async () => {
     const nombre = iNombre.value.trim().slice(0, 80);
     const descripcion = iDesc.value.trim();
-    if (!nombre) { setEstado(msg, "Escribe el nombre de la nota", "error"); return; }
+    if (!nombre) { setEstado(msg, "Escribe el nombre de la nota", "error"); iNombre.focus(); return; }
     guardar.disabled = true;
     setEstado(msg, "Guardando…");
     try {
