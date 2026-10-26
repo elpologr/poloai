@@ -3793,3 +3793,9 @@ body.en-seccion .menu { display: none; }
 .di-cu-cll-txt small { font-size: 0.78rem; color: #d9cfc4; overflow-wrap: anywhere; }
 .di-cu-cll-cuando { font-size: 0.85rem; font-weight: 700; color: #f0b39b; }
 .di-cu-cll-fila.disponible .di-cu-cll-cuando { color: #b9e4c3; }
+
+/* ---------- Notario Principal y minimenú de «Completar» ---------- */
+.ej-chip-principal { border-color: #4f94d4; box-shadow: 0 0 0 1px rgba(79, 148, 212, 0.35) inset; }
+.td-dialogo-tarea { margin: 0 0 12px; padding: 8px 10px; font-size: 0.9rem; font-weight: 600; color: #2b2140; background: #f3ecfd; border-radius: 10px; overflow-wrap: anywhere; }
+.td-dialogo-botones-ancho { flex-wrap: wrap; }
+#di-nombre[readonly] { opacity: 0.75; cursor: default; }

@@ -4643,6 +4643,80 @@ function diRedibujarNotarios() {
   if (!diForm.hidden && diNotarioEd) { dibujarNotarioZonaDi(); dibujarFechasDi(null); }
 }
 
+// ----- Notario Principal: el notario fijo de cada día del Diario -----
+// Son notas sueltas y breves de lo que pasa durante el día, en tiempo real. Se crea solo la primera vez que hace falta
+// (al tocar su recuadro en un día, o al archivar una tarea completada). Aquí llegan las tareas completadas con su nota.
+const NP_NOMBRE = "Notario Principal";
+const NP_DESCRIPCION = "Notas sueltas de lo que hago y sucede durante el día, en tiempo real.";
+const npCreando = {}; // «AAAA-MM-DD» -> promesa (evita crear dos principales del mismo día a la vez)
+const npEsPrincipal = (n) => !!n && n.zona === "diario" && String(n.nombre || "").trim().toLowerCase() === NP_NOMBRE.toLowerCase();
+const npDeDia = (fecha) => ntDeDia(fecha).find(npEsPrincipal) || null;
+
+// Los notarios solo se leen cuando se ve una zona con notarios: aquí se asegura que ya estén leídos
+async function npCargarNotarios() {
+  if (NT.cargados) return;
+  for (let i = 0; i < 60 && NT.cargando; i++) await new Promise((r) => setTimeout(r, 250));
+  if (!NT.cargados) await ntCargar();
+  if (!NT.cargados) throw new Error("No se pudieron leer los notarios");
+}
+
+// Devuelve el Notario Principal de ese día; si aún no existe, lo crea
+function npAsegurar(fecha) {
+  if (npCreando[fecha]) return npCreando[fecha];
+  npCreando[fecha] = (async () => {
+    try {
+      await npCargarNotarios();
+      let n = npDeDia(fecha);
+      if (n) return n;
+      // Antes de crearlo se vuelve a leer, por si ya lo creó otro dispositivo
+      NT.cargados = false;
+      await npCargarNotarios();
+      n = npDeDia(fecha);
+      if (n) return n;
+      const hora = selloFechaHora().split(" ")[1];
+      const nuevo = { id: ntNuevoId(), zona: "diario", nombre: NP_NOMBRE, descripcion: NP_DESCRIPCION, fecha: diFechaDeDia(fecha) + " " + hora, destino: "drive", limite: NT_LIMITE, notas: [] };
+      await llamarNotas("notario_agregar", { id: nuevo.id, zona: "diario", nombre: nuevo.nombre, descripcion: nuevo.descripcion, fecha: nuevo.fecha, destino: "drive" });
+      NT.lista.push(nuevo);
+      return nuevo;
+    } finally {
+      delete npCreando[fecha];
+    }
+  })();
+  return npCreando[fecha];
+}
+
+// Escribe una nota suelta (con la hora de ahora) en el Notario Principal de ese día
+async function npAnotar(fecha, titulo, texto) {
+  const n = await npAsegurar(fecha);
+  const nota = { id: ntNuevoId(), fecha: selloFechaHora(), nombre: ntLimpiarNombre(titulo), texto: ntLimpiar(texto) };
+  if (!nota.texto) throw new Error("La nota está vacía");
+  if (ntLargo(n.notas.concat([nota])) > ntLimiteDe(n)) throw new Error("El Notario Principal de ese día ya no tiene espacio");
+  await llamarNotas("notario_nota_guardar", { id: n.id, notaId: nota.id, fecha: nota.fecha, nombre: nota.nombre, texto: nota.texto });
+  n.notas.push(nota);
+  ntDibujarTodo();
+  return nota;
+}
+
+// Recuadro «Notario Principal» del día abierto: se crea al tocarlo si aún no existe
+async function abrirPrincipalDi() {
+  const fecha = diDia;
+  if (!fecha) return;
+  let n = npDeDia(fecha);
+  if (!n) {
+    setEstado(diDiaEstado, "Preparando el Notario Principal…");
+    try {
+      n = await npAsegurar(fecha);
+    } catch (err) {
+      setEstado(diDiaEstado, "Error: " + err.message, "error");
+      return;
+    }
+    setEstado(diDiaEstado, "");
+    if (diDia === fecha) { dibujarChipsDi(); dibujarCalendarioDi(); }
+  }
+  if (diDia !== fecha) return;
+  abrirFormNotarioDi(n);
+}
+
 // Un trabajo recién finalizado aparece en el Diario sin tener que recargar
 // (si el Diario aún no se ha leído, se leerá completo al abrirlo)
 function registrarTerminadoEnDiario(e) {
@@ -4723,6 +4797,18 @@ function dibujarChipsDi() {
     ej.addEventListener("click", abrirEjerciciosDi);
     diChips.appendChild(ej);
   }
+  // Notario Principal: siempre está en cada día (se crea al tocarlo la primera vez)
+  const principal = npDeDia(diDia);
+  const kp = principal ? principal.notas.length : 0;
+  const bp = document.createElement("button");
+  bp.type = "button";
+  bp.className = "ej-chip ej-chip-notario ej-chip-principal";
+  bp.title = NP_NOMBRE + (principal ? " (" + kp + (kp === 1 ? " nota)" : " notas)") : ": notas sueltas del día");
+  bp.setAttribute("aria-label", "Abrir el " + NP_NOMBRE + " de este día");
+  bp.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">📒</span><span class="ej-chip-nombre"></span>';
+  bp.querySelector(".ej-chip-nombre").textContent = NP_NOMBRE + (kp ? " (" + kp + ")" : "");
+  bp.addEventListener("click", abrirPrincipalDi);
+  diChips.appendChild(bp);
   diDeDia(diDia).forEach((e) => {
     const b = document.createElement("button");
     b.type = "button";
@@ -4741,7 +4827,7 @@ function dibujarChipsDi() {
     diChips.appendChild(b);
   });
   // Los notarios de este día (al tocar uno se ven los recuadros de sus notas)
-  ntDeDia(diDia).forEach((n) => {
+  ntDeDia(diDia).filter((n) => !npEsPrincipal(n)).forEach((n) => {
     const k = n.notas.length;
     const b = document.createElement("button");
     b.type = "button";
@@ -4869,6 +4955,7 @@ function dibujarFechasDi(e) {
 function abrirFormDi(e) {
   diEditando = e;
   diNotarioEd = null;
+  diNombre.readOnly = false;
   diClase.value = "nota";
   diFormTitulo.textContent = e
     ? e.marca === "Tarea finalizada"
@@ -4898,6 +4985,7 @@ function abrirFormNotarioDi(n) {
   diEditando = null;
   diNotarioEd = n;
   diClase.value = "notario";
+  diNombre.readOnly = npEsPrincipal(n); // el Notario Principal conserva siempre su nombre
   diNombre.value = n.nombre || "";
   diDescripcion.value = "";
   diPonerFav(false);
@@ -4926,7 +5014,9 @@ function diAplicarClase() {
   else if (!diEditando) diFormTitulo.textContent = "Nueva anotación";
   diGuardar.textContent = esNt && !diNotarioEd ? "Crear notario" : "Guardar";
   diCancelar.textContent = diNotarioEd ? "Cerrar" : "Cancelar";
-  diBorrar.hidden = !(diEditando || diNotarioEd);
+  const esPrincipal = npEsPrincipal(diNotarioEd);
+  diBorrar.hidden = !(diEditando || diNotarioEd) || esPrincipal; // el Notario Principal no se elimina
+  diGuardar.hidden = esPrincipal; // y no hay nada que guardar: sus notas se escriben cada una en su ventana
   if (esNt && !diNotarioEd) dibujarFechasDi(null);
   dibujarNotarioZonaDi();
 }
@@ -5058,7 +5148,7 @@ async function guardarDi() {
 
 async function borrarNotarioDi() {
   const n = diNotarioEd;
-  if (!n) return;
+  if (!n || npEsPrincipal(n)) return;
   const cuantas = n.notas.length;
   const aviso = "¿Eliminar el notario «" + n.nombre + "»" + (cuantas ? " junto con sus " + cuantas + (cuantas === 1 ? " nota" : " notas") : "") + "? No se puede deshacer.";
   if (!window.confirm(aviso)) return;
@@ -12963,6 +13053,22 @@ function hyArmar(clave, f) {
       });
     }
   });
+  // Notas sueltas del Notario Principal de hoy (las tareas completadas archivadas empiezan con ✅)
+  (f.notarios || []).forEach((n) => {
+    if (!npEsPrincipal(n) || diDiaDeNotario(n) !== clave) return;
+    (n.notas || []).forEach((nota) => {
+      const fn = hyDeNota(nota.fecha);
+      const hecha = /^✅/.test(nota.nombre || "");
+      por.diario.push({
+        nombre: nota.nombre || hyNombreDeTexto(nota.texto, "Nota suelta"),
+        hora: fn ? fn.hora : "",
+        marca: hecha ? "✅ Tarea completada" : "",
+        texto: nota.texto,
+        extra: "Notario Principal",
+        finalizada: hecha,
+      });
+    });
+  });
   (f.informaciones || []).forEach((i) => {
     if (i.fecha === clave) {
       por.informacion.push({ nombre: i.nombre, hora: "", texto: i.descripcion, origen: { tipo: "informacion", id: i.id } });
@@ -13254,6 +13360,7 @@ async function cargarHoy() {
     ["Comandos", "comando_listar"],
     ["Deudas", "deuda_listar"],
     ["Empresas / Proyectos", "empresa_listar"],
+    ["Notario Principal", "notario_listar"],
   ];
   const resultados = await Promise.allSettled(pedidos.map((p) => llamarNotas(p[1])));
   if (peticion !== hyPeticion) return; // llegó otra petición más nueva: esta ya no sirve
@@ -13266,7 +13373,7 @@ async function cargarHoy() {
     fallaron.push(pedidos[i][0]);
     return null;
   };
-  const cal = dato(0), nts = dato(1), ejs = dato(2), dis = dato(3), ips = dato(4), cms = dato(5), deu = dato(6), emp = dato(7);
+  const cal = dato(0), nts = dato(1), ejs = dato(2), dis = dato(3), ips = dato(4), cms = dato(5), deu = dato(6), emp = dato(7), ntp = dato(8);
   hyGrupos = hyArmar(clave, {
     calendario: cal ? cal.datos : null,
     notas: nts ? nts.notas : null,
@@ -13276,6 +13383,7 @@ async function cargarHoy() {
     comandos: cms ? cms.comandosLista : null,
     deudas: deu ? deu.deudas : null,
     empresas: emp ? emp.empresas : null,
+    notarios: ntp ? ntp.notarios : null,
   });
   hyCargadas = true;
   if (fallaron.length) setEstado(hyEstado, "No se pudo leer: " + fallaron.join(", "), "error");
@@ -13806,8 +13914,63 @@ async function borrarTareaDiaria(t) {
   }
 }
 
-// «Completar»: agrega al Diario una «Tarea finalizada» con la fecha de hoy y la hora en la descripción.
-// Cada vez lleva un Id nuevo (el Diario no repite Ids), así la tarea se puede completar todos los días.
+// Minimenú de «Completar»: pregunta si se archiva en el Diario y deja escribir una nota.
+// Devuelve { archivar, nota } o null si se cancela (la tarea no se completa).
+function tdPreguntarArchivo(t) {
+  return new Promise((resolver) => {
+    const fondo = document.createElement("div");
+    fondo.className = "td-dialogo";
+    const caja = document.createElement("div");
+    caja.className = "td-dialogo-caja";
+    caja.setAttribute("role", "dialog");
+    caja.setAttribute("aria-modal", "true");
+    const titulo = document.createElement("h3");
+    titulo.textContent = "¿Archivar en el Diario? 📒";
+    const tarea = document.createElement("p");
+    tarea.className = "td-dialogo-tarea";
+    tarea.textContent = "✅ " + t.texto;
+    const lab = document.createElement("label");
+    lab.textContent = "Nota (opcional): se escribe en el Notario Principal de hoy";
+    const ta = document.createElement("textarea");
+    ta.rows = 3;
+    ta.maxLength = 2000;
+    ta.placeholder = "Ej. Me costó, pero quedó listo…";
+    lab.appendChild(ta);
+    const fila = document.createElement("div");
+    fila.className = "td-dialogo-botones td-dialogo-botones-ancho";
+    const cancelar = document.createElement("button");
+    cancelar.type = "button";
+    cancelar.className = "notas-btn td-btn-sec";
+    cancelar.textContent = "Cancelar";
+    const solo = document.createElement("button");
+    solo.type = "button";
+    solo.className = "notas-btn td-btn-sec";
+    solo.textContent = "Solo completar";
+    const archivar = document.createElement("button");
+    archivar.type = "button";
+    archivar.className = "notas-btn";
+    archivar.textContent = "📒 Archivar";
+    fila.append(cancelar, solo, archivar);
+    caja.append(titulo, tarea, lab, fila);
+    fondo.appendChild(caja);
+    document.body.appendChild(fondo);
+    ta.focus();
+    const cerrar = (valor) => {
+      document.removeEventListener("keydown", alEscape, true);
+      fondo.remove();
+      resolver(valor);
+    };
+    const alEscape = (e) => { if (e.key === "Escape") { e.stopPropagation(); cerrar(null); } };
+    document.addEventListener("keydown", alEscape, true);
+    cancelar.addEventListener("click", () => cerrar(null));
+    fondo.addEventListener("click", (e) => { if (e.target === fondo) cerrar(null); });
+    solo.addEventListener("click", () => cerrar({ archivar: false, nota: "" }));
+    archivar.addEventListener("click", () => cerrar({ archivar: true, nota: ta.value.trim() }));
+  });
+}
+
+// «Completar»: pregunta si se archiva. Si se archiva, la anotación (con la hora y la nota que escribas) llega como una
+// nota suelta al «Notario Principal» del Diario de hoy. La tarea NO se quita y solo se completa una vez al día.
 async function completarTareaDiaria(t, boton) {
   // Solo una vez al día: si ya se completó hoy (o se está anotando), no se hace nada
   const previa = tdLeerHechas()[t.id];
@@ -13816,25 +13979,35 @@ async function completarTareaDiaria(t, boton) {
     return;
   }
   tdEnCurso.add(t.id);
-  const ahora = new Date();
-  const fecha = claveFecha(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
-  const hora = dos(ahora.getHours()) + ":" + dos(ahora.getMinutes());
-  const nombre = t.texto.length > 80 ? t.texto.slice(0, 79) + "…" : t.texto;
-  const descripcion =
-    "Tarea obligatoria diaria completada el " + dos(ahora.getDate()) + "/" + dos(ahora.getMonth() + 1) + "/" +
-    ahora.getFullYear() + " a las " + hora + ".\n\n" + t.texto;
-  boton.disabled = true;
-  setEstado(tdEstado, "Anotando en el Diario…");
   try {
-    await llamarNotas("diario_agregar", { id: tdNuevoId(), nombre, fecha, descripcion, terminado: "Tarea finalizada" });
+    const decision = await tdPreguntarArchivo(t);
+    if (!decision) return; // cancelado: la tarea sigue pendiente
+    const ahora = new Date();
+    const fecha = claveFecha(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    const hora = dos(ahora.getHours()) + ":" + dos(ahora.getMinutes());
+    boton.disabled = true;
+    if (decision.archivar) {
+      const titulo = "✅ " + t.texto;
+      const texto =
+        "Tarea obligatoria completada a las " + hora + ".\n" + t.texto + (decision.nota ? "\n\n📝 " + decision.nota : "");
+      setEstado(tdEstado, "Anotando en el Notario Principal…");
+      try {
+        await npAnotar(fecha, titulo, texto);
+      } catch (e) {
+        boton.disabled = false;
+        setEstado(tdEstado, "Error: " + e.message + " — puedes volver a intentarlo", "error");
+        return;
+      }
+      try { hyCargadas = false; } catch (e) {} // la página «Hoy» se vuelve a leer al entrar
+    }
     tdGuardarHecha(t.id, fecha + " " + hora);
-    diCargados = false; // el Diario se vuelve a leer al entrar y ya trae la nueva anotación
     if (tdSonando && tdSonando.id === t.id) tdParar();
-    setEstado(tdEstado, "Completada ✓ (ya está en el Diario, hoy a las " + hora + ")", "ok");
+    setEstado(
+      tdEstado,
+      decision.archivar ? "Completada ✓ (archivada en el Notario Principal, hoy a las " + hora + ")" : "Completada ✓ (hoy a las " + hora + ")",
+      "ok"
+    );
     dibujarTareasDiarias();
-  } catch (e) {
-    boton.disabled = false;
-    setEstado(tdEstado, "Error: " + e.message + " — puedes volver a intentarlo", "error");
   } finally {
     tdEnCurso.delete(t.id);
   }
