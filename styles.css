@@ -3574,3 +3574,78 @@ body.en-seccion .menu { display: none; }
 }
 .jj-botones { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .jj-ayuda { margin: 0; max-width: 420px; font-size: 0.82rem; line-height: 1.4; text-align: center; color: var(--suave); }
+
+
+/* ---------- Notas (botón de arriba): línea central, notas a la izquierda y notarios a la derecha ---------- */
+.zona-dos-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2px minmax(0, 1fr);
+  gap: 0 14px;
+  align-items: start;
+  margin-top: 12px;
+}
+.zona-col { min-width: 0; }
+.zona-col-titulo { margin: 0 0 6px; font-size: 0.95rem; font-weight: 700; text-align: center; }
+.zona-col-linea {
+  align-self: stretch;
+  min-height: 120px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.85) 12%, rgba(255, 255, 255, 0.85) 88%, transparent);
+}
+.zona-dos-col .zona-lista { margin-top: 6px; }
+/* Cuadritos de las notas: 2 por fila en su media columna (1 en pantallas muy angostas) */
+.zona-dos-col .zona-lista.zona-lista-cuadritos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.zona-dos-col .zona-cuadrito,
+.zona-dos-col .zona-lista .ej-chip-nuevo {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+}
+.zona-dos-col .zona-lista-cuadritos .notas-vacio { grid-column: 1 / -1; }
+/* Notarios: el botón y sus cuadros ocupan toda la media columna, uno por fila */
+.zona-col-notarios .nt-zona { margin: 0; }
+.zona-col-notarios .nt-barra { justify-content: center; }
+.zona-col-notarios .nt-grid { grid-template-columns: minmax(0, 1fr); margin-top: 8px; }
+@media (max-width: 420px) {
+  .zona-dos-col { gap: 0 8px; }
+  .zona-dos-col .zona-lista.zona-lista-cuadritos { grid-template-columns: minmax(0, 1fr); }
+  .zona-col-titulo { font-size: 0.85rem; }
+}
+
+
+/* ---------- Zona Juegos: catálogo de mini recuadros ---------- */
+.jg-catalogo { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-top: 8px; }
+.jg-catalogo[hidden], .jg-vista[hidden] { display: none; }
+.jg-tarjeta {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  aspect-ratio: 1 / 1;
+  padding: 10px;
+  font: inherit;
+  text-align: center;
+  color: var(--texto);
+  background: linear-gradient(135deg, #ffffff, var(--acento-claro));
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgba(40, 10, 80, 0.22);
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.jg-tarjeta:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(40, 10, 80, 0.32); }
+.jg-tarjeta:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+.jg-tarjeta-icono { font-size: 2.4rem; line-height: 1; }
+.jg-tarjeta-nombre { font-size: 0.9rem; font-weight: 700; line-height: 1.15; }
+.jg-tarjeta-desc { font-size: 0.7rem; line-height: 1.2; color: var(--suave); }
+.jg-tarjeta-info { position: absolute; right: 7px; bottom: 5px; font-size: 0.7rem; font-weight: 700; color: var(--acento-oscuro); }
+.jg-vista { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.jg-vista > .notas-btn { align-self: flex-start; }
+@media (max-width: 480px) { .jg-catalogo { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; } }

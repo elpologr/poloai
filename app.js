@@ -3104,7 +3104,7 @@ const ZONAS_ETIQUETA = [
     crear: "+ Crear nota", nuevo: "Nueva nota", editar: "Editar nota",
     guardar: "Guardar nota", marcador: "Escribe una nota nueva…",
     vacio: "Aún no hay notas. ¡Escribe la primera! ✨", borrar: "¿Eliminar esta nota?",
-    cuadritos: true, pagina: true, elegirEtiqueta: true, sinNotario: true,
+    cuadritos: true, pagina: true, elegirEtiqueta: true, columnas: true, // línea central: notas a la izquierda y notarios a la derecha
   },
   {
     // Botón nuevo «Notas» (abajo): las notas con la etiqueta «Favorito» (de cualquier lado)
@@ -3112,7 +3112,7 @@ const ZONAS_ETIQUETA = [
     crear: "+ Crear favorita", nuevo: "Nueva nota favorita", editar: "Editar nota favorita",
     guardar: "Guardar favorita", marcador: "Escribe una nota favorita…",
     vacio: "Aún no tienes favoritas. Ponle la etiqueta «Favorito» a cualquier nota. ⭐", borrar: "¿Eliminar esta nota?",
-    cuadritos: true, pagina: true, elegirEtiqueta: true, sinNotario: true,
+    cuadritos: true, pagina: true, elegirEtiqueta: true, columnas: true,
   },
   {
     // Vive dentro de la página de Bazar (debajo de una división; en: «seccion-bazar»). El botón «Pedidos de Yeso» de la barra lateral abre Bazar y baja hasta aquí
@@ -3255,6 +3255,30 @@ function crearZonaEtiqueta(cfg) {
     calAnio: new Date().getFullYear(),
     calDia: null, // día elegido en el calendario (null = se ven todas)
   };
+  // Dos columnas separadas por una línea central: a la izquierda las notas normales y a la derecha los notarios
+  // (el botón «+ Notario» y sus cuadros se montan en la derecha en montarNotariosEnZonas, más abajo)
+  if (cfg.columnas) {
+    const dos = document.createElement("div");
+    dos.className = "zona-dos-col";
+    const mk = (clase, titulo) => {
+      const col = document.createElement("div");
+      col.className = "zona-col " + clase;
+      const h = document.createElement("h4");
+      h.className = "zona-col-titulo";
+      h.textContent = titulo;
+      col.appendChild(h);
+      return col;
+    };
+    const izq = mk("zona-col-notas", "📝 Notas");
+    const der = mk("zona-col-notarios", "📒 Notarios");
+    const linea = document.createElement("div");
+    linea.className = "zona-col-linea";
+    linea.setAttribute("aria-hidden", "true");
+    z.lista.parentNode.insertBefore(dos, z.lista);
+    izq.appendChild(z.lista);
+    dos.append(izq, linea, der);
+    z.colNotarios = der;
+  }
   if (cfg.sinNotario) {
     cont.classList.add("zona-sin-notario");
     const opNotario = z.tipo.querySelector('option[value="notario"]');
@@ -13876,6 +13900,11 @@ function ntRecargarSiHaySesion() {
     const z = zonaEt(clave);
     montarNotario(clave, z.contenido, z.lista);
   });
+  // Notas (arriba): «Mis notas» y «Favoritas» llevan sus notarios en la columna derecha
+  ["notas-imp", "notas-fav"].forEach((clave) => {
+    const z = zonaEt(clave);
+    if (z && z.colNotarios) montarNotario(clave, z.colNotarios, null);
+  });
   [
     ["ejercicio", "ej-contenido"],
     ["diario", "di-contenido"],
@@ -14077,18 +14106,34 @@ cargarDatos();
 })();
 
 
-// ---------- Juegos: «Saltarín del Loto» (un juego de saltar sin parar, parecido a Doodle Jump) ----------
+// ---------- Juegos ----------
+// La zona Juegos es un catálogo de mini recuadros (al final de esta sección). Cada juego es una función «montarXxx(caja)»
+// que construye su propia pantalla DENTRO de la caja que recibe y devuelve { destruir() }. Así un juego solo existe
+// (canvas, ciclo de dibujo y teclas) mientras está abierto: al volver al catálogo se desmonta por completo.
+// ---------- Juego: «Saltarín del Loto» (un juego de saltar sin parar, parecido a Doodle Jump) ----------
 // Un personaje rebota solo en las plataformas; tú lo mueves a izquierda y derecha para que siga subiendo.
 // Plataformas: verdes (normales), azules (se mueven), cafés (se rompen al pisarlas) y con resorte (saltan más alto).
 // Controles: flechas ← → o A / D · en el celular, mantén tocado el lado izquierdo o derecho de la pantalla del juego.
 // Espacio o P = pausa. El mejor puntaje se guarda en este dispositivo.
-(function saltarinDelLoto() {
+function montarSaltarinDelLoto(caja) {
   const sec = document.getElementById("seccion-juegos");
-  const cv = document.getElementById("jj-canvas");
-  const bJugar = document.getElementById("jj-jugar");
-  const bPausa = document.getElementById("jj-pausa");
-  if (!sec || !cv || !cv.getContext) return;
+  caja.innerHTML = `
+    <h3 class="jj-titulo">&#129719; Saltarín del Loto</h3>
+    <canvas class="jj-canvas" aria-label="Juego Saltarín del Loto: rebota en las plataformas y sube lo más alto que puedas"></canvas>
+    <div class="jj-botones">
+      <button class="notas-btn jj-jugar" type="button">&#9654; Jugar</button>
+      <button class="notas-btn td-btn-sec jj-pausa" type="button" disabled>&#9208; Pausa</button>
+    </div>
+    <p class="jj-ayuda">Mueve al personaje con las flechas &larr; &rarr; (o A / D). En el celular, mantén tocado el lado izquierdo o derecho del juego.
+      Espacio o P = pausa. Verde: normal · Azul: se mueve · Café: se rompe · Resorte rojo: salto grande.</p>`;
+  const cv = caja.querySelector(".jj-canvas");
+  const bJugar = caja.querySelector(".jj-jugar");
+  const bPausa = caja.querySelector(".jj-pausa");
+  if (!sec || !cv || !cv.getContext) { caja.innerHTML = ""; return null; }
   const ctx = cv.getContext("2d");
+  let vivo = true; // false al cerrar el juego: el ciclo de dibujo se detiene
+  const limpiar = []; // todo lo que se engancha a document / window se quita al cerrar
+  const en = (obj, ev, fn) => { obj.addEventListener(ev, fn); limpiar.push(() => obj.removeEventListener(ev, fn)); };
 
   const W = 360, H = 560;            // tamaño lógico del juego (se ajusta solo al ancho disponible)
   const GRAV = 0.42, SALTO = 12.5, RESORTE = 20, VMAX = 5.6;
@@ -14341,7 +14386,7 @@ cargarDatos();
 
   // ----- Ciclo del juego -----
   function bucle(t) {
-    if (estado !== "jugando" || sec.hidden) { corriendo = false; return; }
+    if (!vivo || estado !== "jugando" || sec.hidden) { corriendo = false; return; }
     const f = limitar((t - tPrev) / 16.667 || 1, 0.2, 2.2);
     tPrev = t;
     actualizar(f);
@@ -14376,7 +14421,7 @@ cargarDatos();
   bPausa.addEventListener("click", alternarPausa);
 
   const enCampo = (e) => !!(e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName || ""));
-  document.addEventListener("keydown", (e) => {
+  en(document, "keydown", (e) => {
     if (sec.hidden || enCampo(e)) return;
     const k = e.key;
     if (k === "ArrowLeft" || k === "a" || k === "A") { teclas.izq = true; e.preventDefault(); }
@@ -14388,12 +14433,12 @@ cargarDatos();
       else alternarPausa();
     } else if (k === "ArrowUp" || k === "ArrowDown") e.preventDefault(); // que la página no se mueva mientras juegas
   });
-  document.addEventListener("keyup", (e) => {
+  en(document, "keyup", (e) => {
     const k = e.key;
     if (k === "ArrowLeft" || k === "a" || k === "A") teclas.izq = false;
     else if (k === "ArrowRight" || k === "d" || k === "D") teclas.der = false;
   });
-  window.addEventListener("blur", () => { teclas.izq = teclas.der = false; tactil = 0; if (estado === "jugando") poner("pausa"); });
+  en(window, "blur", () => { teclas.izq = teclas.der = false; tactil = 0; if (estado === "jugando") poner("pausa"); });
 
   // Táctil / ratón: mantener tocada la mitad izquierda o derecha de la pantalla del juego
   const ladoDe = (e) => {
@@ -14411,13 +14456,100 @@ cargarDatos();
   ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) => cv.addEventListener(ev, () => { tactil = 0; }));
 
   // Al salir de la zona o cambiar de pestaña, el juego se pausa solo
-  new MutationObserver(() => {
+  const obs = new MutationObserver(() => {
     if (sec.hidden) { teclas.izq = teclas.der = false; tactil = 0; if (estado === "jugando") poner("pausa"); }
     else dibujar();
-  }).observe(sec, { attributes: true, attributeFilter: ["hidden"] });
-  document.addEventListener("visibilitychange", () => { if (document.hidden && estado === "jugando") poner("pausa"); });
+  });
+  obs.observe(sec, { attributes: true, attributeFilter: ["hidden"] });
+  en(document, "visibilitychange", () => { if (document.hidden && estado === "jugando") poner("pausa"); });
 
   // Pantalla inicial
   nueva();
   poner("listo");
+
+  // Cierra el juego por completo: detiene el ciclo, quita las teclas y libera el canvas
+  return {
+    destruir() {
+      vivo = false;
+      estado = "pausa";
+      corriendo = false;
+      teclas.izq = teclas.der = false;
+      tactil = 0;
+      obs.disconnect();
+      limpiar.forEach((f) => f());
+      limpiar.length = 0;
+      cv.width = cv.height = 0;
+      caja.innerHTML = "";
+    },
+  };
+}
+
+// ---------- Zona Juegos: catálogo de mini recuadros ----------
+// Para agregar un juego nuevo: escribe su función montarXxx(caja) (que devuelva { destruir() }) y agrega UNA línea en JUEGOS.
+//   info (opcional): texto corto que se ve en el recuadro, por ejemplo el mejor puntaje.
+(function catalogoJuegos() {
+  const JUEGOS = [
+    {
+      id: "saltarin", icono: "\u{1FAB7}", titulo: "Saltarín del Loto", desc: "Rebota y sube lo más alto",
+      montar: montarSaltarinDelLoto,
+      info: () => { try { const n = Number(localStorage.getItem("polo-saltarin-mejor")) || 0; return n ? "🏆 " + n : ""; } catch (e) { return ""; } },
+    },
+  ];
+  const sec = document.getElementById("seccion-juegos");
+  const cat = document.getElementById("jg-catalogo");
+  const vista = document.getElementById("jg-vista");
+  const caja = document.getElementById("jg-caja");
+  const volver = document.getElementById("jg-volver");
+  if (!sec || !cat || !vista || !caja || !volver) return;
+  let activo = null; // el juego abierto (solo uno a la vez)
+
+  function dibujarCatalogo() {
+    cat.innerHTML = "";
+    JUEGOS.forEach((j) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "jg-tarjeta";
+      b.setAttribute("aria-label", "Jugar " + j.titulo);
+      const ic = document.createElement("span");
+      ic.className = "jg-tarjeta-icono";
+      ic.textContent = j.icono;
+      const n = document.createElement("span");
+      n.className = "jg-tarjeta-nombre";
+      n.textContent = j.titulo;
+      const d = document.createElement("span");
+      d.className = "jg-tarjeta-desc";
+      d.textContent = j.desc;
+      b.append(ic, n, d);
+      const extra = j.info ? j.info() : "";
+      if (extra) {
+        const i = document.createElement("span");
+        i.className = "jg-tarjeta-info";
+        i.textContent = extra;
+        b.appendChild(i);
+      }
+      b.addEventListener("click", () => abrir(j));
+      cat.appendChild(b);
+    });
+  }
+
+  function abrir(j) {
+    cerrar();
+    const inst = j.montar(caja); // el juego se construye y empieza a existir solo ahora
+    if (!inst) return;
+    activo = inst;
+    cat.hidden = true;
+    vista.hidden = false;
+    window.scrollTo({ top: 0 });
+  }
+  function cerrar() {
+    if (activo) { try { activo.destruir(); } catch (e) { /* nada */ } activo = null; }
+    caja.innerHTML = "";
+    vista.hidden = true;
+    cat.hidden = false;
+    dibujarCatalogo();
+  }
+  volver.addEventListener("click", cerrar);
+  // Al salir de la zona Juegos el juego abierto se cierra del todo (no se queda gastando recursos)
+  new MutationObserver(() => { if (sec.hidden && activo) cerrar(); }).observe(sec, { attributes: true, attributeFilter: ["hidden"] });
+  dibujarCatalogo();
 })();

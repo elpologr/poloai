@@ -349,15 +349,11 @@
     <!-- JUEGOS (se abre desde la barra lateral) -->
     <section id="seccion-juegos" class="seccion" hidden>
       <h2>&#127918; Juegos</h2>
-      <div class="jj-caja">
-        <h3 class="jj-titulo">&#129719; Saltarín del Loto</h3>
-        <canvas id="jj-canvas" class="jj-canvas" aria-label="Juego Saltarín del Loto: rebota en las plataformas y sube lo más alto que puedas"></canvas>
-        <div class="jj-botones">
-          <button id="jj-jugar" class="notas-btn" type="button">&#9654; Jugar</button>
-          <button id="jj-pausa" class="notas-btn td-btn-sec" type="button" disabled>&#9208; Pausa</button>
-        </div>
-        <p class="jj-ayuda">Mueve al personaje con las flechas &larr; &rarr; (o A / D). En el celular, mantén tocado el lado izquierdo o derecho del juego.
-          Espacio o P = pausa. Verde: normal · Azul: se mueve · Café: se rompe · Resorte rojo: salto grande.</p>
+      <!-- Catálogo: mini recuadros. Un juego solo se carga al tocar su recuadro (se arma en app.js, «catalogoJuegos») -->
+      <div id="jg-catalogo" class="jg-catalogo"></div>
+      <div id="jg-vista" class="jg-vista" hidden>
+        <button id="jg-volver" class="notas-btn notas-btn-sec" type="button">&#8249; Volver a juegos</button>
+        <div id="jg-caja" class="jj-caja"></div>
       </div>
     </section>
 
