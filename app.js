@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "66";
+const VERSION = "67";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -26,7 +26,7 @@ const VERSION = "66";
     "cuenta-nota", "cuenta-dispositivos", "disp-panel", "disp-estado", "disp-lista", "disp-todas",
     "bz-pestanas", "bz-pag-bazar", "bz-pag-yeso", "bz-pag-ventas", "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
-    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-nivel-volver", "em-mover", "em-mover-ayuda", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp", "em-canal", "em-notas-proy-abrir", "em-npag", "em-npag-chips", "em-npag-form", "em-npag-etiqueta", "em-npag-finalizar", "actividades-actualizar", "trabajo-actualizar",
+    "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-mover", "em-mover-ayuda", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp", "em-canal", "em-notas-proy-abrir", "em-npag", "em-npag-chips", "em-npag-form", "em-npag-etiqueta", "em-npag-finalizar", "actividades-actualizar", "trabajo-actualizar",
     "btn-menu-notas-imp", "btn-menu-tareas-pend", "btn-volver-menu", "seccion-notas-imp", "seccion-tareas-pend", "zona-notas-imp", "zona-notas-fav", "zona-tareas-pend", "notas-imp-actualizar", "tareas-pend-actualizar", "ej-tarea", "de-tarea", "ip-tarea", "cm-tarea", "bz-tarea",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
   ];
@@ -141,7 +141,7 @@ function navEstadoActual() {
   return s;
 }
 function navClave(s) {
-  const e = s.em ? [s.em.nivel, s.em.zona, s.em.grupo, s.em.sub].join(",") : "";
+  const e = s.em ? [s.em.zona, s.em.grupo, s.em.sub].join(",") : "";
   return [s.sec, s.menu ? 1 : 0, e, s.bz || ""].join("|");
 }
 function navRegistrar() {
@@ -6782,14 +6782,9 @@ let emSubgruposActivos = (() => {
   return { Personales: emSubgrupoValido("Personales", o.Personales), Ajenos: emSubgrupoValido("Ajenos", o.Ajenos) };
 })();
 const emSubgruposCaja = emEl("em-subgrupos");
-// Nivel de la página de Empresas/Proyectos que se está viendo (cada nivel es una página nueva con su título):
-// 0 = las zonas (Proyectos, Canales de Contenido, Aplicaciones) · 1 = Personales/Ajenos (dentro de Proyectos)
-// · 2 = los subtipos del grupo (Míos/Familiares o Amigos/Clientes) · 3 = la lista de recuadros
-let emNivel = 0;
 function emElegirSubgrupo(nombre) {
   emSubgruposActivos[emGrupoActivo] = emSubgrupoValido(emGrupoActivo, nombre);
   try { localStorage.setItem(CLAVE_SUBGRUPO_EM, JSON.stringify(emSubgruposActivos)); } catch (e) {}
-  emNivel = 3;
   dibujarChipsEm();
   navRegistrar();
 }
@@ -6804,7 +6799,7 @@ function emDibujarSubgrupos() {
     b.dataset.subgrupo = x.nombre;
     b.setAttribute("aria-selected", String(x.nombre === emSubgruposActivos[emGrupoActivo]));
     b.textContent = x.icono + " " + x.nombre;
-    b.addEventListener("click", () => { emElegirSubgrupo(x.nombre); window.scrollTo({ top: 0 }); });
+    b.addEventListener("click", () => emElegirSubgrupo(x.nombre));
     emSubgruposCaja.appendChild(b);
   });
 }
@@ -6820,11 +6815,10 @@ const emSubgrupoCampo = emEl("em-subgrupo-campo");
 function emElegirGrupo(nombre) {
   emGrupoActivo = GRUPOS_EM.indexOf(nombre) !== -1 ? nombre : GRUPOS_EM[0];
   try { localStorage.setItem(CLAVE_GRUPO_EM, emGrupoActivo); } catch (e) {}
-  emNivel = 2;
   dibujarChipsEm();
   navRegistrar();
 }
-emGruposBtns.forEach((b) => b.addEventListener("click", () => { emElegirGrupo(b.dataset.grupo); window.scrollTo({ top: 0 }); }));
+emGruposBtns.forEach((b) => b.addEventListener("click", () => emElegirGrupo(b.dataset.grupo)));
 let emZonaActiva = (() => {
   try { return emZonaInfo(localStorage.getItem(CLAVE_ZONA_EM)).nombre; } catch (e) { return ZONAS_EM[0].nombre; }
 })();
@@ -6842,16 +6836,14 @@ function emElegirZona(nombre, grupo, subgrupo) {
   }
   try { localStorage.setItem(CLAVE_ZONA_EM, emZonaActiva); } catch (e) {}
   emZonasBtns.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.zona === emZonaActiva)));
-  // «Proyectos» sin grupo abre la página de Personales/Ajenos; las demás zonas (o cuando ya se indica el grupo) abren la lista
-  emNivel = grupo || emZonaActiva !== ZONAS_EM[0].nombre ? 3 : 1;
   dibujarChipsEm();
   navRegistrar();
 }
-emZonasBtns.forEach((b) => b.addEventListener("click", () => { emElegirZona(b.dataset.zona); window.scrollTo({ top: 0 }); }));
+emZonasBtns.forEach((b) => b.addEventListener("click", () => emElegirZona(b.dataset.zona)));
 
 // Historial de Empresas/Proyectos: estado actual y cómo restaurarlo al usar «regresar»
 function emNavEstado() {
-  return { nivel: emNivel, zona: emZonaActiva, grupo: emGrupoActivo, sub: emSubgruposActivos[emGrupoActivo] };
+  return { zona: emZonaActiva, grupo: emGrupoActivo, sub: emSubgruposActivos[emGrupoActivo] };
 }
 function emNavAplicar(e) {
   cerrarFormEm();
@@ -6860,16 +6852,7 @@ function emNavAplicar(e) {
   emZonaActiva = emZonaInfo(e.zona).nombre;
   emGrupoActivo = GRUPOS_EM.indexOf(e.grupo) !== -1 ? e.grupo : GRUPOS_EM[0];
   emSubgruposActivos[emGrupoActivo] = emSubgrupoValido(emGrupoActivo, e.sub);
-  emNivel = e.nivel;
   dibujarChipsEm();
-  window.scrollTo({ top: 0 });
-}
-// Botón «‹ Volver» de la página: sube un nivel (igual que «regresar» del navegador)
-function emNivelArriba() {
-  if (emNivel === 3) emNivel = emZonaActiva === ZONAS_EM[0].nombre ? 2 : 0;
-  else if (emNivel > 0) emNivel--;
-  dibujarChipsEm();
-  window.scrollTo({ top: 0 });
 }
 let emCargadas = false;
 let emEditando = null; // empresa abierta en la ventana (null = nueva)
@@ -11538,41 +11521,17 @@ emEl("em-canal-recargar").addEventListener("click", () => {
 });
 
 // ----- Mini notas cuadradas -----
-const emZonasCaja = emEl("em-zonas");
-const emMoverBarra = document.querySelector("#em-contenido .em-mover-barra");
-const emNivelVolver = emEl("em-nivel-volver");
-const emTitulo = emEl("em-titulo");
-emNivelVolver.addEventListener("click", () => navAtras(emNivelArriba));
-// Título de la página según el nivel: la zona, el grupo o el subtipo que se abrió
-function emTituloNivel(zonaInfo) {
-  if (emNivel === 0) return "Empresas/Proyectos";
-  const enProyectos = emZonaActiva === ZONAS_EM[0].nombre;
-  if (!enProyectos || emNivel === 1) return zonaInfo.icono + " " + zonaInfo.nombre;
-  if (emNivel === 2) {
-    const b = emGruposBtns.find((x) => x.dataset.grupo === emGrupoActivo);
-    return b ? b.textContent : emGrupoActivo;
-  }
-  const sub = emSubgruposActivos[emGrupoActivo];
-  const x = SUBGRUPOS_EM[emGrupoActivo].find((y) => y.nombre === sub);
-  return (x ? x.icono + " " : "") + sub;
-}
 function dibujarChipsEm() {
   emChips.innerHTML = "";
   const zonaInfo = emZonaInfo(emZonaActiva);
   emZonasBtns.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.zona === emZonaActiva)));
   // El divisor Personales/Ajenos solo existe dentro de «Proyectos»
   const enProyectos = emZonaActiva === ZONAS_EM[0].nombre;
+  emGruposCaja.hidden = !enProyectos;
   emGruposBtns.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.grupo === emGrupoActivo)));
   // El tercer divisor (Míos/Familiares o Amigos/Clientes) también solo existe dentro de «Proyectos»
+  emSubgruposCaja.hidden = !enProyectos;
   if (enProyectos) emDibujarSubgrupos();
-  // Cada nivel es una página: al elegir un botón se ocultan todos y se abre la página de esa zona con su título arriba
-  emZonasCaja.hidden = emNivel !== 0;
-  emGruposCaja.hidden = !(enProyectos && emNivel === 1);
-  emSubgruposCaja.hidden = !(enProyectos && emNivel === 2);
-  emChips.hidden = emNivel !== 3;
-  emMoverBarra.hidden = emNivel !== 3;
-  emNivelVolver.hidden = emNivel === 0;
-  emTitulo.textContent = emTituloNivel(zonaInfo);
   const visibles = emListaVisible();
   visibles.forEach((d, idx) => {
     const b = document.createElement("button");
@@ -11837,7 +11796,6 @@ function actualizarPanelEmpresas() {
 function entrarEmpresas() {
   cerrarFormEm();
   cerrarDetalleEm();
-  emNivel = 0; // la página siempre se abre en las zonas
   panelEm.hidden = false;
   if (emMoviendo) emPonerMover(false);
   dibujarChipsEm();
