@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "71";
+const VERSION = "72";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -16,7 +16,7 @@ const VERSION = "71";
     "zona-actividades", "zona-trabajo", "btn-menu-notas", "seccion-notas", "btn-menu-ejercicio",
     "panel-ejercicio", "ej-cuadricula", "ej-dia", "ej-form",
     "btn-menu-diario", "panel-diario", "di-cuadricula", "di-dia", "di-form",
-    "di-cuentas-abrir", "di-fav", "di-fecha-creada", "di-fecha-modif", "di-cuentas", "di-cu-chips", "di-cu-form", "di-cu-proyectos", "di-cu-nueva", "di-cu-prev", "di-cu-sig",
+    "di-cuentas-abrir", "di-fav", "di-clase", "di-notario-zona", "di-notario-grid", "di-fecha-creada", "di-fecha-modif", "di-cuentas", "di-cu-chips", "di-cu-form", "di-cu-proyectos", "di-cu-nueva", "di-cu-prev", "di-cu-sig",
     "seccion-ejercicio", "seccion-diario", "di-ejercicios", "di-ej-detalle", "zona-pedidos-yeso", "bazar-division-yeso",
     "pop-color", "pop-colores", "pop-mas-colores", "pop-paleta", "pop-color-personal",
     "btn-menu-deudas", "seccion-deudas", "panel-deudas", "de-chips", "de-form",
@@ -4554,12 +4554,21 @@ const diDescripcion = diEl("di-descripcion");
 const diDestino = diEl("di-destino");
 const diTipoCampo = diEl("di-tipo-campo");
 const diTipo = diEl("di-tipo");
-const diFav = diEl("di-fav"); // botón «Añadir a favoritos»
+const diFav = diEl("di-fav"); // botón pequeño ⭐ (junto al título)
+const diClase = diEl("di-clase"); // Nota | Notario
+const diExtraCampo = diEl("di-extra-campo"); // «Trabajo o tarea por terminar»
+const diDescCampo = diEl("di-desc-campo");
+const diNtZona = diEl("di-notario-zona"); // en un notario: recuadros de sus notas, en lugar del texto
+const diNtAviso = diEl("di-notario-aviso");
+const diNtUso = diEl("di-notario-uso");
+const diNtGrid = diEl("di-notario-grid");
+let diNotarioEd = null; // notario abierto en la ventana (null = una anotación normal)
 const diFechaCreada = diEl("di-fecha-creada");
 const diFechaModif = diEl("di-fecha-modif");
 let diFavForm = false; // estado de la ⭐ en el formulario abierto
 let diCreadaNueva = ""; // fecha y hora con que se está registrando una anotación nueva
 const diGuardar = diEl("di-guardar");
+const diCancelar = diEl("di-cancelar");
 const diBorrar = diEl("di-borrar");
 const diFormEstado = diEl("di-form-estado");
 const diEjSub = diEl("di-ejercicios");
@@ -4601,6 +4610,25 @@ function ajustarMesDi() {
 }
 
 const diDeDia = (fecha) => diarios.filter((e) => e.fecha === fecha);
+
+// Notarios del Diario: viven en la zona «diario» y su fecha dice a qué día pertenecen («dd/mm/aaaa hh:mm» → «AAAA-MM-DD»)
+function diDiaDeNotario(n) {
+  const f = String((n && n.fecha) || "").trim().split(" ")[0];
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(f);
+  if (m) return claveFecha(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  return /^\d{4}-\d{2}-\d{2}$/.test(f) ? f : "";
+}
+function ntDeDia(fecha) {
+  if (typeof NT === "undefined" || !NT || !Array.isArray(NT.lista)) return [];
+  return NT.lista.filter((n) => n.zona === "diario" && diDiaDeNotario(n) === fecha);
+}
+// Lo llama ntDibujarTodo cuando cambian los notarios (se crea una nota, se borra, se vuelven a leer…)
+function diRedibujarNotarios() {
+  if (diNotarioEd) diNotarioEd = ntPorId(diNotarioEd.id) || diNotarioEd;
+  dibujarCalendarioDi();
+  if (diDia) dibujarChipsDi();
+  if (!diForm.hidden && diNotarioEd) { dibujarNotarioZonaDi(); dibujarFechasDi(null); }
+}
 
 // Un trabajo recién finalizado aparece en el Diario sin tener que recargar
 // (si el Diario aún no se ha leído, se leerá completo al abrirlo)
@@ -4649,7 +4677,7 @@ function dibujarCalendarioDi() {
     if ((primerDia + d - 1) % 7 >= 5) el.classList.add("finde");
     if (d === ahora.getDate() && diMes === ahora.getMonth() && diAnio === ahora.getFullYear()) el.classList.add("hoy");
     if (fecha === diDia) el.classList.add("seleccionado");
-    if (diDeDia(fecha).length || ejDeDia(fecha).length) el.classList.add("con-datos");
+    if (diDeDia(fecha).length || ejDeDia(fecha).length || ntDeDia(fecha).length) el.classList.add("con-datos");
     if (!diFechaValida(fecha)) {
       // Fuera del rango permitido (antes del 2/2/1999 o después del 2/2/2099)
       el.disabled = true;
@@ -4697,6 +4725,19 @@ function dibujarChipsDi() {
     }
     b.querySelector(".ej-chip-nombre").textContent = e.nombre + (e.favorito ? " ⭐" : "");
     b.addEventListener("click", () => abrirVisorDi(e));
+    diChips.appendChild(b);
+  });
+  // Los notarios de este día (al tocar uno se ven los recuadros de sus notas)
+  ntDeDia(diDia).forEach((n) => {
+    const k = n.notas.length;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ej-chip ej-chip-notario";
+    b.title = "Notario: " + n.nombre + " (" + k + (k === 1 ? " nota)" : " notas)");
+    b.setAttribute("aria-label", "Abrir el notario " + n.nombre);
+    b.innerHTML = '<span class="ej-chip-icono" aria-hidden="true">📒</span><span class="ej-chip-nombre"></span>';
+    b.querySelector(".ej-chip-nombre").textContent = n.nombre;
+    b.addEventListener("click", () => abrirFormNotarioDi(n));
     diChips.appendChild(b);
   });
   const nuevo = document.createElement("button");
@@ -4795,10 +4836,18 @@ function diPonerFav(valor) {
   diFavForm = !!valor;
   diFav.classList.toggle("activo", diFavForm);
   diFav.setAttribute("aria-pressed", String(diFavForm));
-  diFav.textContent = diFavForm ? "★ En favoritos" : "☆ Añadir a favoritos";
+  diFav.textContent = diFavForm ? "★" : "☆";
+  diFav.title = diFavForm ? "Quitar de favoritos" : "Añadir a favoritos";
+  diFav.setAttribute("aria-label", diFavForm ? "Quitar de favoritos" : "Añadir a favoritos");
 }
 diFav.addEventListener("click", () => diPonerFav(!diFavForm));
 function dibujarFechasDi(e) {
+  if (diNotarioEd) { // un notario: su fecha y cuántas notas lleva dentro
+    const k = diNotarioEd.notas.length;
+    diFechaCreada.textContent = "Creada: " + (diNotarioEd.fecha || "");
+    diFechaModif.textContent = k + (k === 1 ? " nota dentro" : " notas dentro");
+    return;
+  }
   // Principal: la fecha de creación (si es una anotación antigua sin hora, solo el día)
   diFechaCreada.textContent = "Creada: " + (e ? (e.creada || diFechaDeDia(e.fecha)) : diCreadaNueva);
   const mods = e && Array.isArray(e.modificaciones) ? e.modificaciones : [];
@@ -4806,6 +4855,8 @@ function dibujarFechasDi(e) {
 }
 function abrirFormDi(e) {
   diEditando = e;
+  diNotarioEd = null;
+  diClase.value = "nota";
   diFormTitulo.textContent = e
     ? e.marca === "Tarea finalizada"
       ? "Anotación de Tarea Finalizada ✅"
@@ -4820,21 +4871,117 @@ function abrirFormDi(e) {
   diDestino.value = (e && e.destino !== "drive") ? "sheets" : "drive";
   migDi.actualizar(e);
   diBorrar.hidden = !e;
-  diTipoCampo.hidden = !!e; // «Guardar como» solo al crear
   diTipo.value = "nota";
   diCreadaNueva = e ? "" : selloFechaHora(); // la fecha y hora que se está registrando
   diPonerFav(e ? !!e.favorito : false);
   dibujarFechasDi(e);
   setEstado(diFormEstado, "");
+  diAplicarClase();
   diForm.hidden = false;
   diNombre.focus();
+}
+// Abre un notario ya creado: nombre y fecha arriba y, donde iba el texto, los recuadros de sus notas
+function abrirFormNotarioDi(n) {
+  diEditando = null;
+  diNotarioEd = n;
+  diClase.value = "notario";
+  diNombre.value = n.nombre || "";
+  diDescripcion.value = "";
+  diPonerFav(false);
+  diCreadaNueva = "";
+  dibujarFechasDi(null);
+  setEstado(diFormEstado, "");
+  diAplicarClase();
+  diForm.hidden = false;
 }
 function cerrarFormDi() {
   diForm.hidden = true;
   diEditando = null;
+  diNotarioEd = null;
+}
+// Muestra u oculta lo que cada tipo usa: nota (texto) o notario (recuadros de notas); el tipo solo se elige al crear
+function diAplicarClase() {
+  const creando = !diEditando && !diNotarioEd;
+  const esNt = !diEditando && (!!diNotarioEd || diClase.value === "notario");
+  diTipoCampo.hidden = !creando;
+  diExtraCampo.hidden = esNt;
+  diFav.hidden = esNt; // los notarios no llevan favorito
+  diDescCampo.hidden = esNt;
+  diNtZona.hidden = !esNt;
+  diNombre.placeholder = esNt ? "Ej. Ideas para el negocio" : "Ej. Idea del día";
+  if (esNt) diFormTitulo.textContent = diNotarioEd ? "Notario 📒" : "Nuevo notario 📒";
+  else if (!diEditando) diFormTitulo.textContent = "Nueva anotación";
+  diGuardar.textContent = esNt && !diNotarioEd ? "Crear notario" : "Guardar";
+  diCancelar.textContent = diNotarioEd ? "Cerrar" : "Cancelar";
+  diBorrar.hidden = !(diEditando || diNotarioEd);
+  if (esNt && !diNotarioEd) dibujarFechasDi(null);
+  dibujarNotarioZonaDi();
+}
+// Recuadros de las notas del notario (la más reciente primero) y el recuadro «Añadir»; cada una se escribe en su propia ventana
+function dibujarNotarioZonaDi() {
+  diNtGrid.innerHTML = "";
+  const n = diNotarioEd;
+  if (!n) {
+    diNtUso.hidden = true;
+    diNtAviso.hidden = false;
+    diNtAviso.textContent = "Escribe el nombre y toca «Crear notario»: aquí aparecerán sus notas en recuadros para que escribas dentro.";
+    return;
+  }
+  diNtAviso.hidden = true;
+  const largo = ntLargo(n.notas);
+  const lim = ntLimiteDe(n);
+  diNtUso.hidden = false;
+  diNtUso.className = "di-notario-uso di-notario-uso-" + ntNivel(largo, lim);
+  diNtUso.textContent = ntFmt(largo) + " / " + ntFmt(lim) + " caracteres · quedan " + ntFmt(Math.max(0, lim - largo));
+  n.notas.slice().reverse().forEach((nota) => {
+    const primera = String(nota.texto || "").split(/\r?\n/).map((x) => x.trim()).find(Boolean) || "Sin texto";
+    const titulo = primera.length > 40 ? primera.slice(0, 40) + "…" : primera;
+    const b = nvCrearChip(titulo, nota.fecha ? String(nota.fecha).split(" ")[0] : "", resumenCorto(String(nota.texto || ""), 90), "", "nt-pag-chip");
+    b.setAttribute("aria-label", "Ver o editar esta nota del notario " + n.nombre);
+    b.addEventListener("click", () => ntAbrirEditor(n, nota));
+    diNtGrid.appendChild(b);
+  });
+  diNtGrid.appendChild(nvCrearAnadir("Añadir una nota al notario " + n.nombre, () => ntAbrirEditor(n, null)));
+}
+
+// Crear un notario nuevo en este día, o cambiarle el nombre a uno ya creado
+async function guardarNotarioDi() {
+  const nombre = diNombre.value.trim();
+  if (!nombre) {
+    setEstado(diFormEstado, "Escribe el nombre del notario", "error");
+    return;
+  }
+  diGuardar.disabled = true;
+  setEstado(diFormEstado, "Guardando…");
+  try {
+    const ex = diNotarioEd;
+    if (ex) {
+      await llamarNotas("notario_editar", { id: ex.id, nombre, descripcion: ex.descripcion || "" });
+      ex.nombre = nombre;
+      setEstado(diFormEstado, "Guardado ✓", "ok");
+    } else {
+      // La fecha del notario es la del día abierto (con la hora de ahora): así sabe a qué día pertenece
+      const fecha = diFechaDeDia(diDia) + " " + selloFechaHora().split(" ")[1];
+      const nuevo = { id: ntNuevoId(), zona: "diario", nombre, descripcion: "", fecha, destino: "drive", limite: NT_LIMITE, notas: [] };
+      await llamarNotas("notario_agregar", { id: nuevo.id, zona: "diario", nombre, descripcion: "", fecha, destino: "drive" });
+      NT.lista.push(nuevo);
+      diNotarioEd = nuevo;
+      setEstado(diFormEstado, "Notario creado ✓ Toca «Añadir» para escribir su primera nota", "ok");
+    }
+    diAplicarClase();
+    dibujarFechasDi(null);
+    dibujarChipsDi();
+    dibujarCalendarioDi();
+    ntDibujarTodo();
+  } catch (err) {
+    setEstado(diFormEstado, "Error: " + err.message, "error");
+  } finally {
+    diGuardar.disabled = false;
+  }
 }
 
 async function guardarDi() {
+  if (diNotarioEd || (!diEditando && diClase.value === "notario")) { guardarNotarioDi(); return; }
   const nombre = diNombre.value.trim();
   if (!nombre) {
     setEstado(diFormEstado, "Escribe el nombre de la anotación", "error");
@@ -4896,7 +5043,30 @@ async function guardarDi() {
   }
 }
 
+async function borrarNotarioDi() {
+  const n = diNotarioEd;
+  if (!n) return;
+  const cuantas = n.notas.length;
+  const aviso = "¿Eliminar el notario «" + n.nombre + "»" + (cuantas ? " junto con sus " + cuantas + (cuantas === 1 ? " nota" : " notas") : "") + "? No se puede deshacer.";
+  if (!window.confirm(aviso)) return;
+  diBorrar.disabled = true;
+  setEstado(diFormEstado, "Eliminando…");
+  try {
+    await llamarNotas("notario_borrar", { id: n.id });
+    NT.lista = NT.lista.filter((x) => x.id !== n.id);
+    cerrarFormDi();
+    ntDibujarTodo();
+    dibujarChipsDi();
+    dibujarCalendarioDi();
+  } catch (err) {
+    setEstado(diFormEstado, "Error: " + err.message, "error");
+  } finally {
+    diBorrar.disabled = false;
+  }
+}
+
 async function borrarDi() {
+  if (diNotarioEd) { borrarNotarioDi(); return; }
   const e = diEditando;
   if (!e || !window.confirm("¿Eliminar la anotación «" + e.nombre + "»?")) return;
   diBorrar.disabled = true;
@@ -4949,6 +5119,7 @@ function actualizarPanelDiario() {
   if (dentro) {
     if (!diCargados) cargarDiarios();
     cargarEjerciciosParaDiario();
+    if (typeof NT !== "undefined" && NT && !NT.cargados && !NT.cargando) ntCargar(); // los notarios de cada día
   } else {
     diCargados = false;
     diarios = [];
@@ -5005,7 +5176,8 @@ diSelMes.addEventListener("change", () => { diMes = Number(diSelMes.value); dibu
 diSelAnio.addEventListener("change", () => { diAnio = Number(diSelAnio.value); dibujarCalendarioDi(); });
 diEl("di-dia-volver").addEventListener("click", cerrarDiaDi);
 diGuardar.addEventListener("click", guardarDi);
-diEl("di-cancelar").addEventListener("click", cerrarFormDi);
+diCancelar.addEventListener("click", cerrarFormDi);
+diClase.addEventListener("change", diAplicarClase);
 diBorrar.addEventListener("click", borrarDi);
 diEl("di-ej-volver").addEventListener("click", cerrarEjerciciosDi);
 diEl("di-ej-detalle-cerrar").addEventListener("click", cerrarDetalleEjDi);
@@ -5016,6 +5188,7 @@ diEjDetalle.addEventListener("click", (e) => {
 // Esc cierra primero la información del ejercicio, luego sus cuadros, la ventana y por último el submenú del día
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelDi.hidden) return;
+  if (!ntNotaModal.hidden || !ntModal.hidden) return; // la ventana de una nota del notario se cierra por su cuenta
   if (!diEjDetalle.hidden) cerrarDetalleEjDi();
   else if (!diEjSub.hidden) cerrarEjerciciosDi();
   else if (!diForm.hidden) cerrarFormDi();
@@ -13983,6 +14156,7 @@ function ntDibujarTodo() {
   ntDibujarPagina();
   if (!ntModal.hidden) { const abierto = ntPorId(NT.abierto); if (abierto && !ntEl.notas.hidden) ntDibujarMedidor(abierto); }
   if (typeof npRedibujarHook === "function") npRedibujarHook(); // y los recuadros de «Notas del proyecto»
+  if (typeof diRedibujarNotarios === "function") diRedibujarNotarios(); // y los notarios de cada día del Diario
 }
 
 async function ntCargar() {
@@ -14041,7 +14215,6 @@ function ntRecargarSiHaySesion() {
   });
   [
     ["ejercicio", "ej-contenido"],
-    ["diario", "di-contenido"],
     ["deudas", "de-contenido"],
     ["informacion", "ip-contenido"],
     ["comandos", "cm-contenido"],

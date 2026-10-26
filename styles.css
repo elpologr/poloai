@@ -1,5 +1,5 @@
 :root {
-  --app-version: "71"; /* debe coincidir con VERSION en app.js */
+  --app-version: "72"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -3734,4 +3734,24 @@ body.en-seccion .menu { display: none; }
 }
 .di-fav-btn:hover { border-color: #e0a800; }
 .di-fav-btn.activo { color: #ffd54a; border-color: #e0a800; font-weight: 700; }
-#di-form textarea { min-height: 18em; } /* tres veces más alto que antes */
+#di-form textarea { min-height: 18em; }
+/* Zona de arriba del formulario del Diario: título + ⭐ pequeña y, debajo, «Nota o notario» y «Trabajo o tarea por terminar» */
+#di-form .di-form-tope { margin-bottom: 6px; }
+#di-form .di-form-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+#di-form .di-form-cab .notas-form-titulo { margin: 0; min-width: 0; }
+.di-fav-btn.di-fav-mini { width: auto; flex: 0 0 auto; padding: 2px 11px; font-size: 1.3rem; line-height: 1.35; text-align: center; border-radius: 999px; }
+#di-form .di-tipos { margin-bottom: 0; }
+#di-form .di-tipos .notas-campo { margin-bottom: 10px; }
+@media (max-width: 480px) { #di-form .di-tipos { grid-template-columns: 1fr; gap: 0; } }
+/* Notario dentro de un día: recuadros de sus notas donde iba el texto */
+.di-notario-zona { margin-bottom: 12px; }
+.di-notario-zona[hidden] { display: none; }
+.di-notario-aviso { margin: 4px 0 8px; padding: 12px; font-size: 0.9rem; color: #cfe3f8; background: #0d1b2e; border: 1px dashed #4f94d4; border-radius: 12px; }
+.di-notario-aviso[hidden], .di-notario-uso[hidden] { display: none; }
+.di-notario-uso { margin: 0 0 8px; font-size: 0.8rem; color: #ccc; }
+.di-notario-uso-aviso { color: #ffd54a; }
+.di-notario-uso-critico { color: #ff7a6b; font-weight: 700; }
+#di-form .di-notario-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 0; }
+@media (max-width: 480px) { #di-form .di-notario-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ej-chip-notario { border-color: #4f94d4; }
+ /* tres veces más alto que antes */

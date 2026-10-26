@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="71" />
+  <meta name="app-version" content="72" />
   <meta name="theme-color" content="#4a2685" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=100" />
+  <link rel="stylesheet" href="styles.css?v=101" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -823,7 +823,31 @@
 
       <!-- Ventana para agregar o editar una anotación -->
       <div id="di-form" class="notas-nueva modo-editar" hidden>
-        <h3 id="di-form-titulo" class="notas-form-titulo">Nueva anotación</h3>
+        <!-- Zona de arriba: título + favoritos (botón pequeño) y, debajo, el tipo separado en dos partes:
+             «Nota o notario» (qué es) y «Trabajo o tarea por terminar» (a dónde se envía además). Solo al crear. -->
+        <div class="di-form-tope">
+          <div class="di-form-cab">
+            <h3 id="di-form-titulo" class="notas-form-titulo">Nueva anotación</h3>
+            <button id="di-fav" class="di-fav-btn di-fav-mini" type="button" aria-pressed="false" aria-label="Añadir a favoritos" title="Añadir a favoritos">☆</button>
+          </div>
+          <div id="di-tipo-campo" class="di-form-fila di-tipos">
+            <label class="notas-campo">
+              <span>Nota o notario</span>
+              <select id="di-clase">
+                <option value="nota">📓 Nota</option>
+                <option value="notario">📒 Notario (varias notas)</option>
+              </select>
+            </label>
+            <label id="di-extra-campo" class="notas-campo">
+              <span>Trabajo o tarea por terminar</span>
+              <select id="di-tipo">
+                <option value="nota">Solo en el Diario</option>
+                <option value="trabajo">💼 Trabajo (también aparece en Trabajo)</option>
+                <option value="actividad">🎯 Tarea por terminar (también en Tareas por Terminar)</option>
+              </select>
+            </label>
+          </div>
+        </div>
         <!-- Fila 1: nombre (mitad) y fecha (mitad: creación + días en que se modificó) -->
         <div class="di-form-fila">
           <label class="notas-campo">
@@ -836,21 +860,6 @@
             <div id="di-fecha-modif" class="di-fecha-modif"></div>
           </div>
         </div>
-        <!-- Fila 2: «Guardar como» (izquierda) y favoritos (derecha) -->
-        <div class="di-form-fila">
-          <label id="di-tipo-campo" class="notas-campo">
-            <span>Guardar como</span>
-            <select id="di-tipo">
-              <option value="nota">📓 Nota (solo recuerdo de este día)</option>
-              <option value="actividad">🎯 Tarea por terminar (también aparece en Tareas por Terminar)</option>
-              <option value="trabajo">💼 Trabajo (también aparece en Trabajo)</option>
-            </select>
-          </label>
-          <div class="notas-campo di-fav-campo">
-            <span>Favoritos</span>
-            <button id="di-fav" class="di-fav-btn" type="button" aria-pressed="false">☆ Añadir a favoritos</button>
-          </div>
-        </div>
         <label class="notas-campo" hidden>
           <span>Guardar en</span>
           <select id="di-destino">
@@ -858,10 +867,16 @@
             <option value="drive">Google Drive (archivo .txt en notaslargas)</option>
           </select>
         </label>
-        <label class="notas-campo">
+        <label id="di-desc-campo" class="notas-campo">
           <span>Descripción</span>
           <textarea id="di-descripcion" rows="12" maxlength="1000000" placeholder="Escribe tu anotación…"></textarea>
         </label>
+        <!-- Si es un notario, en lugar del texto se ven los recuadros de sus notas (la arma app.js) -->
+        <div id="di-notario-zona" class="di-notario-zona" hidden>
+          <p id="di-notario-aviso" class="di-notario-aviso"></p>
+          <p id="di-notario-uso" class="di-notario-uso"></p>
+          <div id="di-notario-grid" class="ej-chips nv-grid di-notario-grid"></div>
+        </div>
         <div class="notas-fila">
           <button id="di-guardar" class="notas-btn" type="button">Guardar</button>
           <button id="di-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
@@ -1733,7 +1748,7 @@
   </main>
 
   <script src="config.js?v=66"></script>
-  <script src="app.js?v=107"></script>
+  <script src="app.js?v=108"></script>
   <script src="voz.js?v=66"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>
