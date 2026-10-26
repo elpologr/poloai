@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="68" />
+  <meta name="app-version" content="69" />
   <meta name="theme-color" content="#4a2685" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=97" />
+  <link rel="stylesheet" href="styles.css?v=98" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -511,6 +511,10 @@
                   </div>
                 </div>
               </div>
+              <label class="notas-fav-check">
+                <input id="notas-favorita" type="checkbox" />
+                <span>&#11088; Marcar como favorita</span>
+              </label>
               <div class="notas-campos notas-campos-par">
                 <label class="notas-campo">
                   <span>Fecha y hora</span>
@@ -1669,18 +1673,18 @@
         </div>
       </header>
       <div class="notas-cuerpo">
-        <div class="bazar-division" role="separator" aria-label="Mis notas">
-          <span class="bazar-division-linea" aria-hidden="true"></span>
-          <h3 class="bazar-division-titulo">&#128221; Mis notas</h3>
-          <span class="bazar-division-linea" aria-hidden="true"></span>
-        </div>
-        <div id="zona-notas-imp" class="zona-etiqueta"></div>
         <div class="bazar-division" role="separator" aria-label="Favoritas">
           <span class="bazar-division-linea" aria-hidden="true"></span>
           <h3 class="bazar-division-titulo">&#11088; Favoritas</h3>
           <span class="bazar-division-linea" aria-hidden="true"></span>
         </div>
         <div id="zona-notas-fav" class="zona-etiqueta"></div>
+        <div class="bazar-division" role="separator" aria-label="Mis notas">
+          <span class="bazar-division-linea" aria-hidden="true"></span>
+          <h3 class="bazar-division-titulo">&#128221; Mis notas</h3>
+          <span class="bazar-division-linea" aria-hidden="true"></span>
+        </div>
+        <div id="zona-notas-imp" class="zona-etiqueta"></div>
       </div>
     </div>
   </div>
@@ -1714,7 +1718,7 @@
   </main>
 
   <script src="config.js?v=66"></script>
-  <script src="app.js?v=104"></script>
+  <script src="app.js?v=105"></script>
   <script src="voz.js?v=66"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "68";
+const VERSION = "69";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -27,7 +27,7 @@ const VERSION = "68";
     "bz-pestanas", "bz-pag-bazar", "bz-pag-yeso", "bz-pag-ventas", "bz-categoria", "bz-zona-yeso", "bz-chips-yeso", "bz-zona-ventas", "bz-chips-ventas", "bazar-division-ventas",
     "btn-menu-hoy", "seccion-hoy", "panel-hoy", "hy-grupos", "hy-detalle", "hy-detalle-fin", "hy-detalle-estado",
     "btn-menu-empresas", "seccion-empresas", "panel-empresas", "em-chips", "em-mover", "em-mover-ayuda", "em-form", "em-fecha", "em-url-img", "em-usar-url", "em-detalle", "em-det-ajustes", "em-hoja", "em-hoja-abrir", "em-hoja-abrir-2", "em-hoja-nota-esp", "em-nesp", "em-canal", "em-notas-proy-abrir", "em-npag", "em-npag-chips", "em-npag-form", "em-npag-etiqueta", "em-npag-finalizar", "actividades-actualizar", "trabajo-actualizar",
-    "btn-menu-notas-imp", "btn-menu-tareas-pend", "btn-volver-menu", "seccion-notas-imp", "seccion-tareas-pend", "zona-notas-imp", "zona-notas-fav", "zona-tareas-pend", "notas-imp-actualizar", "tareas-pend-actualizar", "ej-tarea", "de-tarea", "ip-tarea", "cm-tarea", "bz-tarea",
+    "btn-menu-notas-imp", "btn-menu-tareas-pend", "btn-volver-menu", "seccion-notas-imp", "seccion-tareas-pend", "zona-notas-imp", "zona-notas-fav", "zona-tareas-pend", "notas-imp-actualizar", "notas-favorita", "tareas-pend-actualizar", "ej-tarea", "de-tarea", "ip-tarea", "cm-tarea", "bz-tarea",
     "ej-destino", "di-destino", "de-destino", "ip-destino", "cm-destino", "bz-destino",
   ];
   const problemas = [];
@@ -1195,6 +1195,7 @@ const notasTexto = document.getElementById("notas-texto");
 const notasForm = document.getElementById("notas-form");
 const notasNombre = document.getElementById("notas-nombre");
 const notasEtiqueta = document.getElementById("notas-etiqueta");
+const notasFavorita = document.getElementById("notas-favorita"); // casilla «⭐ Marcar como favorita»
 const notasDestino = document.getElementById("notas-destino");
 const notasColores = document.getElementById("notas-colores");
 const notasGuardar = document.getElementById("notas-guardar");
@@ -1236,7 +1237,45 @@ const notasCaja = document.querySelector("#panel-notas .notas-caja");
 
 let notaEditando = null; // nota que se está editando en el formulario (null = nota nueva)
 
-let notas = []; // [{ id, nombre, fecha, etiqueta, texto, color, identificador }]
+let notas = []; // [{ id, nombre, fecha, etiqueta, texto, color, identificador, favorito }]
+// «Favorito» ya no es una etiqueta: es una marca aparte (n.favorito) que cualquier nota puede tener, con la etiqueta que sea.
+// Si alguna nota todavía trae la etiqueta «Favorito», pasa a ser una nota común («General»).
+function normalizarNotas(lista) {
+  return (Array.isArray(lista) ? lista : []).map((n) => {
+    if (!n) return n;
+    if (n.etiqueta === "Favorito") n.etiqueta = "General";
+    n.favorito = n.favorito === true || /^(s[ií]|1|true)$/i.test(String(n.favorito === undefined ? "" : n.favorito).trim());
+    return n;
+  });
+}
+// Marca o quita la ⭐ de una nota (no cambia su etiqueta ni su zona)
+async function alternarFavorito(n, boton) {
+  const nuevo = !n.favorito;
+  if (boton) boton.disabled = true;
+  try {
+    await llamarNotas("nota_favorito", { id: n.id, favorito: nuevo });
+    n.favorito = nuevo;
+    dibujarNotas(); // redibuja el panel de Notas y todas las zonas
+  } catch (e) {
+    if (boton) boton.disabled = false;
+    window.alert("No se pudo cambiar la favorita: " + e.message);
+  }
+}
+function crearBotonFavorito(n) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "tarjeta-fav" + (n.favorito ? " activo" : "");
+  const t = n.favorito ? "Quitar de favoritas" : "Marcar como favorita";
+  b.title = t;
+  b.setAttribute("aria-label", t);
+  b.setAttribute("aria-pressed", String(!!n.favorito));
+  b.textContent = n.favorito ? "★" : "☆";
+  b.addEventListener("click", (e) => {
+    e.stopPropagation();
+    alternarFavorito(n, b);
+  });
+  return b;
+}
 let notasCargadas = false;
 let etiquetaAbierta = null; // etiqueta cuyo submenú está abierto (null = ninguno)
 let etiquetaPendiente = null; // etiqueta a abrir en cuanto terminen de cargar las notas (acceso directo)
@@ -1253,7 +1292,6 @@ const ETIQUETAS_NOTA = [
   "Actividades",
   "Trabajo",
   "Nota Importante", // zona «Notas» del menú (arriba)
-  "Favorito", // sale en la zona «Favoritas» de «Notas»
   "Largo Plazo", // el botón chico «Pendientes»
 ];
 // Nombre que se ve en pantalla. La etiqueta guardada en la hoja sigue siendo «Actividades» (así no se pierden tus datos):
@@ -1769,6 +1807,7 @@ function limpiarFormNota() {
   notasNombre.value = "";
   notasIdent.value = "";
   notasEtiqueta.selectedIndex = 0;
+  notasFavorita.checked = false;
   notasDestino.value = "drive";
   notasTipo.value = "nota";
   aplicarTipoNotas();
@@ -1795,6 +1834,7 @@ function abrirEdicionNota(n) {
   notaEditando = n;
   notasNombre.value = n.nombre === "Sin nombre" ? "" : n.nombre || "";
   notasEtiqueta.value = ETIQUETAS_NOTA.includes(n.etiqueta) ? n.etiqueta : "General";
+  notasFavorita.checked = !!n.favorito;
   const c = String(n.color || "").trim();
   const colorValido = /^#[0-9a-fA-F]{6}$/.test(c) || COLORES_NOTA.some((x) => x.nombre === c);
   elegirColor(colorValido ? (c.startsWith("#") ? c.toLowerCase() : c) : "Blanco");
@@ -1829,7 +1869,7 @@ let notasSnap = ""; // valores del formulario de Notas al abrirlo (para saber si
 
 function notasValores() {
   return JSON.stringify([
-    notasNombre.value, notasEtiqueta.value, colorElegido, notasFecha.value, notasIdent.value, notasTexto.value, notasDestino.value, notasTipo.value,
+    notasNombre.value, notasEtiqueta.value, colorElegido, notasFecha.value, notasIdent.value, notasTexto.value, notasDestino.value, notasTipo.value, notasFavorita.checked,
   ]);
 }
 // El formulario de Notas está abierto y se cambió algo desde que se abrió
@@ -2081,7 +2121,7 @@ function crearTarjetaNota(n) {
     e.stopPropagation();
     borrarNota(n.id);
   });
-  tarjeta.append(nombre, meta, fecha, texto, borrar);
+  tarjeta.append(nombre, meta, fecha, texto, borrar, crearBotonFavorito(n));
 
   // Tocar la tarjeta en cualquier zona abre su edición (los botones ✎ y × siguen con su función)
   tarjeta.tabIndex = 0;
@@ -2176,7 +2216,7 @@ async function cargarNotas() {
   setEstado(notasEstadoLista, "Cargando…");
   try {
     const j = await llamarNotas("nota_listar");
-    notas = Array.isArray(j.notas) ? j.notas : [];
+    notas = normalizarNotas(j.notas);
     notasCargadas = true;
     dibujarNotas();
     setEstado(notasEstadoLista, "");
@@ -2214,6 +2254,7 @@ async function agregarNota() {
     color: colorElegido,
     identificador: notasIdent.value.trim(),
     destino: notasDestino.value,
+    favorito: notasFavorita.checked,
   };
   notasGuardar.disabled = true;
   setEstado(notasEstado, "Guardando…");
@@ -2248,6 +2289,7 @@ async function editarNota() {
     color: colorElegido,
     identificador: notasIdent.value.trim(),
     destino: notasDestino.value,
+    favorito: notasFavorita.checked,
   };
   notasGuardar.disabled = true;
   setEstado(notasEstado, "Guardando…");
@@ -3110,11 +3152,11 @@ const ZONAS_ETIQUETA = [
     cuadritos: true, pagina: true, elegirEtiqueta: true, columnas: true, // línea central: notas a la izquierda y notarios a la derecha
   },
   {
-    // Botón nuevo «Notas» (abajo): las notas con la etiqueta «Favorito» (de cualquier lado)
-    seccion: "notas-fav", en: "seccion-notas-imp", etiqueta: "Favorito", datos: "tus notas favoritas",
+    // Botón nuevo «Notas»: las notas marcadas con la ⭐ (de cualquier zona y con cualquier etiqueta; no depende de la etiqueta)
+    seccion: "notas-fav", en: "seccion-notas-imp", etiqueta: "General", favoritas: true, datos: "tus notas favoritas",
     crear: "+ Crear favorita", nuevo: "Nueva nota favorita", editar: "Editar nota favorita",
     guardar: "Guardar favorita", marcador: "Escribe una nota favorita…",
-    vacio: "Aún no tienes favoritas. Ponle la etiqueta «Favorito» a cualquier nota. ⭐", borrar: "¿Eliminar esta nota?",
+    vacio: "Aún no tienes favoritas. Toca la ☆ de cualquier nota para marcarla. ⭐", borrar: "¿Eliminar esta nota?",
     cuadritos: true, pagina: true, elegirEtiqueta: true, columnas: true,
   },
   {
@@ -3161,7 +3203,6 @@ function crearZonaEtiqueta(cfg) {
               <option value="Largo Plazo">🗓️ Pendiente a largo plazo</option>
               <option value="Trabajo">💼 Trabajo</option>
               <option value="Nota Importante">📌 Nota importante</option>
-              <option value="Favorito">⭐ Favorito</option>
             </select>`
               : `<input class="zona-etiqueta-fija" type="text" value="${cfg.etiqueta}" readonly tabindex="-1" />`}
           </label>
@@ -3194,6 +3235,10 @@ function crearZonaEtiqueta(cfg) {
             <option value="sheets">Google Sheets (en la hoja Notas)</option>
             <option value="drive">Google Drive (archivo .txt en notaslargas)</option>
           </select>
+        </label>
+        <label class="notas-fav-check">
+          <input class="zona-favorita" type="checkbox" />
+          <span>⭐ Marcar como favorita</span>
         </label>
         <label class="notas-campo notas-campo-nombre">
           <span>Nombre</span>
@@ -3244,6 +3289,7 @@ function crearZonaEtiqueta(cfg) {
     fecha: q(".zona-fecha"),
     ident: q(".zona-ident"),
     etiquetaSel: q(".zona-etiqueta-sel"), // solo en las zonas con etiqueta elegible
+    fav: q(".zona-favorita"), // casilla «⭐ Marcar como favorita»
     destino: q(".zona-destino"),
     tipo: q(".zona-tipo"),
     campoTipo: q(".zona-campo-tipo"),
@@ -3422,6 +3468,7 @@ function crearZonaEtiqueta(cfg) {
     z.ident.value = "";
     z.destino.value = "drive";
     z.tipo.value = "nota";
+    z.fav.checked = !!cfg.favoritas; // en la zona de Favoritas las notas nuevas nacen con ⭐
     if (z.etiquetaSel) {
       z.etiquetaSel.value = cfg.etiqueta;
       z.etiquetaSel.disabled = false;
@@ -3439,6 +3486,7 @@ function crearZonaEtiqueta(cfg) {
     z.nuevoBtn.hidden = mostrar;
     z.campoTipo.hidden = false;
     z.tipo.value = "nota";
+    z.fav.checked = !!cfg.favoritas;
     if (z.etiquetaSel) {
       z.etiquetaSel.value = cfg.etiqueta;
       z.etiquetaSel.disabled = false;
@@ -3468,12 +3516,13 @@ function crearZonaEtiqueta(cfg) {
     z.fecha.value = fechaAInput(n.fecha) || fechaActualInput();
     z.ident.value = n.identificador || "";
     z.destino.value = n.destino === "drive" ? "drive" : "sheets";
+    z.fav.checked = !!n.favorito;
     z.texto.value = n.texto || "";
     z.titulo.textContent = cfg.editar;
     z.tipo.value = "nota";
     z.campoTipo.hidden = true; // al editar no se cambia el tipo
     if (z.etiquetaSel) {
-      // Al editar sí se puede cambiar la etiqueta (por ejemplo, ponerle «Favorito»); la nota pasa a la zona de su nueva etiqueta
+      // Al editar sí se puede cambiar la etiqueta; la nota pasa a la zona de su nueva etiqueta (la ⭐ de favorita es aparte)
       z.etiquetaSel.value = ETIQUETAS_NOTA.includes(n.etiqueta) ? n.etiqueta : cfg.etiqueta;
       z.etiquetaSel.disabled = false;
     }
@@ -3514,6 +3563,7 @@ function crearZonaEtiqueta(cfg) {
       color: z.color,
       identificador: z.ident.value.trim(),
       destino: z.destino.value,
+      favorito: z.fav.checked,
     };
     z.guardarBtn.disabled = true;
     setEstado(z.estado, "Guardando…");
@@ -3529,7 +3579,9 @@ function crearZonaEtiqueta(cfg) {
       limpiarForm();
       mostrarForm(false);
       dibujarNotas(); // redibuja el panel de Notas y todas las zonas
-      const destinoEtiqueta = datos.etiqueta === cfg.etiqueta ? "" : " (quedó en " + nombreEtiqueta(datos.etiqueta) + ")";
+      const destinoEtiqueta = cfg.favoritas
+        ? (datos.favorito ? "" : " (ya no es favorita)")
+        : (datos.etiqueta === cfg.etiqueta ? "" : " (quedó en " + nombreEtiqueta(datos.etiqueta) + ")");
       setEstado(z.estadoLista, (n ? "Cambios guardados ✓" : "Guardada ✓") + destinoEtiqueta, "ok");
     } catch (e) {
       setEstado(z.estado, "Error: " + e.message, "error");
@@ -3634,6 +3686,7 @@ function crearZonaEtiqueta(cfg) {
       borrar(n.id);
     });
     c.appendChild(x);
+    c.appendChild(crearBotonFavorito(n)); // ☆/★: marcar como favorita (sin cambiar la etiqueta)
 
     if (cfg.finalizar) {
       const fin = document.createElement("button");
@@ -3704,7 +3757,7 @@ function crearZonaEtiqueta(cfg) {
       e.stopPropagation();
       borrar(n.id);
     });
-    tarjeta.append(fecha, texto, x);
+    tarjeta.append(fecha, texto, x, crearBotonFavorito(n));
 
     // Botón «Marcar tarea como finalizada»: pide confirmación y pasa el trabajo al Diario
     if (cfg.finalizar) {
@@ -3904,13 +3957,14 @@ function crearZonaEtiqueta(cfg) {
     z.lista.innerHTML = "";
     dibujarCalZona();
     const ordenadas = notasOrdenadas();
-    let lista = ordenadas.filter((n) => (n.etiqueta || "General") === cfg.etiqueta);
+    // La zona de Favoritas se guía por la ⭐ de cada nota; las demás, por su etiqueta
+    let lista = ordenadas.filter((n) => (cfg.favoritas ? !!n.favorito : (n.etiqueta || "General") === cfg.etiqueta));
     let extra = []; // notas de otras zonas que se reflejan aquí (solo con calendario y «tambien»; ya no se usa)
     if (calCuad && z.calDia) {
       lista = lista.filter((n) => claveDeNota(n) === z.calDia);
       extra = ordenadas.filter((n) => (cfg.tambien || []).includes(n.etiqueta) && claveDeNota(n) === z.calDia);
     }
-    const deProyectos = cfg.pagina ? notasDeProyectosConEtiqueta(cfg.etiqueta) : [];
+    const deProyectos = cfg.pagina && !cfg.favoritas ? notasDeProyectosConEtiqueta(cfg.etiqueta) : [];
     // Si no hay nada, simplemente no se muestra ningún texto
     lista.forEach((n) => z.lista.appendChild(crearTarjeta(n)));
     deProyectos.forEach((x) => z.lista.appendChild(crearCuadritoProyecto(x.d, x.n)));
@@ -3932,7 +3986,7 @@ function crearZonaEtiqueta(cfg) {
     return dentro;
   };
 
-  z.valores = () => JSON.stringify([z.nombre.value, z.color, z.fecha.value, z.ident.value, z.texto.value, z.destino.value, z.tipo.value, z.etiquetaSel ? z.etiquetaSel.value : ""]);
+  z.valores = () => JSON.stringify([z.nombre.value, z.color, z.fecha.value, z.ident.value, z.texto.value, z.destino.value, z.tipo.value, z.etiquetaSel ? z.etiquetaSel.value : "", z.fav.checked]);
   z.sucio = () => !z.form.hidden && z.valores() !== z.snap;
   z.cancelar = cancelar;
   const cancelarConAviso = () => {
@@ -4029,7 +4083,7 @@ async function cargarNotasZonas() {
   zonas.forEach((z) => setEstado(z.estadoLista, "Cargando…"));
   try {
     const j = await llamarNotas("nota_listar");
-    notas = Array.isArray(j.notas) ? j.notas : [];
+    notas = normalizarNotas(j.notas);
     notasCargadas = true;
     dibujarNotas();
     zonas.forEach((z) => setEstado(z.estadoLista, ""));
@@ -6743,6 +6797,7 @@ async function guardarCambiosNota(n, cambios) {
     color: n.color || "Blanco",
     identificador: n.identificador || "",
     destino: vnDestino(n),
+    favorito: !!n.favorito,
   };
   await llamarNotas("nota_editar", Object.assign({ id: n.id }, datos));
   Object.assign(n, datos);

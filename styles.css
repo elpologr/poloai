@@ -1,5 +1,5 @@
 :root {
-  --app-version: "68"; /* debe coincidir con VERSION en app.js */
+  --app-version: "69"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -3649,3 +3649,31 @@ body.en-seccion .menu { display: none; }
 .jg-vista { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .jg-vista > .notas-btn { align-self: flex-start; }
 @media (max-width: 480px) { .jg-catalogo { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; } }
+
+/* ---------- Favoritas (⭐ aparte de la etiqueta) ---------- */
+.tarjeta-fav {
+  position: absolute;
+  top: 9px;
+  right: 34px;
+  border: none;
+  background: transparent;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--nb-suave);
+  cursor: pointer;
+}
+.tarjeta-fav:hover { color: #e0a800; }
+.tarjeta-fav.activo { color: #e0a800; }
+.tarjeta-fav:disabled { opacity: 0.5; cursor: progress; }
+.tarjeta-nota .tarjeta-nombre { margin-right: 46px; }
+.zona-cuadrito .tarjeta-fav { top: 1px; right: 20px; font-size: 1.05rem; }
+.zona-cuadrito .ej-chip-nombre { margin-right: 30px; }
+.notas-fav-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.notas-fav-check input { width: 18px; height: 18px; accent-color: #e0a800; }
