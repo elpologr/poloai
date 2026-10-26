@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "70";
+const VERSION = "71";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -14618,6 +14618,466 @@ function montarSaltarinDelLoto(caja) {
   };
 }
 
+// ---------- Juego: «Piano Mágico» (teclas de piano que caen, como Piano Tiles / My Talking Tom) ----------
+// Caen teclas negras por 4 carriles. Toca SIEMPRE la tecla de más abajo: cada toque hace sonar la siguiente nota de la
+// canción (piano sintetizado con Web Audio: no necesita archivos de audio y funciona sin internet). Si tocas un carril
+// equivocado o dejas pasar una tecla, pierdes. La canción se va armando nota por nota.
+// Controles: tocar el carril (celular) · teclas D F J K (o 1 2 3 4) en computadora · Espacio o P = pausa.
+// Para agregar una canción: una línea más en PIANO_CANCIONES. Notas separadas por espacio: «C4», «F#4», «Bb3»;
+// «:2» al final = nota larga (suena más tiempo). El mejor avance de cada canción se guarda en este dispositivo.
+const PIANO_CLAVE = "polo-piano-mejor";
+function pianoLeerNotas(texto) {
+  const base = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const solfeo = { C: "Do", D: "Re", E: "Mi", F: "Fa", G: "Sol", A: "La", B: "Si" };
+  return texto.trim().split(/\s+/).map((t) => {
+    const [nom, dur] = t.split(":");
+    const m = /^([A-G])(#|b)?(\d)$/.exec(nom);
+    if (!m) return null;
+    const alt = m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0;
+    return {
+      midi: 12 * (Number(m[3]) + 1) + base[m[1]] + alt,
+      beats: Number(dur) || 1,
+      nombre: solfeo[m[1]] + (alt === 1 ? "#" : alt === -1 ? "b" : ""),
+    };
+  }).filter(Boolean);
+}
+const PIANO_CANCIONES = [
+  { id: "estrellita", nombre: "Estrellita", autor: "Mozart", vel: 0.8,
+    notas: "C4 C4 G4 G4 A4 A4 G4:2 F4 F4 E4 E4 D4 D4 C4:2 G4 G4 F4 F4 E4 E4 D4:2 G4 G4 F4 F4 E4 E4 D4:2 C4 C4 G4 G4 A4 A4 G4:2 F4 F4 E4 E4 D4 D4 C4:2" },
+  { id: "alegria", nombre: "Himno a la Alegría", autor: "Beethoven", vel: 0.9,
+    notas: "E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 E4:1.5 D4:.5 D4:2 E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 D4:1.5 C4:.5 C4:2 D4 D4 E4 C4 D4 E4:.5 F4:.5 E4 C4 D4 E4:.5 F4:.5 E4 D4 C4 D4 G3:2 E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 D4:1.5 C4:.5 C4:2" },
+  { id: "minueto", nombre: "Minueto en Sol", autor: "Petzold", vel: 0.95,
+    notas: "D5 G4 A4 B4 C5 D5 G4 G4 E5 C5 D5 E5 F#5 G5 G4 G4 C5 D5 C5 B4 A4 B4 C5 B4 A4 G4 F#4 G4 A4 B4 G4 G4:3" },
+  { id: "canon", nombre: "Canon en Re", autor: "Pachelbel", vel: 0.95,
+    notas: "F#5 E5 D5 C#5 B4 A4 B4 C#5 D5 C#5 B4 A4 G4 F#4 G4 A4 F#5 E5 D5 C#5 B4 A4 B4 C#5 D5 C#5 B4 A4 G4 F#4 G4 A4 D5:3" },
+  { id: "elisa", nombre: "Para Elisa", autor: "Beethoven", vel: 1.05,
+    notas: "E5:.5 D#5:.5 E5:.5 D#5:.5 E5:.5 B4:.5 D5:.5 C5:.5 A4:1.5 C4:.5 E4:.5 A4:.5 B4:1.5 E4:.5 G#4:.5 B4:.5 C5:1.5 E4:.5 E5:.5 D#5:.5 E5:.5 D#5:.5 E5:.5 B4:.5 D5:.5 C5:.5 A4:1.5 C4:.5 E4:.5 A4:.5 B4:1.5 E4:.5 C5:.5 B4:.5 A4:3" },
+].map((c) => { c.lista = pianoLeerNotas(c.notas); return c; });
+
+function montarPianoMagico(caja) {
+  const sec = document.getElementById("seccion-juegos");
+  caja.innerHTML = `
+    <h3 class="jj-titulo">&#127929; Piano M&aacute;gico</h3>
+    <div class="pt-opciones">
+      <select class="pt-cancion" aria-label="Elegir canci&oacute;n"></select>
+      <div class="pt-vel" role="group" aria-label="Velocidad">
+        <button class="notas-btn td-btn-sec" type="button" data-v="0.8">Lento</button>
+        <button class="notas-btn td-btn-sec" type="button" data-v="1">Normal</button>
+        <button class="notas-btn td-btn-sec" type="button" data-v="1.3">R&aacute;pido</button>
+      </div>
+    </div>
+    <canvas class="jj-canvas pt-canvas" aria-label="Juego Piano M&aacute;gico: toca las teclas negras que caen para tocar la canci&oacute;n"></canvas>
+    <div class="jj-botones">
+      <button class="notas-btn pt-jugar" type="button">&#9654; Jugar</button>
+      <button class="notas-btn td-btn-sec pt-pausa" type="button" disabled>&#9208; Pausa</button>
+      <button class="notas-btn td-btn-sec pt-sonido" type="button" aria-label="Sonido">&#128266;</button>
+    </div>
+    <p class="jj-ayuda">Toca la tecla negra de m&aacute;s abajo: cada toque toca la siguiente nota de la canci&oacute;n. No toques carriles vac&iacute;os ni dejes pasar una tecla.
+      En computadora usa D F J K (o 1 2 3 4). Espacio o P = pausa.</p>`;
+  const cv = caja.querySelector(".pt-canvas");
+  const selCan = caja.querySelector(".pt-cancion");
+  const bJugar = caja.querySelector(".pt-jugar");
+  const bPausa = caja.querySelector(".pt-pausa");
+  const bSon = caja.querySelector(".pt-sonido");
+  const bVel = Array.from(caja.querySelectorAll(".pt-vel .notas-btn"));
+  if (!sec || !cv || !cv.getContext) { caja.innerHTML = ""; return null; }
+  const ctx = cv.getContext("2d");
+  let vivo = true;
+  const limpiar = [];
+  const en = (obj, ev, fn) => { obj.addEventListener(ev, fn); limpiar.push(() => obj.removeEventListener(ev, fn)); };
+  const temporizadores = [];
+
+  const W = 360, H = 560, CARRILES = 4, AN = W / CARRILES, ALTO = 140;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = W * dpr;
+  cv.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const limitar = (v, a, b) => Math.max(a, Math.min(b, v));
+  const leer = (k, def) => { try { const v = localStorage.getItem(k); return v === null ? def : v; } catch (e) { return def; } };
+  const guardar = (k, v) => { try { localStorage.setItem(k, String(v)); } catch (e) {} };
+
+  // ----- Estado -----
+  let estado = "listo"; // listo | jugando | pausa | fin
+  let cancion = PIANO_CANCIONES[0];
+  let notas = cancion.lista;
+  let filas, scroll, sig, aciertos, fx, falla, gano, tFin;
+  let mult = Number(leer("polo-piano-vel", "1")) || 1;
+  let silencio = leer("polo-piano-silencio", "0") === "1";
+  let mejores = {};
+  try { mejores = JSON.parse(leer(PIANO_CLAVE, "{}")) || {}; } catch (e) { mejores = {}; }
+  let tPrev = 0;
+  let corriendo = false;
+
+  // ----- Sonido: piano sintetizado -----
+  const AC = window.AudioContext || window.webkitAudioContext;
+  let ac = null, master = null;
+  function audio() {
+    if (!AC) return;
+    if (!ac) {
+      try {
+        ac = new AC();
+        const comp = ac.createDynamicsCompressor();
+        master = ac.createGain();
+        master.gain.value = 0.9;
+        master.connect(comp);
+        comp.connect(ac.destination);
+      } catch (e) { ac = null; return; }
+    }
+    if (ac.state === "suspended") ac.resume();
+  }
+  function tono(midi, beats) {
+    if (!ac || !master || silencio) return;
+    const t = ac.currentTime;
+    const f = 440 * Math.pow(2, (midi - 69) / 12);
+    const largo = limitar(0.55 + beats * 0.5, 0.7, 2.4);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.34, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + largo);
+    const lp = ac.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.setValueAtTime(Math.min(f * 9, 9000), t);
+    lp.frequency.exponentialRampToValueAtTime(Math.max(f * 2.2, 500), t + largo);
+    g.connect(lp);
+    lp.connect(master);
+    [1, 0.5, 0.26, 0.14, 0.07].forEach((a, i) => {
+      const o = ac.createOscillator();
+      o.type = i === 0 ? "triangle" : "sine";
+      o.frequency.value = f * (i + 1) * (1 + i * 0.0006); // inarmonicidad leve: suena más a cuerda
+      const ga = ac.createGain();
+      ga.gain.setValueAtTime(a, t);
+      ga.gain.exponentialRampToValueAtTime(a * 0.03, t + largo / (1 + i * 0.7));
+      o.connect(ga);
+      ga.connect(g);
+      o.start(t);
+      o.stop(t + largo + 0.05);
+    });
+  }
+  function golpeFallo() {
+    if (!ac || !master || silencio) return;
+    const t = ac.currentTime;
+    const o = ac.createOscillator();
+    const g = ac.createGain();
+    const lp = ac.createBiquadFilter();
+    o.type = "sawtooth";
+    o.frequency.setValueAtTime(150, t);
+    o.frequency.exponentialRampToValueAtTime(48, t + 0.35);
+    lp.type = "lowpass";
+    lp.frequency.value = 500;
+    g.gain.setValueAtTime(0.28, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+    o.connect(lp); lp.connect(g); g.connect(master);
+    o.start(t);
+    o.stop(t + 0.45);
+  }
+  function fanfarria() {
+    [72, 76, 79, 84].forEach((m, i) => temporizadores.push(setTimeout(() => { if (vivo) tono(m, 2); }, i * 140)));
+  }
+  const vibrar = (ms) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} };
+
+  // ----- Partida -----
+  function cargar(i) {
+    cancion = PIANO_CANCIONES[i] || PIANO_CANCIONES[0];
+    notas = cancion.lista;
+    nueva();
+    poner("listo");
+  }
+  function nueva() {
+    filas = [];
+    let prev = -1, rep = 0;
+    for (let i = 0; i < notas.length; i++) {
+      let l = Math.floor(Math.random() * CARRILES);
+      if (l === prev && rep >= 1) l = (l + 1 + Math.floor(Math.random() * (CARRILES - 1))) % CARRILES; // nunca 3 seguidas en el mismo carril
+      rep = l === prev ? rep + 1 : 0;
+      prev = l;
+      filas.push(l);
+    }
+    scroll = 0;
+    sig = 0;
+    aciertos = 0;
+    fx = [];
+    falla = null;
+    gano = false;
+  }
+  const filaY = (r) => H - ALTO * (r + 1) + scroll;
+  const velocidad = () => 190 * mult * cancion.vel * (1 + 0.55 * (aciertos / notas.length));
+
+  function poner(nuevo) {
+    estado = nuevo;
+    bPausa.disabled = !(estado === "jugando" || estado === "pausa");
+    bPausa.innerHTML = estado === "pausa" ? "&#9654; Seguir" : "&#9208; Pausa";
+    if (estado === "jugando") arrancar();
+    dibujar();
+  }
+  function alternarPausa() {
+    if (estado === "jugando") poner("pausa");
+    else if (estado === "pausa") { scroll -= 30; poner("jugando"); } // un respiro al volver
+  }
+
+  function golpear(carril, px, py) {
+    if (estado === "listo") {
+      if (carril !== filas[0]) return;
+      tPrev = performance.now();
+      estado = "jugando";
+      poner("jugando");
+    } else if (estado !== "jugando") return;
+    const y = filaY(sig);
+    if (y + ALTO <= 0) return; // esa tecla ya está arriba, fuera de la vista: no cuenta
+    if (carril === filas[sig]) {
+      const n = notas[sig];
+      tono(n.midi, n.beats);
+      vibrar(12);
+      fx.push({ x: carril * AN + AN / 2, y: y + ALTO / 2, t: 0, txt: n.nombre });
+      sig++;
+      aciertos++;
+      if (sig >= notas.length) terminar(true);
+    } else {
+      falla = { tipo: "carril", carril, x: px, y: py };
+      terminar(false);
+    }
+  }
+
+  function terminar(ok) {
+    gano = ok;
+    if (!ok) { golpeFallo(); vibrar(90); } else { fanfarria(); vibrar([30, 40, 30]); }
+    if (aciertos > (mejores[cancion.id] || 0)) {
+      mejores[cancion.id] = aciertos;
+      guardar(PIANO_CLAVE, JSON.stringify(mejores));
+    }
+    tFin = performance.now();
+    poner("fin");
+  }
+
+  function actualizar(dt) {
+    scroll += velocidad() * dt;
+    if (filaY(sig) >= H) { // se escapó una tecla
+      falla = { tipo: "tecla", fila: sig };
+      scroll = ALTO * sig; // la tecla perdida queda visible abajo
+      terminar(false);
+    }
+  }
+
+  // ----- Ciclo -----
+  function ciclo(t) {
+    if (!vivo) { corriendo = false; return; }
+    const dt = Math.min(0.05, (t - tPrev) / 1000);
+    tPrev = t;
+    if (estado === "jugando") actualizar(dt);
+    for (let i = fx.length - 1; i >= 0; i--) { fx[i].t += dt; if (fx[i].t > 0.6) fx.splice(i, 1); }
+    dibujar();
+    if (estado === "jugando" || fx.length) requestAnimationFrame(ciclo);
+    else corriendo = false;
+  }
+  function arrancar() {
+    if (corriendo || !vivo) return;
+    corriendo = true;
+    tPrev = performance.now();
+    requestAnimationFrame(ciclo);
+  }
+
+  // ----- Dibujo -----
+  function rr(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function texto(t, x, y, tam, color, borde) {
+    ctx.font = "700 " + tam + "px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+    ctx.textAlign = "center";
+    if (borde) { ctx.lineWidth = 5; ctx.strokeStyle = borde; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+    ctx.fillStyle = color;
+    ctx.fillText(t, x, y);
+  }
+
+  function dibujarTecla(r) {
+    const y = filaY(r);
+    if (y > H || y + ALTO < 0) return;
+    const x = filas[r] * AN + 4, w = AN - 8, h = ALTO - 6, yy = y + 3;
+    const tocada = r < sig;
+    const perdida = falla && falla.tipo === "tecla" && falla.fila === r;
+    if (tocada) {
+      const g = ctx.createLinearGradient(x, yy, x, yy + h);
+      g.addColorStop(0, "#e6d6ff");
+      g.addColorStop(1, "#c9acff");
+      ctx.fillStyle = g;
+      rr(x, yy, w, h, 10);
+      ctx.fill();
+      texto(notas[r].nombre, x + w / 2, yy + h / 2 + 7, 20, "#4a2685");
+      return;
+    }
+    const g = ctx.createLinearGradient(x, yy, x, yy + h);
+    if (perdida) { g.addColorStop(0, "#f0657c"); g.addColorStop(1, "#c42a47"); }
+    else { g.addColorStop(0, "#32205f"); g.addColorStop(1, "#0d0720"); }
+    ctx.fillStyle = g;
+    rr(x, yy, w, h, 10);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.13)"; // brillo de tecla
+    rr(x + 5, yy + 5, w * 0.34, h - 10, 6);
+    ctx.fill();
+    if (r === sig && estado !== "fin") {
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#b794ff";
+      rr(x, yy, w, h, 10);
+      ctx.stroke();
+    }
+    if (r === 0 && estado === "listo") texto("TOCA", x + w / 2, yy + h / 2 + 8, 24, "#ffffff");
+  }
+
+  function panel(y, alto, titulo, lineas) {
+    ctx.fillStyle = "rgba(30, 12, 64, 0.86)";
+    rr(26, y, W - 52, alto, 18);
+    ctx.fill();
+    texto(titulo, W / 2, y + 40, 24, "#ffffff");
+    lineas.forEach((l, i) => texto(l, W / 2, y + 72 + i * 24, 15, "#e3d4ff"));
+  }
+
+  function dibujar() {
+    if (!cv.width) return;
+    const fondo = ctx.createLinearGradient(0, 0, 0, H);
+    fondo.addColorStop(0, "#ffffff");
+    fondo.addColorStop(1, "#e4d6fb");
+    ctx.fillStyle = fondo;
+    ctx.fillRect(0, 0, W, H);
+    // líneas de las teclas blancas y de las filas (se mueven con la caída)
+    ctx.strokeStyle = "rgba(122, 68, 214, 0.18)";
+    ctx.lineWidth = 1;
+    const off = ((scroll % ALTO) + ALTO) % ALTO;
+    ctx.beginPath();
+    for (let y = off - ALTO; y < H; y += ALTO) { ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); }
+    ctx.stroke();
+    ctx.strokeStyle = "#bda3ee";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 1; i < CARRILES; i++) { ctx.moveTo(i * AN, 0); ctx.lineTo(i * AN, H); }
+    ctx.stroke();
+
+    if (falla && falla.tipo === "carril") { // carril equivocado
+      ctx.fillStyle = "rgba(224, 64, 90, 0.28)";
+      ctx.fillRect(falla.carril * AN, 0, AN, H);
+      texto("✖", falla.x, falla.y + 12, 36, "#e0405a", "#ffffff");
+    }
+    for (let r = 0; r < notas.length; r++) dibujarTecla(r);
+
+    fx.forEach((e) => { // onda y nombre de la nota que sube
+      const k = e.t / 0.6;
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "rgba(122, 68, 214, " + (0.55 * (1 - k)) + ")";
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, 14 + 54 * k, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1 - k;
+      texto(e.txt, e.x, e.y - 30 * k - 6, 22, "#6234b8", "#ffffff");
+      ctx.globalAlpha = 1;
+    });
+
+    // Barra de avance y puntaje
+    ctx.fillStyle = "rgba(74, 38, 133, 0.18)";
+    rr(10, 10, W - 20, 8, 4);
+    ctx.fill();
+    if (aciertos) {
+      ctx.fillStyle = "#7a44d6";
+      rr(10, 10, Math.max(8, (W - 20) * (aciertos / notas.length)), 8, 4);
+      ctx.fill();
+    }
+    texto(String(aciertos), W / 2, 62, 40, "#4a2685", "#ffffff");
+    texto(cancion.nombre, W / 2, 84, 13, "#6f6585", "#ffffff");
+
+    const mej = mejores[cancion.id] || 0;
+    if (estado === "listo") {
+      panel(100, 150, cancion.nombre, [cancion.autor + " · " + notas.length + " notas", "Toca la tecla marcada para empezar", mej ? "Mejor: " + mej + " / " + notas.length : "¡Tú puedes!"]);
+    } else if (estado === "pausa") {
+      panel(150, 130, "Pausa", ["Toca para seguir"]);
+    } else if (estado === "fin") {
+      panel(130, 190, gano ? "¡Terminaste! 🎉" : "¡Uy, fallaste!", [aciertos + " de " + notas.length + " notas", "Mejor: " + mej + " / " + notas.length, "Toca para jugar otra vez"]);
+    }
+  }
+
+  // ----- Controles -----
+  const hastaCarril = (e) => {
+    const r = cv.getBoundingClientRect();
+    return {
+      c: limitar(Math.floor(((e.clientX - r.left) / r.width) * CARRILES), 0, CARRILES - 1),
+      x: ((e.clientX - r.left) / r.width) * W,
+      y: ((e.clientY - r.top) / r.height) * H,
+    };
+  };
+  cv.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    audio();
+    if (estado === "fin") { if (performance.now() - tFin > 500) { nueva(); poner("listo"); } return; }
+    if (estado === "pausa") { alternarPausa(); return; }
+    const p = hastaCarril(e);
+    golpear(p.c, p.x, p.y);
+  });
+
+  const MAPA = { d: 0, f: 1, j: 2, k: 3, "1": 0, "2": 1, "3": 2, "4": 3 };
+  en(document, "keydown", (e) => {
+    if (sec.hidden || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target && e.target.tagName === "SELECT") return;
+    const k = e.key.toLowerCase();
+    if (k in MAPA) {
+      e.preventDefault();
+      if (e.repeat) return;
+      audio();
+      if (estado === "fin") { if (performance.now() - tFin > 500) { nueva(); poner("listo"); } return; }
+      if (estado === "pausa") return;
+      golpear(MAPA[k], MAPA[k] * AN + AN / 2, H - ALTO / 2);
+    } else if (k === " " || k === "p" || k === "enter") {
+      if (e.target && e.target.tagName === "BUTTON") return;
+      e.preventDefault();
+      if (e.repeat) return;
+      if (estado === "fin") { if (performance.now() - tFin > 500) { nueva(); poner("listo"); } }
+      else alternarPausa();
+    }
+  });
+
+  // Selector de canción, velocidad, sonido y botones
+  PIANO_CANCIONES.forEach((c, i) => {
+    const o = document.createElement("option");
+    o.value = String(i);
+    o.textContent = c.nombre + " — " + c.autor;
+    selCan.appendChild(o);
+  });
+  selCan.addEventListener("change", () => { cargar(Number(selCan.value)); selCan.blur(); });
+  const marcarVel = () => bVel.forEach((b) => b.classList.toggle("activo", Number(b.dataset.v) === mult));
+  bVel.forEach((b) => b.addEventListener("click", () => { mult = Number(b.dataset.v); guardar("polo-piano-vel", mult); marcarVel(); }));
+  const marcarSon = () => { bSon.innerHTML = silencio ? "&#128263;" : "&#128266;"; };
+  bSon.addEventListener("click", () => { silencio = !silencio; guardar("polo-piano-silencio", silencio ? "1" : "0"); marcarSon(); audio(); });
+  bJugar.addEventListener("click", () => { audio(); nueva(); poner("listo"); });
+  bPausa.addEventListener("click", alternarPausa);
+  marcarVel();
+  marcarSon();
+
+  // Al salir de la zona o cambiar de pestaña, el juego se pausa solo
+  const obs = new MutationObserver(() => { if (sec.hidden && estado === "jugando") poner("pausa"); else dibujar(); });
+  obs.observe(sec, { attributes: true, attributeFilter: ["hidden"] });
+  en(document, "visibilitychange", () => { if (document.hidden && estado === "jugando") poner("pausa"); });
+  en(window, "blur", () => { if (estado === "jugando") poner("pausa"); });
+
+  cargar(0);
+
+  return {
+    destruir() {
+      vivo = false;
+      estado = "pausa";
+      corriendo = false;
+      temporizadores.forEach(clearTimeout);
+      obs.disconnect();
+      limpiar.forEach((f) => f());
+      limpiar.length = 0;
+      try { if (ac) ac.close(); } catch (e) {}
+      ac = master = null;
+      cv.width = cv.height = 0;
+      caja.innerHTML = "";
+    },
+  };
+}
+
 // ---------- Zona Juegos: catálogo de mini recuadros ----------
 // Para agregar un juego nuevo: escribe su función montarXxx(caja) (que devuelva { destruir() }) y agrega UNA línea en JUEGOS.
 //   info (opcional): texto corto que se ve en el recuadro, por ejemplo el mejor puntaje.
@@ -14627,6 +15087,11 @@ function montarSaltarinDelLoto(caja) {
       id: "saltarin", icono: "\u{1FAB7}", titulo: "Saltarín del Loto", desc: "Rebota y sube lo más alto",
       montar: montarSaltarinDelLoto,
       info: () => { try { const n = Number(localStorage.getItem("polo-saltarin-mejor")) || 0; return n ? "🏆 " + n : ""; } catch (e) { return ""; } },
+    },
+    {
+      id: "piano", icono: "\u{1F3B9}", titulo: "Piano Mágico", desc: "Toca las teclas y suena la canción",
+      montar: montarPianoMagico,
+      info: () => { try { const m = JSON.parse(localStorage.getItem(PIANO_CLAVE) || "{}") || {}; const n = PIANO_CANCIONES.filter((c) => (m[c.id] || 0) >= c.lista.length).length; return n ? "🎵 " + n + "/" + PIANO_CANCIONES.length : ""; } catch (e) { return ""; } },
     },
   ];
   const sec = document.getElementById("seccion-juegos");

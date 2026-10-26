@@ -1,5 +1,5 @@
 :root {
-  --app-version: "70"; /* debe coincidir con VERSION en app.js */
+  --app-version: "71"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -3574,6 +3574,18 @@ body.en-seccion .menu { display: none; }
 }
 .jj-botones { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .jj-ayuda { margin: 0; max-width: 420px; font-size: 0.82rem; line-height: 1.4; text-align: center; color: var(--suave); }
+
+
+/* ---------- Juegos: Piano Mágico ---------- */
+.pt-opciones { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; width: 100%; max-width: 380px; }
+.pt-cancion {
+  flex: 1 1 160px; min-width: 0; padding: 8px 10px; font: inherit; font-weight: 600;
+  color: var(--texto); background: #fff; border: 2px solid var(--acento); border-radius: 12px;
+}
+.pt-vel { display: flex; gap: 6px; }
+.pt-vel .notas-btn { padding: 6px 10px; font-size: 0.8rem; }
+.pt-vel .notas-btn.activo { background: var(--acento); color: #fff; }
+.pt-canvas { background: #fff; }
 
 
 /* ---------- Notas (botón de arriba): línea central, notas a la izquierda y notarios a la derecha ---------- */
