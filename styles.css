@@ -3458,6 +3458,8 @@ body.en-seccion .menu { display: none; }
   gap: var(--gap);
 }
 .menu-tres .btn-menu.btn-menu-hoy {
+  grid-column: auto; /* anula «1 / -1» de .btn-menu-hoy: si no, cada botón ocupa una fila entera y se apilan */
+  width: 100%;
   flex-direction: column;
   gap: 4px;
   height: auto;
