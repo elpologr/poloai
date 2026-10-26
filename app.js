@@ -127,6 +127,7 @@ function mostrarSeccion(id, opciones) {
 // Cada página (sección del menú) y cada nivel de Empresas/Proyectos (Proyectos > Personales > Familiares…) se guarda
 // como una entrada del historial. Así «regresar» sube un nivel dentro de la app en vez de salirse de ella;
 // solo desde el menú de inicio sale a la página anterior del navegador.
+var cuRetorno = null;     // si se llegó a un proyecto desde Cuentas: { id de la cuenta, página de la lista } para volver ahí
 var navSec = "";          // sección abierta ("" = menú principal)
 var navMenu = false;      // true cuando el menú sigue visible junto al calendario (pantalla de inicio)
 var navN = 0;             // posición de la entrada actual dentro del historial de la app
@@ -173,6 +174,7 @@ window.addEventListener("popstate", (ev) => {
   const s = ev.state;
   if (!s || !s.polo) return; // entrada que no es de la app
   const previo = navEstadoActual();
+  const retornoCuenta = cuRetorno; // se guarda antes: al salir de Empresas se reinicia
   if (!confirmarAbandonoEdicion()) { // hay algo escrito sin guardar y se decidió no salir: se deja la entrada de donde estaba
     history.pushState(previo, "");
     navN = previo.n;
@@ -195,6 +197,7 @@ window.addEventListener("popstate", (ev) => {
     if (s.sec === "seccion-bazar" && s.bz) bzMostrarTab(s.bz);
     navN = s.n || 0;
     navClaveActual = navClave(s);
+    if (retornoCuenta && s.sec === "seccion-diario" && navSec === "seccion-diario") cuRestaurarCuenta(retornoCuenta);
   } finally {
     navAplicando = false;
   }
@@ -5390,9 +5393,35 @@ async function irAProyectoDeCuenta(id) {
   }
   const d = empresas.find((x) => x.id === id);
   if (!d) { setEstado(cuVerEstado, "Ese proyecto ya no existe en Empresas/Proyectos.", "error"); return; }
+  const retorno = { id: cuVerActual ? cuVerActual.id : null, pagina: cuPagina };
   mostrarSeccion("seccion-empresas");
   if (document.getElementById("seccion-empresas").hidden) return; // el usuario decidió no salir
   abrirDetalleEm(d);
+  cuRetorno = retorno.id ? retorno : null; // después de abrir (abrir/cerrar la ficha lo reinicia)
+}
+
+// Vuelve a la zona de Cuentas, con la misma cuenta abierta y en la misma página de la lista
+async function cuRestaurarCuenta(r) {
+  if (!r) return;
+  if (navSec !== "seccion-diario") mostrarSeccion("seccion-diario");
+  if (navSec !== "seccion-diario") return; // el usuario decidió no salir
+  abrirCuentasDi();
+  if (cuSub.hidden) return; // sin sesión
+  if (!cuentas.length || !cuentas.some((x) => x.id === r.id)) await cargarCuentas();
+  cuPagina = r.pagina || 0;
+  dibujarCuentas();
+  const c = cuentas.find((x) => x.id === r.id);
+  if (c) abrirVerCu(c);
+}
+
+// Botón «‹ Volver» (y Esc) de la ficha de un proyecto
+function volverDeProyecto() {
+  if (!cuRetorno) { cerrarDetalleEm(); return; }
+  const r = cuRetorno;
+  // Se usa el historial para que «regresar» del celular quede consistente; si no hay historial, se va directo
+  if (navN > 0) { history.back(); return; }
+  cuRetorno = null;
+  cuRestaurarCuenta(r);
 }
 
 diEl("di-cu-ver-volver").addEventListener("click", cerrarVerCu);
@@ -7346,6 +7375,7 @@ function cerrarDetalleEm() {
   emSubActual = null;
   emSubBoton = null;
   emDetalle.hidden = true;
+  cuRetorno = null;
   emHoja.hidden = true;
   const nesp = document.getElementById("em-nesp");
   if (nesp) nesp.hidden = true;
@@ -7353,7 +7383,7 @@ function cerrarDetalleEm() {
   if (canal) canal.hidden = true;
   emDetActual = null;
 }
-emEl("em-det-volver").addEventListener("click", cerrarDetalleEm);
+emEl("em-det-volver").addEventListener("click", volverDeProyecto);
 // El engrane abre la zona de ajustes (el formulario de editar) de este proyecto
 emEl("em-det-ajustes").addEventListener("click", () => {
   if (emDetActual) abrirFormEm(emDetActual);
@@ -11947,7 +11977,7 @@ document.addEventListener("keydown", (e) => {
   else if (!emHoja.hidden) cerrarHoja();
   else if (!emCanal.hidden) cerrarCanal();
   else if (!emForm.hidden) cerrarFormEm();
-  else if (!emDetalle.hidden) cerrarDetalleEm();
+  else if (!emDetalle.hidden) volverDeProyecto();
 });
 
 // ---------- Día de Hoy ----------
