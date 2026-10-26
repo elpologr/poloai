@@ -171,8 +171,10 @@ function navAtras(respaldo) {
   else if (respaldo) respaldo();
 }
 window.addEventListener("popstate", (ev) => {
-  const s = ev.state;
+  let s = ev.state;
   if (!s || !s.polo) return; // entrada que no es de la app
+  // Entradas antiguas del historial que mostraban el calendario debajo del menú: ahora son solo el menú
+  if (s.sec === "calendario" && s.menu) s = Object.assign({}, s, { sec: "", menu: false });
   const previo = navEstadoActual();
   const retornoCuenta = cuRetorno; // se guarda antes: al salir de Empresas se reinicia
   if (!confirmarAbandonoEdicion()) { // hay algo escrito sin guardar y se decidió no salir: se deja la entrada de donde estaba
@@ -14233,8 +14235,9 @@ iniciarGoogle();
 renovarSesionDispositivo(); // al abrir la página se renueva el pase de este dispositivo
 
 // ---------- Inicio ----------
-// Al abrir o recargar la página (F5) el calendario ya aparece en la fecha actual
-mostrarSeccion("calendario", { conservarMenu: true });
+// Al abrir o recargar la página (F5) solo se ve el menú principal (el calendario se abre con su botón)
+mostrarSeccion("");
+mensajeInicio.hidden = false; // mostrarSeccion lo oculta; en el inicio sí debe verse «Elige una sección…»
 cargarDatos();
 
 
@@ -14444,6 +14447,7 @@ function montarSaltarinDelLoto(caja) {
 
   const W = 360, H = 560;            // tamaño lógico del juego (se ajusta solo al ancho disponible)
   const GRAV = 0.42, SALTO = 12.5, RESORTE = 20, VMAX = 5.6;
+  const ALCANCE = 130;               // separación vertical máxima entre plataformas donde se puede rebotar (el salto real llega a ≈180)
   const CLAVE_MEJOR = "polo-saltarin-mejor";
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   cv.width = W * dpr;
@@ -14451,7 +14455,7 @@ function montarSaltarinDelLoto(caja) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   let estado = "listo"; // listo | jugando | pausa | fin
-  let p, plats, camY, topY, y0, alt, score, cara, ultimoTipo;
+  let p, plats, camY, topY, y0, alt, score, cara, ultimoTipo, seguroY;
   let mejor = 0;
   let corriendo = false;
   let tPrev = 0;
@@ -14466,6 +14470,7 @@ function montarSaltarinDelLoto(caja) {
   function nueva() {
     plats = [{ x: 0, y: H - 40, w: W, h: 12, tipo: "base" }];
     topY = H - 40;
+    seguroY = H - 40; // altura de la última plataforma donde SÍ se puede rebotar (las cafés se rompen y no cuentan)
     ultimoTipo = "base";
     p = { x: W / 2 - 17, y: H - 40 - 34, w: 34, h: 34, vx: 0, vy: -SALTO };
     y0 = p.y;
@@ -14480,17 +14485,26 @@ function montarSaltarinDelLoto(caja) {
   function generar() {
     while (topY > camY - 140) {
       const dif = Math.min(1, score / 1500);
-      topY -= rnd(45 + dif * 30, 75 + dif * 65); // nunca más de 140 px: siempre se alcanza con el salto (≈186 px)
+      let nuevoY = topY - rnd(45 + dif * 30, 75 + dif * 65);
       const r = Math.random();
       let tipo = "normal";
       if (ultimoTipo !== "rompe") {
         if (score > 150 && r < 0.10 + dif * 0.12) tipo = "rompe";
         else if (score > 60 && r < 0.38) tipo = "mueve";
       }
+      // Una plataforma café no sirve para subir (se rompe sin rebotar): solo se permite si queda cerca de la última
+      // plataforma segura; si no, se vuelve normal.
+      if (tipo === "rompe" && seguroY - nuevoY > ALCANCE / 2) tipo = "normal";
+      // Garantía: toda plataforma donde se puede rebotar queda a un salto alcanzable de la anterior plataforma segura
+      // (el salto llega a ≈180 px; se usa ALCANCE para dejar margen). Así nunca hay un tramo imposible de subir.
+      if (tipo !== "rompe") nuevoY = Math.max(nuevoY, seguroY - ALCANCE);
+      nuevoY = Math.min(nuevoY, topY - 40); // siempre hay separación entre plataformas
+      topY = nuevoY;
       const w = Math.round(70 - dif * 20);
       const pl = { x: rnd(0, W - w), y: topY, w, h: 12, tipo, dir: Math.random() < 0.5 ? -1 : 1, vel: 1 + dif * 1.6, roto: false, resorte: false };
       if (tipo === "normal" && score > 30 && Math.random() < 0.08) pl.resorte = true;
       plats.push(pl);
+      if (tipo !== "rompe") seguroY = topY;
       ultimoTipo = tipo;
     }
   }
