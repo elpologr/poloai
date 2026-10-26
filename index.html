@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="app-version" content="69" />
+  <meta name="app-version" content="70" />
   <meta name="theme-color" content="#4a2685" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=98" />
+  <link rel="stylesheet" href="styles.css?v=99" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -824,18 +824,33 @@
       <!-- Ventana para agregar o editar una anotación -->
       <div id="di-form" class="notas-nueva modo-editar" hidden>
         <h3 id="di-form-titulo" class="notas-form-titulo">Nueva anotación</h3>
-        <label class="notas-campo">
-          <span>Nombre</span>
-          <input id="di-nombre" type="text" maxlength="80" placeholder="Ej. Idea del día" autocomplete="off" />
-        </label>
-        <label id="di-tipo-campo" class="notas-campo">
-          <span>Guardar como</span>
-          <select id="di-tipo">
-            <option value="nota">📓 Nota (solo recuerdo de este día)</option>
-            <option value="actividad">🎯 Tarea por terminar (también aparece en Tareas por Terminar)</option>
-            <option value="trabajo">💼 Trabajo (también aparece en Trabajo)</option>
-          </select>
-        </label>
+        <!-- Fila 1: nombre (mitad) y fecha (mitad: creación + días en que se modificó) -->
+        <div class="di-form-fila">
+          <label class="notas-campo">
+            <span>Nombre</span>
+            <input id="di-nombre" type="text" maxlength="80" placeholder="Ej. Idea del día" autocomplete="off" />
+          </label>
+          <div class="notas-campo di-fecha-caja">
+            <span>Fecha</span>
+            <div id="di-fecha-creada" class="di-fecha-creada"></div>
+            <div id="di-fecha-modif" class="di-fecha-modif"></div>
+          </div>
+        </div>
+        <!-- Fila 2: «Guardar como» (izquierda) y favoritos (derecha) -->
+        <div class="di-form-fila">
+          <label id="di-tipo-campo" class="notas-campo">
+            <span>Guardar como</span>
+            <select id="di-tipo">
+              <option value="nota">📓 Nota (solo recuerdo de este día)</option>
+              <option value="actividad">🎯 Tarea por terminar (también aparece en Tareas por Terminar)</option>
+              <option value="trabajo">💼 Trabajo (también aparece en Trabajo)</option>
+            </select>
+          </label>
+          <div class="notas-campo di-fav-campo">
+            <span>Favoritos</span>
+            <button id="di-fav" class="di-fav-btn" type="button" aria-pressed="false">☆ Añadir a favoritos</button>
+          </div>
+        </div>
         <label class="notas-campo" hidden>
           <span>Guardar en</span>
           <select id="di-destino">
@@ -845,7 +860,7 @@
         </label>
         <label class="notas-campo">
           <span>Descripción</span>
-          <textarea id="di-descripcion" rows="4" maxlength="1000000" placeholder="Escribe tu anotación…"></textarea>
+          <textarea id="di-descripcion" rows="12" maxlength="1000000" placeholder="Escribe tu anotación…"></textarea>
         </label>
         <div class="notas-fila">
           <button id="di-guardar" class="notas-btn" type="button">Guardar</button>
@@ -1718,7 +1733,7 @@
   </main>
 
   <script src="config.js?v=66"></script>
-  <script src="app.js?v=105"></script>
+  <script src="app.js?v=106"></script>
   <script src="voz.js?v=66"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

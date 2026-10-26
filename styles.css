@@ -1,5 +1,5 @@
 :root {
-  --app-version: "69"; /* debe coincidir con VERSION en app.js */
+  --app-version: "70"; /* debe coincidir con VERSION en app.js */
   --tarjeta: rgba(255, 255, 255, 0.95);
   --texto: #2b2140;
   --suave: #6f6585;
@@ -3677,3 +3677,49 @@ body.en-seccion .menu { display: none; }
   cursor: pointer;
 }
 .notas-fav-check input { width: 18px; height: 18px; accent-color: #e0a800; }
+
+/* ---------- Panel «Nueva anotación» del Diario: fondo negro, letra blanca ---------- */
+#di-form { background: #000; color: #fff; border-color: #444; }
+#di-form .notas-form-titulo { color: #fff; }
+#di-form .notas-campo > span { color: #fff; }
+#di-form input,
+#di-form select,
+#di-form textarea { color: #fff; background: #111; border-color: #555; }
+#di-form input::placeholder,
+#di-form textarea::placeholder { color: #aaa; }
+#di-form select option { color: #fff; background: #111; }
+#di-form .notas-estado { color: #ccc; }
+#di-form .notas-estado.error { color: #ff7a6b; }
+#di-form .notas-estado.ok { color: #5fe0a0; }
+#di-form .di-form-fila {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* cada cosa ocupa la mitad */
+  gap: 12px;
+  align-items: start;
+}
+#di-form .di-form-fila > * { min-width: 0; }
+#di-form .di-fav-campo { grid-column: 2; } /* siempre a la derecha, aunque «Guardar como» esté oculto al editar */
+.di-fecha-caja .di-fecha-creada,
+.di-fecha-caja .di-fecha-modif {
+  padding: 8px 10px;
+  font-size: 0.92rem;
+  border: 1px solid #555;
+  background: #111;
+  color: #fff;
+}
+.di-fecha-caja .di-fecha-creada { border-radius: 10px 10px 0 0; font-weight: 700; }
+.di-fecha-caja .di-fecha-modif { margin-top: -1px; border-radius: 0 0 10px 10px; font-size: 0.8rem; color: #ccc; max-height: 4.6em; overflow-y: auto; }
+.di-fav-btn {
+  width: 100%;
+  padding: 9px 10px;
+  font: inherit;
+  color: #fff;
+  background: #111;
+  border: 1px solid #555;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+.di-fav-btn:hover { border-color: #e0a800; }
+.di-fav-btn.activo { color: #ffd54a; border-color: #e0a800; font-weight: 700; }
+#di-form textarea { min-height: 18em; } /* tres veces más alto que antes */

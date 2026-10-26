@@ -1,7 +1,7 @@
 // ---------- Control de versión ----------
 // index.html, styles.css y app.js deben ser de la MISMA versión. Si no lo son,
 // se muestra un aviso arriba de la página diciendo cuál archivo hay que volver a subir.
-const VERSION = "69";
+const VERSION = "70";
 
 (function revisarArchivos() {
   const IDS_NECESARIOS = [
@@ -16,7 +16,7 @@ const VERSION = "69";
     "zona-actividades", "zona-trabajo", "btn-menu-notas", "seccion-notas", "btn-menu-ejercicio",
     "panel-ejercicio", "ej-cuadricula", "ej-dia", "ej-form",
     "btn-menu-diario", "panel-diario", "di-cuadricula", "di-dia", "di-form",
-    "di-cuentas-abrir", "di-cuentas", "di-cu-chips", "di-cu-form", "di-cu-proyectos", "di-cu-nueva", "di-cu-prev", "di-cu-sig",
+    "di-cuentas-abrir", "di-fav", "di-fecha-creada", "di-fecha-modif", "di-cuentas", "di-cu-chips", "di-cu-form", "di-cu-proyectos", "di-cu-nueva", "di-cu-prev", "di-cu-sig",
     "seccion-ejercicio", "seccion-diario", "di-ejercicios", "di-ej-detalle", "zona-pedidos-yeso", "bazar-division-yeso",
     "pop-color", "pop-colores", "pop-mas-colores", "pop-paleta", "pop-color-personal",
     "btn-menu-deudas", "seccion-deudas", "panel-deudas", "de-chips", "de-form",
@@ -3062,7 +3062,7 @@ function nombreCortoDeTexto(t) {
   const linea = String(t || "").split(/\r?\n/).map((x) => x.trim()).find((x) => x) || "";
   return linea.slice(0, 60) || "Sin nombre";
 }
-async function crearActividadDeRecuerdo({ idRecuerdo, nombre, dia, texto, tipo }) {
+async function crearActividadDeRecuerdo({ idRecuerdo, nombre, dia, texto, tipo, favorito }) {
   const etiqueta = ETIQUETA_DE_TIPO[tipo];
   if (!etiqueta) return;
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dia || "");
@@ -3079,6 +3079,7 @@ async function crearActividadDeRecuerdo({ idRecuerdo, nombre, dia, texto, tipo }
     color: "Blanco",
     identificador: "",
     destino: "drive",
+    favorito: !!favorito, // la ⭐ del recuerdo también queda en la nota creada (sale en Favoritas)
   };
   await llamarNotas("nota_agregar", nota);
   if (notasCargadas) {
@@ -4553,6 +4554,11 @@ const diDescripcion = diEl("di-descripcion");
 const diDestino = diEl("di-destino");
 const diTipoCampo = diEl("di-tipo-campo");
 const diTipo = diEl("di-tipo");
+const diFav = diEl("di-fav"); // botón «Añadir a favoritos»
+const diFechaCreada = diEl("di-fecha-creada");
+const diFechaModif = diEl("di-fecha-modif");
+let diFavForm = false; // estado de la ⭐ en el formulario abierto
+let diCreadaNueva = ""; // fecha y hora con que se está registrando una anotación nueva
 const diGuardar = diEl("di-guardar");
 const diBorrar = diEl("di-borrar");
 const diFormEstado = diEl("di-form-estado");
@@ -4689,7 +4695,7 @@ function dibujarChipsDi() {
       b.classList.add("ej-chip-finalizada");
       b.title = e.nombre + " (Anotación de Tarea Finalizada)";
     }
-    b.querySelector(".ej-chip-nombre").textContent = e.nombre;
+    b.querySelector(".ej-chip-nombre").textContent = e.nombre + (e.favorito ? " ⭐" : "");
     b.addEventListener("click", () => abrirVisorDi(e));
     diChips.appendChild(b);
   });
@@ -4773,6 +4779,31 @@ const migDi = montarMigrar(diDestino, {
   obtener: () => diEditando,
   estado: diFormEstado,
 });
+// «AAAA-MM-DD» → «dd/mm/aaaa»
+function diFechaDeDia(f) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(f || ""));
+  return m ? m[3] + "/" + m[2] + "/" + m[1] : String(f || "");
+}
+// Registro de días en que se modificó: un solo registro por día (el del último cambio de ese día); máximo 30
+function diAgregarModificacion(lista, sello) {
+  const l = (lista || []).slice();
+  if (l.length && l[l.length - 1].split(" ")[0] === sello.split(" ")[0]) l[l.length - 1] = sello;
+  else l.push(sello);
+  return l.slice(-30);
+}
+function diPonerFav(valor) {
+  diFavForm = !!valor;
+  diFav.classList.toggle("activo", diFavForm);
+  diFav.setAttribute("aria-pressed", String(diFavForm));
+  diFav.textContent = diFavForm ? "★ En favoritos" : "☆ Añadir a favoritos";
+}
+diFav.addEventListener("click", () => diPonerFav(!diFavForm));
+function dibujarFechasDi(e) {
+  // Principal: la fecha de creación (si es una anotación antigua sin hora, solo el día)
+  diFechaCreada.textContent = "Creada: " + (e ? (e.creada || diFechaDeDia(e.fecha)) : diCreadaNueva);
+  const mods = e && Array.isArray(e.modificaciones) ? e.modificaciones : [];
+  diFechaModif.textContent = mods.length ? "Modificada: " + mods.join(" · ") : "Sin modificaciones";
+}
 function abrirFormDi(e) {
   diEditando = e;
   diFormTitulo.textContent = e
@@ -4791,6 +4822,9 @@ function abrirFormDi(e) {
   diBorrar.hidden = !e;
   diTipoCampo.hidden = !!e; // «Guardar como» solo al crear
   diTipo.value = "nota";
+  diCreadaNueva = e ? "" : selloFechaHora(); // la fecha y hora que se está registrando
+  diPonerFav(e ? !!e.favorito : false);
+  dibujarFechasDi(e);
   setEstado(diFormEstado, "");
   diForm.hidden = false;
   diNombre.focus();
@@ -4815,7 +4849,17 @@ async function guardarDi() {
     descripcion: diDescripcion.value.trim(),
     destino: diDestino.value,
     terminado: editando ? !!editando.terminado : false, // solo informativo: el Apps Script no toca la columna D
+    favorito: diFavForm,
   };
+  // Creación y días de modificación (el Apps Script guarda lo mismo en la hoja)
+  const ahoraDi = selloFechaHora();
+  if (editando) {
+    e.creada = editando.creada || "";
+    e.modificaciones = diAgregarModificacion(editando.modificaciones, ahoraDi);
+  } else {
+    e.creada = diCreadaNueva || ahoraDi;
+    e.modificaciones = [];
+  }
   const tipo = editando ? "nota" : diTipo.value; // nota | actividad | trabajo
   if (tipo !== "nota" && !e.descripcion) {
     setEstado(diFormEstado, "Escribe la descripción para guardarla como " + (tipo === "trabajo" ? "trabajo" : "pendiente"), "error");
@@ -4824,7 +4868,7 @@ async function guardarDi() {
   diGuardar.disabled = true;
   setEstado(diFormEstado, "Guardando…");
   try {
-    await llamarNotas(editando ? "diario_editar" : "diario_agregar", e);
+    await llamarNotas(editando ? "diario_editar" : "diario_agregar", Object.assign({ ahora: ahoraDi }, e, { modificaciones: undefined }));
     if (editando) diarios = diarios.map((x) => (x.id === id ? e : x));
     else {
       diarios.push(e);
@@ -4834,7 +4878,7 @@ async function guardarDi() {
     let aviso = "";
     if (tipo !== "nota") {
       try {
-        await crearActividadDeRecuerdo({ idRecuerdo: id, nombre, dia: e.fecha, texto: e.descripcion, tipo });
+        await crearActividadDeRecuerdo({ idRecuerdo: id, nombre, dia: e.fecha, texto: e.descripcion, tipo, favorito: e.favorito });
       } catch (err2) {
         aviso = "El recuerdo se guardó, pero no se pudo crear en " + (tipo === "trabajo" ? "Trabajo" : "Tareas por Terminar") + ": " + err2.message;
       }
@@ -4875,7 +4919,7 @@ async function cargarDiarios() {
   setEstado(diEstado, "Cargando…");
   try {
     const j = await llamarNotas("diario_listar");
-    diarios = Array.isArray(j.diarios) ? j.diarios : [];
+    diarios = (Array.isArray(j.diarios) ? j.diarios : []).map((x) => Object.assign({ creada: "", modificaciones: [], favorito: false }, x));
     diCargados = true;
     setEstado(diEstado, "");
     dibujarCalendarioDi();
@@ -6777,8 +6821,13 @@ function abrirVisorDi(d) {
     subtitulo: (r) => (r.fecha ? ipFechaCorta(r.fecha) : ""),
     abrirForm: (r) => abrirFormDi(r),
     guardar: async (base, cambios) => {
+      const ahoraV = selloFechaHora();
       const n = { id: base.id, nombre: vnValor(cambios, base, "nombre"), fecha: base.fecha, descripcion: vnValor(cambios, base, "descripcion"), destino: vnDestino(base), terminado: !!base.terminado };
-      await llamarNotas("diario_editar", n);
+      await llamarNotas("diario_editar", Object.assign({ ahora: ahoraV }, n)); // sin «favorito»: la hoja conserva el que tenía
+      n.marca = base.marca;
+      n.creada = base.creada || "";
+      n.favorito = !!base.favorito;
+      n.modificaciones = diAgregarModificacion(base.modificaciones, ahoraV);
       diarios = diarios.map((x) => (x.id === n.id ? n : x));
       dibujarChipsDi();
       dibujarCalendarioDi();
