@@ -413,6 +413,100 @@
   }
 
   // ======================================================================
+  //  PREGUNTAS SOBRE TUS CUENTAS («oye voz, ¿en qué cuenta tengo el imgbb de esta app?»)
+  // ======================================================================
+  // Solo BUSCA en lo que ya escribiste en la app (Diario → Cuentas y los proyectos vinculados a cada cuenta):
+  // nombre de la cuenta, referencia del correo, y nombre / descripción / zona / links / notas de sus proyectos vinculados.
+  // No inventa nada: si no hay coincidencias, responde que no se encontró información. No guarda ni modifica nada.
+  const MULETILLAS = /^(?:oye|hey|voz|polo|ok|okay|bueno|a\s+ver|por\s+favor|porfa)(?=[\s,.!?¿]|$)[\s,.!?¿]*/;
+  const PALABRAS_VACIAS = new Set((
+    "de la el los las un una unos unas en y o a al del que cual cuales como donde dime dame busca buscame oye hey voz polo ok " +
+    "por para con sin se me mi mis tu tus tengo tienes tiene tienen tengan tenia tuve tuvo esta este esto estos estas ese esa eso " +
+    "corresponde corresponden correspondiente relacionada relacionado relacionadas sirve sirven usa uso usar hay " +
+    "cuenta cuentas correo correos app aplicacion pagina proyecto proyectos numero llamada llamado favor porfa " +
+    "puedes podrias decirme sabes recuerdas ver mostrar muestrame muestra ya es son fue ser lo le les su sus mas muy tambien " +
+    "cuantas cuantos quiero saber necesito saber ahi aqui alla puse guarde cual"
+  ).split(/\s+/));
+
+  function sinMuletillas(entrada) {
+    let t = norm(String(entrada || "")).trim();
+    let m;
+    while ((m = MULETILLAS.exec(t))) t = t.slice(m[0].length);
+    return t;
+  }
+  // ¿Es una pregunta sobre cuentas (y no una orden de crear algo)?
+  function esPregunta(entrada) {
+    const t = sinMuletillas(entrada);
+    if (!t || VERBO.test(t)) return false;
+    const habla = /(?:^|[^a-z])(?:cuentas?|correos?)(?![a-z])/.test(t);
+    const arranca = /^(?:en|a|con|de|cual|cuales|que|donde|dime|dame|busca|buscame|cuantas|sabes|recuerdas|hay|tengo)(?![a-z])/.test(t)
+      || /[?¿]/.test(String(entrada));
+    return (habla && arranca) || /^donde\s+(?:tengo|tenia|puse|guarde|esta)(?![a-z])/.test(t);
+  }
+
+  const raiz = (w) => (w.length > 5 && w.endsWith("es") ? w.slice(0, -2) : w.length > 4 && w.endsWith("s") ? w.slice(0, -1) : w);
+  function terminosDe(entrada) {
+    const vistos = new Set();
+    return sinMuletillas(entrada).split(/[^a-z0-9ñ]+/).filter((w) => w.length >= 3 && !PALABRAS_VACIAS.has(w))
+      .map(raiz).filter((w) => !vistos.has(w) && vistos.add(w));
+  }
+  const textoLibre = (v) => (v == null ? "" : typeof v === "string" ? v : Array.isArray(v) ? v.map(textoLibre).join(" ") : typeof v === "object" ? JSON.stringify(v) : String(v));
+
+  // cuentas: [{ nombre, correo, proyectos: [id] }]   empresas: [{ id, nombre, descripcion, zona, link, links, notas: [{texto}] }]
+  // Devuelve { terminos, resultados: [{ posicion, nombre, correo, coincidencias: [texto] }] }
+  function buscarCuentas(entrada, cuentas, empresas) {
+    const terminos = terminosDe(entrada);
+    const res = { terminos, resultados: [] };
+    if (!terminos.length) return res;
+    const proyectos = new Map((empresas || []).map((e) => [e.id, e]));
+    const regs = terminos.map((t) => new RegExp("(?:^|[^a-z0-9])" + esc(t)));
+    const fichas = (cuentas || []).map((c, i) => {
+      const campos = [
+        { donde: "el nombre de la cuenta", t: c.nombre },
+        { donde: "la referencia del correo", t: c.correo },
+      ];
+      (c.proyectos || []).forEach((id) => {
+        const e = proyectos.get(id);
+        if (!e) return;
+        const notas = Array.isArray(e.notas) ? e.notas.map((n) => (n && n.texto) || "").join(" ") : "";
+        campos.push({
+          donde: "el proyecto vinculado «" + (e.nombre || "sin nombre") + "»",
+          t: [e.nombre, e.descripcion, e.zona, e.link, textoLibre(e.links), notas].map(textoLibre).join(" "),
+        });
+      });
+      campos.forEach((k) => { k.n = norm(textoLibre(k.t)); });
+      return { c, posicion: i + 1, campos };
+    });
+    // Un término que aparece en pocas cuentas pesa más (p. ej. «imgbb») que uno que sale en casi todas
+    const cuantas = regs.map((re) => fichas.filter((f) => f.campos.some((k) => re.test(k.n))).length);
+    fichas.forEach((f) => {
+      let puntos = 0;
+      const porDonde = new Map();
+      regs.forEach((re, i) => {
+        if (!cuantas[i]) return;
+        let esta = false;
+        f.campos.forEach((k) => {
+          if (!re.test(k.n)) return;
+          esta = true;
+          if (!porDonde.has(k.donde)) porDonde.set(k.donde, []);
+          porDonde.get(k.donde).push(terminos[i]);
+        });
+        if (esta) puntos += 1 / cuantas[i];
+      });
+      if (puntos > 0) {
+        res.resultados.push({
+          posicion: f.posicion, puntos,
+          nombre: f.c.nombre || "Sin nombre", correo: f.c.correo || "",
+          coincidencias: [...porDonde].map(([donde, ts]) => "«" + ts.join("», «") + "» en " + donde),
+        });
+      }
+    });
+    res.resultados.sort((a, b) => b.puntos - a.puntos || a.posicion - b.posicion);
+    res.resultados = res.resultados.slice(0, 5);
+    return res;
+  }
+
+  // ======================================================================
   //  INTERFAZ (botón 🎤, ventana y tarjeta de confirmación)
   // ======================================================================
   function montarInterfaz() {
@@ -427,7 +521,7 @@
     // Botón flotante
     const fab = el("button", "pv-fab", "🎤");
     fab.type = "button";
-    fab.title = "Polo AI: crear notas por voz";
+    fab.title = "Polo AI: crear notas y preguntar por voz";
     fab.setAttribute("aria-label", "Abrir Polo AI por voz");
     document.body.appendChild(fab);
 
@@ -446,7 +540,8 @@
         </div>
         <div class="pv-contenido">
           <p class="pv-ayuda">Di o escribe una orden. Ejemplo:
-            <em>«crea una nota en la zona de deudas a fecha de hoy que diga que le debo 100 pesos a mi mamá»</em></p>
+            <em>«crea una nota en la zona de deudas a fecha de hoy que diga que le debo 100 pesos a mi mamá»</em><br>También puedes preguntar por tus cuentas:
+            <em>«oye voz, ¿en qué cuenta tengo el imgbb de esta app?»</em></p>
           <textarea class="pv-orden" rows="3" aria-label="Orden"
                     placeholder="Habla con el micrófono o escribe aquí tu orden…"></textarea>
           <div class="pv-fila">
@@ -454,6 +549,16 @@
             <button type="button" class="pv-btn pv-interpretar">Interpretar</button>
             <button type="button" class="pv-btn pv-sec pv-borrar" title="Borrar la orden">🗑</button>
             <span class="pv-estado" aria-live="polite"></span>
+          </div>
+
+          <div class="pv-respuesta" hidden>
+            <h4 class="pv-tarjeta-titulo">Respuesta</h4>
+            <p class="pv-resp-intro"></p>
+            <ul class="pv-resp-lista"></ul>
+            <div class="pv-fila">
+              <button type="button" class="pv-btn pv-sec pv-resp-hablar" title="Escuchar la respuesta">🔊 Escuchar</button>
+              <button type="button" class="pv-btn pv-sec pv-resp-cerrar">Cerrar respuesta</button>
+            </div>
           </div>
 
           <div class="pv-tarjeta" hidden>
@@ -551,20 +656,85 @@
     }
     function ocultarTarjeta() { tarjeta.hidden = true; actual = null; }
 
+    // ----- Respuestas a preguntas sobre cuentas -----
+    const respuesta = q(".pv-respuesta"), respIntro = q(".pv-resp-intro"), respLista = q(".pv-resp-lista");
+    let respHablada = "";
+    function hablar(txt) {
+      try {
+        if (!txt || !window.speechSynthesis) return;
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(txt);
+        u.lang = "es-MX";
+        window.speechSynthesis.speak(u);
+      } catch (e) { /* sin voz en este navegador */ }
+    }
+    function callar() { try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* nada */ } }
+    function ocultarRespuesta() { respuesta.hidden = true; respHablada = ""; callar(); }
+    function mostrarRespuesta(intro, items, hablado, porVoz) {
+      respIntro.textContent = intro;
+      respLista.innerHTML = "";
+      (items || []).forEach((it) => {
+        const li = el("li", "");
+        li.appendChild(el("strong", "", it.titulo));
+        if (it.detalle) { li.appendChild(document.createElement("br")); li.appendChild(el("span", "pv-resp-detalle", it.detalle)); }
+        respLista.appendChild(li);
+      });
+      respHablada = hablado || intro;
+      respuesta.hidden = false;
+      if (porVoz) hablar(respHablada);
+    }
+    q(".pv-resp-hablar").addEventListener("click", () => hablar(respHablada));
+    q(".pv-resp-cerrar").addEventListener("click", () => { ocultarRespuesta(); orden.focus(); });
+
+    async function responderPregunta(porVoz) {
+      decir("Buscando en tus cuentas…");
+      try {
+        if (typeof cuCargadas !== "undefined" && !cuCargadas && typeof cargarCuentas === "function") await cargarCuentas();
+        if (typeof emCargadas !== "undefined" && !emCargadas && typeof cargarEmpresas === "function") await cargarEmpresas();
+      } catch (e) { /* se usa lo que haya cargado */ }
+      const lasCuentas = typeof cuentas !== "undefined" && Array.isArray(cuentas) ? cuentas : [];
+      const susProyectos = typeof empresas !== "undefined" && Array.isArray(empresas) ? empresas : [];
+      decir("");
+      if (!lasCuentas.length) {
+        mostrarRespuesta("No se encontró información.", [], "No se encontró información.", porVoz);
+        return;
+      }
+      const r = buscarCuentas(orden.value, lasCuentas, susProyectos);
+      if (!r.terminos.length) {
+        mostrarRespuesta("No entendí qué buscar. Prueba con algo como: «¿en qué cuenta tengo el imgbb de esta app?»", [], "No entendí qué buscar.", porVoz);
+        return;
+      }
+      if (!r.resultados.length) {
+        mostrarRespuesta("No se encontró información.", [], "No se encontró información.", porVoz);
+        return;
+      }
+      const items = r.resultados.map((x) => ({
+        titulo: "Cuenta " + x.posicion + ": " + x.nombre + (x.correo ? " (" + x.correo + ")" : ""),
+        detalle: "Coincide con " + x.coincidencias.join("; ") + ".",
+      }));
+      const uno = r.resultados.length === 1;
+      const intro = uno ? "Encontré esta cuenta:" : "Encontré " + r.resultados.length + " cuentas posibles (la más probable primero):";
+      const hablado = (uno ? "Está en la cuenta número " : "La más probable es la cuenta número ") + r.resultados[0].posicion +
+        ", llamada " + r.resultados[0].nombre + "." + (uno ? "" : " También encontré " + (r.resultados.length - 1) + " más.");
+      mostrarRespuesta(intro, items, hablado, porVoz);
+    }
+
     // ----- Interpretar la orden -----
-    function interpretarOrden() {
+    function interpretarOrden(porVoz) {
       detenerDictado();
+      ocultarRespuesta();
+      if (esPregunta(orden.value)) { ocultarTarjeta(); listo.hidden = true; responderPregunta(porVoz === true); return; }
       const r = interpretar(orden.value);
       if (!r.ok) { ocultarTarjeta(); decir(r.error, "error"); return; }
       decir("");
       listo.hidden = true;
       mostrarTarjeta(r);
     }
-    btnInterp.addEventListener("click", interpretarOrden);
+    btnInterp.addEventListener("click", () => interpretarOrden(false));
     orden.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); interpretarOrden(); }
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); interpretarOrden(false); }
     });
-    q(".pv-borrar").addEventListener("click", () => { orden.value = ""; ocultarTarjeta(); decir(""); orden.focus(); });
+    q(".pv-borrar").addEventListener("click", () => { orden.value = ""; ocultarTarjeta(); ocultarRespuesta(); decir(""); orden.focus(); });
 
     // ----- Confirmar y guardar -----
     btnConfirmar.addEventListener("click", async () => {
@@ -616,6 +786,7 @@
       }
       if (escuchando) { detenerDictado(); return; }
       ocultarTarjeta();
+      ocultarRespuesta();
       listo.hidden = true;
       const base = orden.value.trim() ? orden.value.trim() + " " : "";
       let finales = "";
@@ -656,7 +827,7 @@
         fab.classList.remove("escuchando");
         btnMic.textContent = "🎤 Hablar";
         btnMic.classList.remove("escuchando");
-        if (!huboError && orden.value.trim()) interpretarOrden();
+        if (!huboError && orden.value.trim()) interpretarOrden(true);
         else if (!huboError) decir("No escuché nada. Pulsa 🎤 y habla de nuevo.", "error");
       };
       try { rec.start(); } catch (e) { decir("No se pudo iniciar el micrófono.", "error"); }
@@ -677,6 +848,7 @@
     }
     function cerrar() {
       detenerDictado();
+      callar();
       modal.hidden = true;
     }
     fab.addEventListener("click", abrir);
@@ -694,5 +866,5 @@
     else montarInterfaz();
   }
   // Para probar el intérprete fuera del navegador (node)
-  if (typeof module === "object" && module.exports) module.exports = { interpretar, textoConFecha, norm };
+  if (typeof module === "object" && module.exports) module.exports = { interpretar, textoConFecha, norm, esPregunta, buscarCuentas };
 })();

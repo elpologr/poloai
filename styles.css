@@ -1851,6 +1851,14 @@ button.cal-dia { font-family: inherit; color: var(--texto); padding: 0; }
   margin-top: 16px; padding: 14px; background: #f4f9ff; border: 1px solid var(--nb-borde); border-radius: 14px;
 }
 .pv-tarjeta-titulo { margin: 0 0 8px; font-size: 1rem; }
+/* Respuesta a una pregunta sobre cuentas */
+.pv-respuesta {
+  margin-top: 16px; padding: 14px; background: #f4f9ff; border: 1px solid var(--nb-borde); border-radius: 14px;
+}
+.pv-resp-intro { margin: 0 0 8px; font-weight: 600; line-height: 1.4; }
+.pv-resp-lista { margin: 0 0 4px; padding-left: 20px; line-height: 1.45; }
+.pv-resp-lista li { margin-bottom: 8px; }
+.pv-resp-detalle { font-size: 0.88rem; color: var(--nb-suave); }
 .pv-campo { display: block; margin-bottom: 10px; }
 .pv-campo > span { display: block; margin-bottom: 4px; font-size: 0.85rem; font-weight: 600; color: var(--nb-suave); }
 .pv-avisos { margin: 0 0 10px; padding: 8px 10px 8px 28px; font-size: 0.88rem; color: #7a5200; background: #fff4d6; border-radius: 10px; }
