@@ -2,7 +2,7 @@
 // Sigue los pasos del README para obtener estos valores.
 const CONFIG = {
   // URL de la aplicación web de Apps Script (termina en /exec)
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzlsk_SZDvnYlXf3RwOIgBuC0XEVtHQ4OiQIqxErQW44AnyUVfRLga-SGWilDNKO5l6/exec",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbz_do8NdW-DZQCCKrtDaJJ1druEe1MMWVVDc1aDyiugczEzX0VVE4oiBuaPnOpoRsZy/exec",
   // Debe ser EXACTAMENTE igual al TOKEN de google-apps-script.gs
   TOKEN: "polodulce",
   // ID de cliente de Google para "Iniciar sesión con Google" (termina en
