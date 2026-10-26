@@ -8,11 +8,11 @@ const VERSION = "68";
     "calendario", "cal-mes", "cal-anio", "cal-anterior", "cal-siguiente",
     "cal-hoy", "cal-actualizar", "cal-cuadricula", "cal-estado",
     "dia-popover", "pop-titulo", "pop-cerrar", "pop-secciones", "cal-desc-dia", "cal-chips", "cal-form",
-    "btn-menu-lateral", "barra-lateral", "google-boton", "btn-notas", "panel-notas",
+    "btn-menu-lateral", "barra-lateral", "google-boton", "panel-notas",
     "notas-nueva-btn", "notas-fecha", "notas-cancelar", "notas-estado-lista",
     "notas-submenu", "notas-sub-lista", "notas-mas-colores", "notas-color-personal",
-    "notas-identificador", "notas-destino", "notas-form-titulo", "btn-proyectos", "panel-proyectos", "proy-form",
-    "btn-yeso", "btn-galeria", "panel-galeria", "gal-form",
+    "notas-identificador", "notas-destino", "notas-form-titulo", "panel-proyectos", "proy-form",
+    "btn-juegos", "seccion-juegos", "btn-galeria", "panel-galeria", "gal-form",
     "zona-actividades", "zona-trabajo", "btn-menu-notas", "seccion-notas", "btn-menu-ejercicio",
     "panel-ejercicio", "ej-cuadricula", "ej-dia", "ej-form",
     "btn-menu-diario", "panel-diario", "di-cuadricula", "di-dia", "di-form",
@@ -2324,7 +2324,7 @@ function cerrarNotas() {
   cerrarSubmenu();
 }
 
-btnNotas.addEventListener("click", abrirNotas);
+if (btnNotas) btnNotas.addEventListener("click", abrirNotas); // el botón ya no está en la barra lateral
 // El botón «Notas» del menú principal (data-seccion="seccion-notas") cambia de página como los demás botones
 // El botón «Ejercicio» del menú principal (btn-menu-ejercicio) abre su propio calendario (más abajo)
 document.getElementById("notas-cerrar").addEventListener("click", cerrarNotas);
@@ -2692,7 +2692,7 @@ function cerrarProyectos() {
   panelProyectos.hidden = true;
 }
 
-btnProyectos.addEventListener("click", abrirProyectos);
+if (btnProyectos) btnProyectos.addEventListener("click", abrirProyectos); // el botón ya no está en la barra lateral
 document.getElementById("proy-cerrar").addEventListener("click", cerrarProyectos);
 document.getElementById("proy-actualizar").addEventListener("click", () => {
   if (sesionVigente()) cargarProyectos();
@@ -4030,14 +4030,10 @@ function actualizarZonasEtiqueta() {
   }
 }
 
-// Botón «Pedidos de Yeso» de la barra lateral: abre su propia sección (aparte de Notas)
-document.getElementById("btn-yeso").addEventListener("click", () => {
+// Botón «Juegos» de la barra lateral: abre la zona Juegos
+document.getElementById("btn-juegos").addEventListener("click", () => {
   cerrarLateral();
-  mostrarSeccion("pedidos-yeso");
-  const z = zonas.find((x) => x.cfg.seccion === "pedidos-yeso");
-  if (z.actualizar() && !notasCargadas) cargarNotasZonas();
-  else z.dibujar();
-  // Bazar se abre directamente en su pantalla «Pedidos de Yeso» (mostrarSeccion ya la elige)
+  mostrarSeccion("seccion-juegos");
   window.scrollTo({ top: 0 });
 });
 
@@ -14078,4 +14074,350 @@ cargarDatos();
   document.addEventListener("visibilitychange", () => { if (!document.hidden) subir(); });
   setInterval(subir, 60000);
   setTimeout(subir, 3000);
+})();
+
+
+// ---------- Juegos: «Saltarín del Loto» (un juego de saltar sin parar, parecido a Doodle Jump) ----------
+// Un personaje rebota solo en las plataformas; tú lo mueves a izquierda y derecha para que siga subiendo.
+// Plataformas: verdes (normales), azules (se mueven), cafés (se rompen al pisarlas) y con resorte (saltan más alto).
+// Controles: flechas ← → o A / D · en el celular, mantén tocado el lado izquierdo o derecho de la pantalla del juego.
+// Espacio o P = pausa. El mejor puntaje se guarda en este dispositivo.
+(function saltarinDelLoto() {
+  const sec = document.getElementById("seccion-juegos");
+  const cv = document.getElementById("jj-canvas");
+  const bJugar = document.getElementById("jj-jugar");
+  const bPausa = document.getElementById("jj-pausa");
+  if (!sec || !cv || !cv.getContext) return;
+  const ctx = cv.getContext("2d");
+
+  const W = 360, H = 560;            // tamaño lógico del juego (se ajusta solo al ancho disponible)
+  const GRAV = 0.42, SALTO = 12.5, RESORTE = 20, VMAX = 5.6;
+  const CLAVE_MEJOR = "polo-saltarin-mejor";
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = W * dpr;
+  cv.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  let estado = "listo"; // listo | jugando | pausa | fin
+  let p, plats, camY, topY, y0, alt, score, cara, ultimoTipo;
+  let mejor = 0;
+  let corriendo = false;
+  let tPrev = 0;
+  let tactil = 0; // -1 = izquierda, 1 = derecha, 0 = nada tocado
+  const teclas = { izq: false, der: false };
+  try { mejor = Number(localStorage.getItem(CLAVE_MEJOR)) || 0; } catch (e) {}
+
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const limitar = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  // ----- Partida nueva -----
+  function nueva() {
+    plats = [{ x: 0, y: H - 40, w: W, h: 12, tipo: "base" }];
+    topY = H - 40;
+    ultimoTipo = "base";
+    p = { x: W / 2 - 17, y: H - 40 - 34, w: 34, h: 34, vx: 0, vy: -SALTO };
+    y0 = p.y;
+    camY = 0;
+    alt = 0;
+    score = 0;
+    cara = 1;
+    generar();
+  }
+
+  // Crea plataformas hacia arriba mientras falten por encima de la pantalla. Cada vez más separadas y más difíciles.
+  function generar() {
+    while (topY > camY - 140) {
+      const dif = Math.min(1, score / 1500);
+      topY -= rnd(45 + dif * 30, 75 + dif * 65); // nunca más de 140 px: siempre se alcanza con el salto (≈186 px)
+      const r = Math.random();
+      let tipo = "normal";
+      if (ultimoTipo !== "rompe") {
+        if (score > 150 && r < 0.10 + dif * 0.12) tipo = "rompe";
+        else if (score > 60 && r < 0.38) tipo = "mueve";
+      }
+      const w = Math.round(70 - dif * 20);
+      const pl = { x: rnd(0, W - w), y: topY, w, h: 12, tipo, dir: Math.random() < 0.5 ? -1 : 1, vel: 1 + dif * 1.6, roto: false, resorte: false };
+      if (tipo === "normal" && score > 30 && Math.random() < 0.08) pl.resorte = true;
+      plats.push(pl);
+      ultimoTipo = tipo;
+    }
+  }
+
+  // ----- Un paso del juego (f = 1 es un cuadro a 60 por segundo) -----
+  function actualizar(f) {
+    const dir = (teclas.der ? 1 : 0) - (teclas.izq ? 1 : 0) || tactil;
+    if (dir) { p.vx += dir * 0.85 * f; cara = dir; }
+    else p.vx *= Math.pow(0.86, f);
+    p.vx = limitar(p.vx, -VMAX, VMAX);
+    p.x += p.vx * f;
+    if (p.x > W) p.x = -p.w;            // al salir por un lado entra por el otro
+    else if (p.x + p.w < 0) p.x = W;
+
+    const fondoAntes = p.y + p.h;
+    p.vy += GRAV * f;
+    p.y += p.vy * f;
+
+    plats.forEach((pl) => {
+      if (pl.tipo === "mueve") {
+        pl.x += pl.dir * pl.vel * f;
+        if (pl.x < 0) { pl.x = 0; pl.dir = 1; }
+        else if (pl.x + pl.w > W) { pl.x = W - pl.w; pl.dir = -1; }
+      }
+      if (pl.roto) pl.y += 7 * f;       // las plataformas rotas se caen
+    });
+
+    if (p.vy > 0) {
+      for (let i = 0; i < plats.length; i++) {
+        const pl = plats[i];
+        if (pl.roto) continue;
+        if (p.x + p.w - 6 > pl.x && p.x + 6 < pl.x + pl.w && fondoAntes <= pl.y + 3 && p.y + p.h >= pl.y) {
+          if (pl.tipo === "rompe") { pl.roto = true; continue; } // se rompe: no rebota
+          p.y = pl.y - p.h;
+          p.vy = pl.resorte ? -RESORTE : -SALTO;
+          break;
+        }
+      }
+    }
+
+    // La cámara sube cuando el personaje pasa de las 2/5 partes de la pantalla (nunca baja)
+    const meta = camY + H * 0.42;
+    if (p.y < meta) camY -= meta - p.y;
+    alt = Math.max(alt, y0 - p.y);
+    score = Math.floor(alt / 10);
+
+    plats = plats.filter((pl) => pl.y < camY + H + 60);
+    generar();
+
+    if (p.y > camY + H) terminar();
+  }
+
+  function terminar() {
+    if (score > mejor) {
+      mejor = score;
+      try { localStorage.setItem(CLAVE_MEJOR, String(mejor)); } catch (e) {}
+    }
+    poner("fin");
+  }
+
+  // ----- Dibujo -----
+  function rr(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function dibujarFondo() {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#f4edff");
+    g.addColorStop(1, "#cdb8f8");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    // cuadrícula tipo cuaderno que se mueve con la cámara
+    ctx.strokeStyle = "rgba(122, 68, 214, 0.12)";
+    ctx.lineWidth = 1;
+    const paso = 28;
+    const off = ((camY % paso) + paso) % paso;
+    ctx.beginPath();
+    for (let y = -off; y < H; y += paso) { ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); }
+    for (let x = 0; x < W; x += paso) { ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); }
+    ctx.stroke();
+  }
+
+  function dibujarPlataforma(pl) {
+    const x = pl.x, y = pl.y - camY;
+    if (y < -30 || y > H + 30) return;
+    const colores = { base: ["#6fcf86", "#3f9d58"], normal: ["#7be08f", "#43a85d"], mueve: ["#6cc8f5", "#3a8fc4"], rompe: ["#d9a070", "#a06a3c"] };
+    const c = colores[pl.tipo] || colores.normal;
+    ctx.fillStyle = c[1];
+    rr(x, y + 3, pl.w, pl.h, 6);
+    ctx.fill();
+    ctx.fillStyle = c[0];
+    rr(x, y, pl.w, pl.h - 2, 6);
+    ctx.fill();
+    if (pl.tipo === "rompe") { // grietas
+      ctx.strokeStyle = "#7a4a22";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + pl.w * 0.35, y); ctx.lineTo(x + pl.w * 0.45, y + 6); ctx.lineTo(x + pl.w * 0.38, y + pl.h);
+      ctx.moveTo(x + pl.w * 0.7, y); ctx.lineTo(x + pl.w * 0.62, y + 7);
+      ctx.stroke();
+    }
+    if (pl.resorte) { // resorte rojo
+      const cx = x + pl.w / 2;
+      ctx.strokeStyle = "#d63a3a";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(cx - 7, y); ctx.lineTo(cx + 7, y - 4); ctx.lineTo(cx - 7, y - 8); ctx.lineTo(cx + 7, y - 12);
+      ctx.stroke();
+      ctx.fillStyle = "#ff6b6b";
+      rr(cx - 9, y - 17, 18, 6, 3);
+      ctx.fill();
+    }
+  }
+
+  function dibujarJugador() {
+    const cx = p.x + p.w / 2, cy = p.y - camY + p.h / 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (cara < 0) ctx.scale(-1, 1);
+    const subiendo = p.vy < 0;
+    // patitas (se encogen al subir)
+    ctx.fillStyle = "#5a2fa8";
+    const pata = subiendo ? 4 : 9;
+    rr(-11, 12, 7, pata, 3); ctx.fill();
+    rr(4, 12, 7, pata, 3); ctx.fill();
+    // cuerpo
+    const g = ctx.createLinearGradient(0, -17, 0, 17);
+    g.addColorStop(0, "#9a6bf0");
+    g.addColorStop(1, "#6a38c6");
+    ctx.fillStyle = g;
+    rr(-17, -15, 34, 31, 14);
+    ctx.fill();
+    // pétalos de loto en la cabeza
+    ctx.fillStyle = "#ffb3d9";
+    [[-8, -3.5, -0.5], [0, 0, 0], [8, -3.5, 0.5]].forEach((d) => {
+      ctx.save();
+      ctx.translate(d[0], -18 + d[1]);
+      ctx.rotate(d[2]);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 4.5, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+    // ojos
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(-5, -3, 5, 0, Math.PI * 2); ctx.arc(7, -3, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#2b1650";
+    ctx.beginPath(); ctx.arc(-3.5, -3, 2.4, 0, Math.PI * 2); ctx.arc(8.5, -3, 2.4, 0, Math.PI * 2); ctx.fill();
+    // boca
+    ctx.strokeStyle = "#2b1650";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(2, 5, 4, 0.15 * Math.PI, 0.85 * Math.PI);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function texto(t, x, y, tam, color, alin) {
+    ctx.font = "800 " + tam + "px system-ui, -apple-system, 'Segoe UI', sans-serif";
+    ctx.textAlign = alin || "center";
+    ctx.fillStyle = color;
+    ctx.fillText(t, x, y);
+  }
+
+  function dibujar() {
+    if (!p) return;
+    dibujarFondo();
+    plats.forEach(dibujarPlataforma);
+    dibujarJugador();
+    // marcador
+    ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+    rr(0, 0, W, 38, 0);
+    ctx.fill();
+    texto(String(score), 14, 26, 22, "#4a2685", "left");
+    texto("Mejor: " + mejor, W - 14, 25, 15, "#6234b8", "right");
+    if (estado !== "jugando") {
+      ctx.fillStyle = "rgba(40, 10, 80, 0.55)";
+      ctx.fillRect(0, 0, W, H);
+      if (estado === "listo") {
+        texto("🪷 Saltarín del Loto", W / 2, H / 2 - 40, 28, "#fff");
+        texto("Rebota en las plataformas y sube lo más alto que puedas", W / 2, H / 2 - 8, 13, "#efe6ff");
+        texto("Toca aquí o presiona «Jugar»", W / 2, H / 2 + 28, 16, "#fff");
+      } else if (estado === "pausa") {
+        texto("⏸ Pausa", W / 2, H / 2 - 6, 32, "#fff");
+        texto("Toca aquí para continuar", W / 2, H / 2 + 28, 16, "#efe6ff");
+      } else {
+        texto("¡Te caíste!", W / 2, H / 2 - 50, 32, "#fff");
+        texto("Puntos: " + score, W / 2, H / 2 - 10, 24, "#ffd6ec");
+        texto(score >= mejor && score > 0 ? "🏆 ¡Nuevo mejor puntaje!" : "Mejor: " + mejor, W / 2, H / 2 + 20, 16, "#efe6ff");
+        texto("Toca aquí para jugar otra vez", W / 2, H / 2 + 56, 16, "#fff");
+      }
+    }
+  }
+
+  // ----- Ciclo del juego -----
+  function bucle(t) {
+    if (estado !== "jugando" || sec.hidden) { corriendo = false; return; }
+    const f = limitar((t - tPrev) / 16.667 || 1, 0.2, 2.2);
+    tPrev = t;
+    actualizar(f);
+    if (estado === "jugando") {
+      dibujar();
+      requestAnimationFrame(bucle);
+    } else corriendo = false;
+  }
+  function arrancar() {
+    if (corriendo) return;
+    corriendo = true;
+    tPrev = performance.now();
+    requestAnimationFrame(bucle);
+  }
+
+  function poner(nuevoEstado) {
+    estado = nuevoEstado;
+    bJugar.textContent = estado === "jugando" ? "↻ Reiniciar" : estado === "pausa" ? "▶ Continuar" : estado === "fin" ? "↻ Jugar otra vez" : "▶ Jugar";
+    bPausa.disabled = estado !== "jugando" && estado !== "pausa";
+    bPausa.textContent = estado === "pausa" ? "▶ Continuar" : "⏸ Pausa";
+    dibujar();
+    if (estado === "jugando") arrancar();
+  }
+  function jugar() { nueva(); poner("jugando"); }
+  function alternarPausa() {
+    if (estado === "jugando") poner("pausa");
+    else if (estado === "pausa") poner("jugando");
+  }
+
+  // ----- Controles -----
+  bJugar.addEventListener("click", () => { if (estado === "pausa") poner("jugando"); else jugar(); });
+  bPausa.addEventListener("click", alternarPausa);
+
+  const enCampo = (e) => !!(e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName || ""));
+  document.addEventListener("keydown", (e) => {
+    if (sec.hidden || enCampo(e)) return;
+    const k = e.key;
+    if (k === "ArrowLeft" || k === "a" || k === "A") { teclas.izq = true; e.preventDefault(); }
+    else if (k === "ArrowRight" || k === "d" || k === "D") { teclas.der = true; e.preventDefault(); }
+    else if (k === " " || k === "p" || k === "P" || k === "Enter") {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (estado === "listo" || estado === "fin") jugar();
+      else alternarPausa();
+    } else if (k === "ArrowUp" || k === "ArrowDown") e.preventDefault(); // que la página no se mueva mientras juegas
+  });
+  document.addEventListener("keyup", (e) => {
+    const k = e.key;
+    if (k === "ArrowLeft" || k === "a" || k === "A") teclas.izq = false;
+    else if (k === "ArrowRight" || k === "d" || k === "D") teclas.der = false;
+  });
+  window.addEventListener("blur", () => { teclas.izq = teclas.der = false; tactil = 0; if (estado === "jugando") poner("pausa"); });
+
+  // Táctil / ratón: mantener tocada la mitad izquierda o derecha de la pantalla del juego
+  const ladoDe = (e) => {
+    const r = cv.getBoundingClientRect();
+    return e.clientX - r.left < r.width / 2 ? -1 : 1;
+  };
+  cv.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (estado === "listo" || estado === "fin") { jugar(); return; }
+    if (estado === "pausa") { poner("jugando"); return; }
+    tactil = ladoDe(e);
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  cv.addEventListener("pointermove", (e) => { if (tactil) tactil = ladoDe(e); });
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) => cv.addEventListener(ev, () => { tactil = 0; }));
+
+  // Al salir de la zona o cambiar de pestaña, el juego se pausa solo
+  new MutationObserver(() => {
+    if (sec.hidden) { teclas.izq = teclas.der = false; tactil = 0; if (estado === "jugando") poner("pausa"); }
+    else dibujar();
+  }).observe(sec, { attributes: true, attributeFilter: ["hidden"] });
+  document.addEventListener("visibilitychange", () => { if (document.hidden && estado === "jugando") poner("pausa"); });
+
+  // Pantalla inicial
+  nueva();
+  poner("listo");
 })();
