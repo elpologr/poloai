@@ -5233,6 +5233,11 @@ const cuCorreo = diEl("di-cu-correo"); // «Referencia del correo»: texto libre
 const cuPersonales = diEl("di-cu-personales"); // Links de Proyectos Personales (uno por línea)
 const cuPersonalesVista = diEl("di-cu-personales-vista");
 const cuVerPersonales = diEl("di-cu-ver-personales");
+const cuBtnClaudeLista = diEl("di-cu-claude-lista-btn"); // botón «Claude» de la barra de Cuentas
+const cuBtnClaudeN = diEl("di-cu-claude-lista-n");
+const cllPanel = diEl("di-cu-claude-lista");
+const cllLista = diEl("di-cu-cll-lista");
+const cllInfo = diEl("di-cu-cll-info");
 const cuImgProy = diEl("di-cu-img-proyecto");
 const cuListaProy = diEl("di-cu-proyectos");
 const cuGuardar = diEl("di-cu-guardar");
@@ -5278,6 +5283,7 @@ function dibujarCuentas() {
   cuPagina = Math.min(Math.max(0, cuPagina), paginas - 1);
   cuPags.hidden = paginas <= 1;
   cuPagInfo.textContent = (cuPagina + 1) + " de " + paginas;
+  cuActualizarBotonClaude(); // cuántas cuentas esperan a Claude
   diEl("di-cu-prev").disabled = cuPagina === 0;
   diEl("di-cu-sig").disabled = cuPagina >= paginas - 1;
   cuentas.slice(cuPagina * cuPorPagina(), (cuPagina + 1) * cuPorPagina()).forEach((c, idx) => {
@@ -5360,6 +5366,7 @@ function abrirCuentasDi() {
   if (!emCargadas) cargarEmpresas().then(() => { if (!cuSub.hidden) dibujarCuentas(); });
 }
 function cerrarCuentasDi() {
+  cllCerrar();
   cerrarFormCu();
   cerrarVerCu();
   if (cuMoviendo) cuPonerMover(false);
@@ -5972,6 +5979,90 @@ function cuClaudeCerrar() {
   if (clPanel) clPanel.hidden = true;
 }
 
+// ----- Botón «Claude» de la barra de Cuentas: las cuentas que tienen anotada la hora en que vuelve su sesión -----
+function cuConHoraClaude() {
+  return cuentas.map((c) => ({ c, f: clParsear(c.claudeDisponible) })).filter((x) => x.f);
+}
+// El número del botón = cuentas que todavía esperan (su hora no ha llegado)
+function cuActualizarBotonClaude() {
+  const ahora = Date.now();
+  const n = cuConHoraClaude().filter((x) => x.f.getTime() > ahora).length;
+  cuBtnClaudeN.textContent = n ? String(n) : "";
+  cuBtnClaudeN.hidden = !n;
+}
+function cllFila(x, enEspera) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "di-cu-cll-fila" + (enEspera ? "" : " disponible");
+  b.setAttribute("aria-label", "Abrir la zona de Claude de " + x.c.nombre);
+  const ico = document.createElement("span");
+  ico.className = "di-cu-cll-ico";
+  if (imagenValida(x.c.imagen)) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.loading = "lazy";
+    img.referrerPolicy = "no-referrer";
+    img.addEventListener("error", () => { img.remove(); ico.textContent = "📧"; });
+    img.src = x.c.imagen;
+    ico.appendChild(img);
+  } else {
+    ico.textContent = "📧";
+  }
+  const txt = document.createElement("span");
+  txt.className = "di-cu-cll-txt";
+  const n = document.createElement("b");
+  n.textContent = x.c.nombre;
+  txt.appendChild(n);
+  if (x.c.correo) {
+    const r = document.createElement("small");
+    r.textContent = x.c.correo;
+    txt.appendChild(r);
+  }
+  const cuando = document.createElement("span");
+  cuando.className = "di-cu-cll-cuando";
+  cuando.textContent = (enEspera ? "⏳ Vuelve " : "✅ Disponible desde ") + clDiaTexto(x.f) + " a las " + clHora12(x.f);
+  txt.appendChild(cuando);
+  b.append(ico, txt);
+  // Al tocarla se abre la cuenta y su zona de Claude (para cambiar la hora o quitar el aviso)
+  b.addEventListener("click", () => {
+    cllCerrar();
+    abrirVerCu(x.c);
+    abrirClaudeCu();
+  });
+  return b;
+}
+function dibujarListaClaude() {
+  cllLista.innerHTML = "";
+  const ahora = Date.now();
+  const todas = cuConHoraClaude();
+  const espera = todas.filter((x) => x.f.getTime() > ahora).sort((p, q) => p.f - q.f); // la que vuelve primero, arriba
+  const listas = todas.filter((x) => x.f.getTime() <= ahora).sort((p, q) => q.f - p.f); // la más reciente, arriba
+  cllInfo.textContent = todas.length
+    ? ""
+    : "Ninguna cuenta tiene anotada una hora de Claude. Abre una cuenta, toca «Claude» y guarda la hora en que vuelve tu sesión.";
+  const seccion = (titulo, lista, enEspera) => {
+    if (!lista.length) return;
+    const t = document.createElement("h4");
+    t.className = "di-cu-cll-titulo";
+    t.textContent = titulo + " (" + lista.length + ")";
+    cllLista.appendChild(t);
+    lista.forEach((x) => cllLista.appendChild(cllFila(x, enEspera)));
+  };
+  seccion("En espera", espera, true);
+  seccion("Ya disponibles", listas, false);
+}
+function cllAbrir() {
+  dibujarListaClaude();
+  cllPanel.hidden = false;
+  cllPanel.scrollTop = 0;
+}
+function cllCerrar() {
+  cllPanel.hidden = true;
+}
+cuBtnClaudeLista.addEventListener("click", cllAbrir);
+diEl("di-cu-cll-volver").addEventListener("click", cllCerrar);
+setInterval(cuActualizarBotonClaude, 30000); // el número baja solo cuando llega la hora
+
 // Permiso para avisar (se pide al tocar el botón, que es cuando el navegador lo permite)
 async function cuClaudePermiso() {
   try {
@@ -6014,6 +6105,7 @@ async function guardarClaudeCu(quitar) {
     cuClaudeSincronizar(cuentas);
     dibujarRegistroClaude();
     dibujarClaudeBoton();
+    cuActualizarBotonClaude();
     clQuitar.hidden = !f;
     clVistaPrevia();
     setEstado(clEstado, f ? "Guardado ✓" : "Aviso quitado ✓", "ok");
@@ -6267,6 +6359,7 @@ cuBorrar.addEventListener("click", borrarCu);
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelDi.hidden) return;
   if (!cuForm.hidden) cerrarFormCu();
+  else if (!cllPanel.hidden) cllCerrar();
   else if (!clPanel.hidden) cuClaudeCerrar();
   else if (!cuVer.hidden) cerrarVerCu();
   else if (!cuSub.hidden) cerrarCuentasDi();
