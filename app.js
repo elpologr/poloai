@@ -13386,21 +13386,12 @@ function pcConfigNormalizar(c) {
     const nombre = String((z && z.nombre) || "").replace(/[,\r\n]+/g, " ").trim().slice(0, 40);
     if (!nombre || vistas.has(nombre.toLowerCase())) return;
     vistas.add(nombre.toLowerCase());
-    const ids = new Set();
-    const precios = [];
-    (z && Array.isArray(z.precios) ? z.precios : []).forEach((p) => {
-      const id = String((p && p.id) || "").trim();
-      const n = String((p && p.nombre) || "").replace(/[\r\n]+/g, " ").trim().slice(0, 40);
-      if (!/^[A-Za-z0-9_-]{1,24}$/.test(id) || !n || ids.has(id)) return;
-      ids.add(id);
-      precios.push({ id, nombre: n });
-    });
-    zonas.push({ nombre, precios });
+    zonas.push({ nombre });
   });
   return { zonas };
 }
 function pcConfigPorDefecto() {
-  return { zonas: ZONAS_PROD.map((nombre) => ({ nombre, precios: [] })) };
+  return { zonas: ZONAS_PROD.map((nombre) => ({ nombre })) };
 }
 function pcConfigLeerLocal() {
   try {
@@ -13428,7 +13419,7 @@ async function pcConfigGuardar() {
 function pcZonaCfg(nombre, crear) {
   let z = pcConfig.zonas.find((x) => x.nombre === nombre);
   if (!z && crear) {
-    z = { nombre, precios: [] };
+    z = { nombre };
     pcConfig.zonas.push(z);
   }
   return z || null;
@@ -13439,25 +13430,57 @@ function pcZonasTodas() {
   productos.forEach((m) => m.zonas.forEach((z) => { if (!nombres.includes(z)) nombres.push(z); }));
   return nombres;
 }
-function pcNuevoIdPrecio() {
-  return "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+// ----- Precio: un valor por imagen (el mismo en todas sus zonas) -----
+// Cada precio distinto existe como subcategoría en todas las zonas, pero solo se muestra en las zonas que tengan imágenes con ese precio.
+function pcPrecioClave(s) {
+  const m = /-?\d+(?:[.,]\d+)?/.exec(String(s));
+  return m ? parseFloat(m[0].replace(",", ".")) : null;
 }
+function pcComparaPrecios(a, b) {
+  const x = pcPrecioClave(a);
+  const y = pcPrecioClave(b);
+  if (x !== null && y !== null && x !== y) return x - y;
+  if (x !== null && y === null) return -1;
+  if (x === null && y !== null) return 1;
+  return a.localeCompare(b, "es", { numeric: true });
+}
+function pcPreciosDe(lista) {
+  const set = new Set();
+  lista.forEach((m) => { const p = String(m.precio || "").trim(); if (p) set.add(p); });
+  return Array.from(set).sort(pcComparaPrecios);
+}
+const pcPreciosExistentes = () => pcPreciosDe(productos);
+// Limpia el texto del precio y, si ya existe igual (sin importar mayúsculas), usa el existente
+function pcPrecioNormalizar(txt) {
+  const t = String(txt || "").replace(/\s+/g, " ").trim().slice(0, 40);
+  if (!t) return "";
+  return pcPreciosExistentes().find((p) => p.toLowerCase() === t.toLowerCase()) || t;
+}
+const pcPrecioInput = pcEl("pc-precio");
+const pcPrecioChips = pcEl("pc-precio-chips");
+function pcDibujarPrecioChips() {
+  pcPrecioChips.innerHTML = "";
+  const actual = pcPrecioNormalizar(pcPrecioInput.value);
+  pcPreciosExistentes().forEach((p) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "pc-precio-chip" + (p === actual ? " activo" : "");
+    b.textContent = "💲 " + p;
+    b.addEventListener("click", () => {
+      pcPrecioInput.value = p === actual ? "" : p;
+      pcDibujarPrecioChips();
+    });
+    pcPrecioChips.appendChild(b);
+  });
+}
+pcPrecioInput.addEventListener("input", pcDibujarPrecioChips);
 
-// Zonas del formulario: una fila por zona con su casilla y, si la zona tiene subcategorías de precio, su selector de precio al lado.
-// Elegir un precio marca la zona sola; desmarcar la zona quita su precio.
-function pcLeerPreciosForm() {
-  const r = {};
-  pcZonasCaja.querySelectorAll("select[data-zona]").forEach((s) => { if (s.value) r[s.dataset.zona] = s.value; });
-  return r;
-}
-function pcDibujarZonasForm(marcadas, precios) {
-  precios = precios || {};
+// Casillas de zonas del formulario (más las que ya tiene la imagen que se edita)
+function pcDibujarZonasForm(marcadas) {
   pcZonasCaja.innerHTML = "";
   const nombres = pcConfig.zonas.map((z) => z.nombre);
   marcadas.forEach((z) => { if (!nombres.includes(z)) nombres.push(z); });
   nombres.forEach((z) => {
-    const fila = document.createElement("div");
-    fila.className = "pc-zona-fila";
     const l = document.createElement("label");
     l.className = "em-ml-zona";
     const i = document.createElement("input");
@@ -13465,29 +13488,7 @@ function pcDibujarZonasForm(marcadas, precios) {
     i.value = z;
     i.checked = marcadas.includes(z);
     l.append(i, document.createTextNode(z));
-    fila.appendChild(l);
-    const cfg = pcZonaCfg(z, false);
-    if (cfg && cfg.precios.length) {
-      const s = document.createElement("select");
-      s.dataset.zona = z;
-      s.className = "pc-zona-precio";
-      s.setAttribute("aria-label", "Precio en " + z);
-      const o0 = document.createElement("option");
-      o0.value = "";
-      o0.textContent = "Sin precio";
-      s.appendChild(o0);
-      cfg.precios.forEach((p) => {
-        const o = document.createElement("option");
-        o.value = p.id;
-        o.textContent = "💲 " + p.nombre;
-        s.appendChild(o);
-      });
-      s.value = cfg.precios.some((p) => p.id === precios[z]) ? precios[z] : "";
-      s.addEventListener("change", () => { if (s.value) i.checked = true; });
-      i.addEventListener("change", () => { if (!i.checked) s.value = ""; });
-      fila.appendChild(s);
-    }
-    pcZonasCaja.appendChild(fila);
+    pcZonasCaja.appendChild(l);
   });
 }
 
@@ -13500,14 +13501,14 @@ async function pcAgregarZona() {
   const existente = pcZonasTodas().find((z) => z.toLowerCase() === nombre.toLowerCase());
   if (existente) {
     if (!marcadas.includes(existente)) marcadas.push(existente);
-    pcDibujarZonasForm(marcadas, pcLeerPreciosForm());
+    pcDibujarZonasForm(marcadas);
     pcZonaNueva.value = "";
     setEstado(pcFormEstado, "Esa zona ya existe: quedó marcada", "ok");
     return;
   }
   pcZonaCfg(nombre, true);
   marcadas.push(nombre);
-  pcDibujarZonasForm(marcadas, pcLeerPreciosForm());
+  pcDibujarZonasForm(marcadas);
   pcZonaNueva.value = "";
   setEstado(pcFormEstado, "Guardando zona…");
   const err = await pcConfigGuardar();
@@ -13527,12 +13528,7 @@ function pcCrearTile(m) {
   const b = document.createElement("button");
   b.type = "button";
   b.className = "em-ml-tile";
-  const precios = m.zonas.map((z) => {
-    const cfg = pcZonaCfg(z, false);
-    const p = cfg && cfg.precios.find((x) => x.id === (m.precios || {})[z]);
-    return p ? z + ": " + p.nombre : "";
-  }).filter(Boolean);
-  b.title = (m.descripcion || "Producto") + " — " + (LISTAS_PROD[m.lista] || "") + " — zonas: " + m.zonas.join(", ") + (precios.length ? " — " + precios.join(", ") : "");
+  b.title = (m.descripcion || "Producto") + " — " + (LISTAS_PROD[m.lista] || "") + " — zonas: " + m.zonas.join(", ") + (m.precio ? " — precio: " + m.precio : "");
   b.setAttribute("aria-label", "Ver o editar este producto (" + m.zonas.join(", ") + ")");
   if (imagenValida(m.imagen)) {
     const img = document.createElement("img");
@@ -13550,8 +13546,7 @@ function dibujarProdLista() {
   pcSecciones.innerHTML = "";
   if (!pcLista) return;
   const visibles = pcVisibles();
-  const zonasConocidas = pcZonasTodas();
-  const secciones = zonasConocidas.map((z) => ({ nombre: z, items: visibles.filter((m) => m.zonas.includes(z)) }));
+  const secciones = pcZonasTodas().map((z) => ({ nombre: z, items: visibles.filter((m) => m.zonas.includes(z)) }));
   const sueltas = visibles.filter((m) => !m.zonas.length);
   if (sueltas.length) secciones.push({ nombre: "Sin zona", items: sueltas, sinZona: true });
   secciones.forEach((s) => {
@@ -13562,50 +13557,39 @@ function dibujarProdLista() {
     div.innerHTML = '<span class="bazar-division-linea" aria-hidden="true"></span><h3 class="bazar-division-titulo"></h3><span class="bazar-division-linea" aria-hidden="true"></span>';
     div.querySelector("h3").textContent = s.nombre + " (" + s.items.length + ")";
     if (!s.sinZona) {
-      const gear = document.createElement("button");
-      gear.type = "button";
-      gear.className = "pc-zona-precios-btn";
-      gear.textContent = "💲";
-      gear.title = "Subcategorías de precio de " + s.nombre;
-      gear.setAttribute("aria-label", "Editar subcategorías de precio de " + s.nombre);
-      gear.addEventListener("click", () => abrirPreciosPc(s.nombre));
-      div.insertBefore(gear, div.lastElementChild);
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "pc-zona-precios-btn";
+      del.textContent = "🗑";
+      del.title = "Eliminar la zona " + s.nombre;
+      del.setAttribute("aria-label", "Eliminar la zona " + s.nombre);
+      del.addEventListener("click", () => borrarZonaPc(s.nombre));
+      div.insertBefore(del, div.lastElementChild);
     }
     pcSecciones.appendChild(div);
 
-    const cfg = s.sinZona ? null : pcZonaCfg(s.nombre, false);
-    const subs = cfg ? cfg.precios : [];
-    if (!subs.length) {
-      // Sin subcategorías de precio: todos juntos, como antes
-      if (!s.items.length) {
-        const p = document.createElement("p");
-        p.className = "em-ml-vacio";
-        p.textContent = "Aún no hay imágenes en esta zona";
-        pcSecciones.appendChild(p);
-        return;
-      }
-      const grid = document.createElement("div");
-      grid.className = "em-ml-grid";
-      s.items.forEach((m) => grid.appendChild(pcCrearTile(m)));
-      pcSecciones.appendChild(grid);
+    if (!s.items.length) {
+      const p = document.createElement("p");
+      p.className = "em-ml-vacio";
+      p.textContent = "Aún no hay imágenes en esta zona";
+      pcSecciones.appendChild(p);
       return;
     }
-    // Con subcategorías: un grupo por precio (en el orden configurado) y al final «Sin precio»
-    const grupos = subs.map((p) => ({ nombre: p.nombre, items: s.items.filter((m) => (m.precios || {})[s.nombre] === p.id) }));
-    const idsConocidos = subs.map((p) => p.id);
-    const sinPrecio = s.items.filter((m) => !idsConocidos.includes((m.precios || {})[s.nombre]));
-    if (sinPrecio.length) grupos.push({ nombre: "Sin precio", items: sinPrecio, aparte: true });
+    const precios = pcPreciosDe(s.items); // solo los precios que tienen imágenes en ESTA zona
+    const grupos = [];
+    if (!precios.length) {
+      grupos.push({ nombre: "", items: s.items });
+    } else {
+      precios.forEach((p) => grupos.push({ nombre: p, items: s.items.filter((m) => String(m.precio || "").trim() === p) }));
+      const sin = s.items.filter((m) => !String(m.precio || "").trim());
+      if (sin.length) grupos.push({ nombre: "Sin precio", items: sin, aparte: true });
+    }
     grupos.forEach((g) => {
-      const sub = document.createElement("h4");
-      sub.className = "pc-subprecio" + (g.aparte ? " pc-subprecio-aparte" : "");
-      sub.textContent = (g.aparte ? "" : "💲 ") + g.nombre + " (" + g.items.length + ")";
-      pcSecciones.appendChild(sub);
-      if (!g.items.length) {
-        const p = document.createElement("p");
-        p.className = "em-ml-vacio";
-        p.textContent = "Aún no hay imágenes con este precio";
-        pcSecciones.appendChild(p);
-        return;
+      if (g.nombre) {
+        const sub = document.createElement("h4");
+        sub.className = "pc-subprecio" + (g.aparte ? " pc-subprecio-aparte" : "");
+        sub.textContent = (g.aparte ? "" : "💲 ") + g.nombre + " (" + g.items.length + ")";
+        pcSecciones.appendChild(sub);
       }
       const grid = document.createElement("div");
       grid.className = "em-ml-grid";
@@ -13615,68 +13599,55 @@ function dibujarProdLista() {
   });
 }
 
-// ----- Ventana para editar las subcategorías de precio de una zona (nombres, cantidad y orden) -----
+// ----- Ventana «Precios»: cambiar el nombre de un precio o quitarlo (afecta a todas las imágenes que lo tengan) -----
 const pcPrecios = pcEl("pc-precios");
 const pcPreciosLista = pcEl("pc-precios-lista");
-const pcPreciosTitulo = pcEl("pc-precios-titulo");
 const pcPreciosEstado = pcEl("pc-precios-estado");
 const pcPreciosGuardar = pcEl("pc-precios-guardar");
-const pcPreciosBorrarZona = pcEl("pc-precios-borrar-zona");
-let pcPreciosZona = "";
-let pcPreciosTrabajo = []; // copia de trabajo: [{ id, nombre }]
+let pcPreciosTrabajo = []; // [{ original, nombre, n, quitar }]
 
 function pcDibujarPreciosEditor() {
   pcPreciosLista.innerHTML = "";
   if (!pcPreciosTrabajo.length) {
     const p = document.createElement("p");
     p.className = "em-ml-vacio";
-    p.textContent = "Esta zona aún no tiene subcategorías: los productos se ven todos juntos.";
+    p.textContent = "Aún no hay precios. Se crean al ponerle un precio a una imagen.";
     pcPreciosLista.appendChild(p);
     return;
   }
-  pcPreciosTrabajo.forEach((p, i) => {
+  pcPreciosTrabajo.forEach((p) => {
     const fila = document.createElement("div");
-    fila.className = "pc-precio-editor-fila";
+    fila.className = "pc-precio-editor-fila" + (p.quitar ? " quitada" : "");
     const inp = document.createElement("input");
     inp.type = "text";
     inp.maxLength = 40;
     inp.value = p.nombre;
-    inp.placeholder = "Ej. $100 o De 50 a 100";
-    inp.setAttribute("aria-label", "Nombre de la subcategoría " + (i + 1));
+    inp.disabled = p.quitar;
+    inp.setAttribute("aria-label", "Nombre del precio " + p.original);
     inp.addEventListener("input", () => { p.nombre = inp.value; });
-    const mk = (txt, titulo, fn, off) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "pc-precio-mini";
-      b.textContent = txt;
-      b.title = titulo;
-      b.setAttribute("aria-label", titulo);
-      b.disabled = !!off;
-      b.addEventListener("click", fn);
-      return b;
-    };
-    const mover = (d) => () => {
-      const k = i + d;
-      if (k < 0 || k >= pcPreciosTrabajo.length) return;
-      pcPreciosTrabajo.splice(k, 0, pcPreciosTrabajo.splice(i, 1)[0]);
-      pcDibujarPreciosEditor();
-    };
-    const quitar = () => {
-      const usadas = productos.filter((m) => (m.precios || {})[pcPreciosZona] === p.id).length;
-      if (usadas && !window.confirm("Hay " + usadas + " producto(s) en «" + (p.nombre || "esta subcategoría") + "». Pasarán a «Sin precio». ¿Quitarla?")) return;
-      pcPreciosTrabajo.splice(i, 1);
-      pcDibujarPreciosEditor();
-    };
-    fila.append(inp, mk("↑", "Subir", mover(-1), i === 0), mk("↓", "Bajar", mover(1), i === pcPreciosTrabajo.length - 1), mk("✕", "Quitar", quitar));
+    const cuenta = document.createElement("span");
+    cuenta.className = "pc-precio-cuenta";
+    cuenta.textContent = "(" + p.n + ")";
+    cuenta.title = p.n + " imagen(es) con este precio";
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "pc-precio-mini";
+    b.textContent = p.quitar ? "↩" : "✕";
+    b.title = p.quitar ? "No quitar" : "Quitar este precio";
+    b.setAttribute("aria-label", b.title);
+    b.addEventListener("click", () => { p.quitar = !p.quitar; pcDibujarPreciosEditor(); });
+    fila.append(inp, cuenta, b);
     pcPreciosLista.appendChild(fila);
   });
 }
-function abrirPreciosPc(zona) {
+function abrirPreciosPc() {
   cerrarFormPc();
-  pcPreciosZona = zona;
-  const cfg = pcZonaCfg(zona, false);
-  pcPreciosTrabajo = cfg ? cfg.precios.map((p) => ({ id: p.id, nombre: p.nombre })) : [];
-  pcPreciosTitulo.textContent = "💲 Subcategorías de precio · " + zona;
+  pcPreciosTrabajo = pcPreciosExistentes().map((p) => ({
+    original: p,
+    nombre: p,
+    n: productos.filter((m) => String(m.precio || "").trim() === p).length,
+    quitar: false,
+  }));
   setEstado(pcPreciosEstado, "");
   pcDibujarPreciosEditor();
   pcPrecios.hidden = false;
@@ -13684,76 +13655,65 @@ function abrirPreciosPc(zona) {
 }
 function cerrarPreciosPc() {
   if (pcPrecios) pcPrecios.hidden = true;
-  pcPreciosZona = "";
   pcPreciosTrabajo = [];
 }
 async function guardarPreciosPc() {
-  const vistos = new Set();
-  const limpias = [];
+  const cambios = [];
   for (const p of pcPreciosTrabajo) {
-    const n = p.nombre.replace(/[\r\n]+/g, " ").trim().slice(0, 40);
-    if (!n) { setEstado(pcPreciosEstado, "Hay una subcategoría sin nombre: escríbelo o quítala", "error"); return; }
-    if (vistos.has(n.toLowerCase())) { setEstado(pcPreciosEstado, "«" + n + "» está repetida", "error"); return; }
-    vistos.add(n.toLowerCase());
-    limpias.push({ id: p.id, nombre: n });
+    if (p.quitar) { cambios.push({ de: p.original, a: "" }); continue; }
+    const n = p.nombre.replace(/\s+/g, " ").trim().slice(0, 40);
+    if (!n) { setEstado(pcPreciosEstado, "Hay un precio sin nombre: escríbelo o quítalo", "error"); return; }
+    if (n !== p.original) cambios.push({ de: p.original, a: n });
   }
-  pcZonaCfg(pcPreciosZona, true).precios = limpias;
+  if (!cambios.length) { cerrarPreciosPc(); return; }
   pcPreciosGuardar.disabled = true;
   setEstado(pcPreciosEstado, "Guardando…");
-  const err = await pcConfigGuardar();
+  try {
+    await llamarNotas("prodconf_precios_aplicar", { cambios });
+  } catch (e) {
+    setEstado(pcPreciosEstado, "Error: " + e.message + " (¿ya actualizaste el Apps Script?)", "error");
+    pcPreciosGuardar.disabled = false;
+    return;
+  }
+  const mapa = {};
+  cambios.forEach((c) => { mapa[c.de] = c.a; });
+  productos.forEach((m) => {
+    const p = String(m.precio || "").trim();
+    if (p && Object.prototype.hasOwnProperty.call(mapa, p)) m.precio = mapa[p];
+  });
   pcPreciosGuardar.disabled = false;
   cerrarPreciosPc();
   dibujarProdLista();
-  if (err) setEstado(pcEstado, "Guardado solo en este dispositivo (" + err + ")", "error");
-  else setEstado(pcEstado, "Subcategorías guardadas ✓", "ok");
+  setEstado(pcEstado, "Precios guardados ✓", "ok");
 }
-// Eliminar la zona completa (con sus subcategorías de precio). Las imágenes no se borran.
-async function borrarZonaPc() {
-  const zona = pcPreciosZona;
-  if (!zona) return;
+pcPreciosGuardar.addEventListener("click", guardarPreciosPc);
+pcEl("pc-precios-cancelar").addEventListener("click", cerrarPreciosPc);
+pcEl("pc-precios-abrir").addEventListener("click", abrirPreciosPc);
+
+// Eliminar una zona completa. Las imágenes no se borran.
+async function borrarZonaPc(zona) {
   const afectadas = productos.filter((m) => m.zonas.includes(zona));
   const soloAqui = afectadas.filter((m) => m.zonas.length === 1).length;
-  let msg = "Se eliminará la zona «" + zona + "» con todas sus subcategorías de precio.";
+  let msg = "Se eliminará la zona «" + zona + "».";
   if (afectadas.length) {
     msg += "\n\nLas " + afectadas.length + " imagen(es) de esta zona NO se borran: solo dejan de estar en ella.";
     if (soloAqui) msg += " " + soloAqui + " estaba(n) solo aquí y pasará(n) a «Sin zona».";
   }
   msg += "\n\n¿Continuar?";
   if (!window.confirm(msg)) return;
-  pcPreciosBorrarZona.disabled = true;
-  pcPreciosGuardar.disabled = true;
-  setEstado(pcPreciosEstado, "Eliminando zona…");
+  setEstado(pcEstado, "Eliminando zona…");
   try {
     await llamarNotas("prodconf_zona_borrar", { zona });
   } catch (e) {
-    setEstado(pcPreciosEstado, "Error: " + e.message + " (¿ya actualizaste el Apps Script?)", "error");
-    pcPreciosBorrarZona.disabled = false;
-    pcPreciosGuardar.disabled = false;
+    setEstado(pcEstado, "Error: " + e.message + " (¿ya actualizaste el Apps Script?)", "error");
     return;
   }
   pcConfig.zonas = pcConfig.zonas.filter((z) => z.nombre !== zona);
   pcConfigGuardarLocal();
-  productos.forEach((m) => {
-    if (!m.zonas.includes(zona)) return;
-    m.zonas = m.zonas.filter((z) => z !== zona);
-    if (m.precios) delete m.precios[zona];
-  });
-  pcPreciosBorrarZona.disabled = false;
-  pcPreciosGuardar.disabled = false;
-  cerrarPreciosPc();
+  productos.forEach((m) => { if (m.zonas.includes(zona)) m.zonas = m.zonas.filter((z) => z !== zona); });
   dibujarProdLista();
   setEstado(pcEstado, "Zona «" + zona + "» eliminada ✓", "ok");
 }
-pcPreciosBorrarZona.addEventListener("click", borrarZonaPc);
-pcEl("pc-precios-nueva").addEventListener("click", () => {
-  if (pcPreciosTrabajo.length >= 40) { setEstado(pcPreciosEstado, "Máximo 40 subcategorías por zona", "error"); return; }
-  pcPreciosTrabajo.push({ id: pcNuevoIdPrecio(), nombre: "" });
-  pcDibujarPreciosEditor();
-  const ins = pcPreciosLista.querySelectorAll("input");
-  if (ins.length) ins[ins.length - 1].focus();
-});
-pcPreciosGuardar.addEventListener("click", guardarPreciosPc);
-pcEl("pc-precios-cancelar").addEventListener("click", cerrarPreciosPc);
 
 async function cargarProductos() {
   setEstado(pcEstado, "Cargando…");
@@ -13763,7 +13723,7 @@ async function cargarProductos() {
       llamarNotas("prodconf_config_leer").catch(() => null), // si el Apps Script aún no tiene la versión nueva, se usa la copia local
     ]);
     productos = (Array.isArray(j.productos) ? j.productos : []).map((m) =>
-      Object.assign({}, m, { zonas: Array.isArray(m.zonas) ? m.zonas : [], precios: m.precios && typeof m.precios === "object" ? m.precios : {} })
+      Object.assign({}, m, { zonas: Array.isArray(m.zonas) ? m.zonas : [], precio: String(m.precio || "").trim() })
     );
     if (cfg && cfg.config) {
       pcConfig = pcConfigNormalizar(cfg.config);
@@ -13813,8 +13773,10 @@ function abrirFormPc(m) {
   pcImagenUrl = m ? m.imagen || "" : "";
   pcImagenNueva = null;
   pcFormTitulo.textContent = m ? "Editar imagen de producto" : "Nueva imagen de producto";
-  pcDibujarZonasForm(m ? m.zonas : [], m ? m.precios : {});
+  pcDibujarZonasForm(m ? m.zonas : []);
   pcZonaNueva.value = "";
+  pcPrecioInput.value = m ? m.precio || "" : "";
+  pcDibujarPrecioChips();
   pcDescripcion.value = m ? m.descripcion || "" : "";
   pcUrlImg.value = "";
   pcGuardar.textContent = m ? "Guardar cambios" : "Guardar imagen";
@@ -13887,10 +13849,7 @@ async function guardarPc() {
       pcImagenNueva = null; // si el guardado falla, no se vuelve a subir
     }
     setEstado(pcFormEstado, "Guardando…");
-    const preciosSel = pcLeerPreciosForm();
-    const precios = {};
-    zonas.forEach((z) => { if (preciosSel[z]) precios[z] = preciosSel[z]; });
-    const datos = { imagen: pcImagenUrl, descripcion: pcDescripcion.value.trim(), zonas, precios, lista: pcEditando ? pcEditando.lista : pcLista };
+    const datos = { imagen: pcImagenUrl, descripcion: pcDescripcion.value.trim(), zonas, precio: pcPrecioNormalizar(pcPrecioInput.value), lista: pcEditando ? pcEditando.lista : pcLista };
     if (pcEditando) {
       await llamarNotas("prodconf_editar", Object.assign({ id: pcEditando.id }, datos));
       Object.assign(pcEditando, datos);

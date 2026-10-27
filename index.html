@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=115" />
+  <link rel="stylesheet" href="styles.css?v=116" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -220,6 +220,11 @@
               <span>Etiqueta</span>
               <select id="gal-etiqueta"></select>
             </label>
+            <div class="notas-campo">
+              <span>Precio (opcional): toca uno existente o escribe uno nuevo</span>
+              <div id="pc-precio-chips" class="pc-precio-chips"></div>
+              <input id="pc-precio" type="text" maxlength="40" autocomplete="off" placeholder="Ej. $100" aria-label="Precio" />
+            </div>
             <label class="notas-campo">
               <span>Descripción (opcional)</span>
               <textarea id="gal-descripcion" rows="4" maxlength="2000" placeholder="Describe la imagen…"></textarea>
@@ -1412,7 +1417,7 @@
           </div>
           <div class="proy-datos-col">
             <div class="notas-campo">
-              <span>Zonas donde se mostrará (elige una o varias) y su precio</span>
+              <span>Zonas donde se mostrará (elige una o varias)</span>
               <div id="ml-zonas" class="em-ml-zonas" role="group" aria-label="Zonas"></div>
             </div>
             <label class="notas-campo">
@@ -1464,6 +1469,7 @@
         <div class="notas-sub-cuerpo">
           <div class="em-ml-barra">
             <button id="pc-nueva" class="notas-btn" type="button">&#65291; Añadir imagen</button>
+            <button id="pc-precios-abrir" class="notas-btn notas-btn-sec" type="button">&#128178; Precios</button>
             <span id="pc-estado" class="notas-estado"></span>
           </div>
           <div id="pc-secciones" class="em-ml-secciones"></div>
@@ -1489,7 +1495,7 @@
           </div>
           <div class="proy-datos-col">
             <div class="notas-campo">
-              <span>Zonas donde se mostrará (elige una o varias) y su precio</span>
+              <span>Zonas donde se mostrará (elige una o varias)</span>
               <div id="pc-zonas" class="em-ml-zonas" role="group" aria-label="Zonas"></div>
               <div class="pc-zona-nueva-fila">
                 <input id="pc-zona-nueva" type="text" maxlength="40" autocomplete="off" placeholder="…o crea una zona nueva" aria-label="Nombre de la zona nueva" />
@@ -1510,18 +1516,14 @@
         </div>
       </div>
 
-      <!-- Ventana para editar las subcategorías de precio de una zona (nombres, cantidad y orden) -->
+      <!-- Ventana «Precios»: cambiar el nombre de un precio o quitarlo (afecta a todas las imágenes que lo tengan) -->
       <div id="pc-precios" class="notas-nueva proy-form modo-editar" hidden>
-        <h3 id="pc-precios-titulo" class="notas-form-titulo">Subcategorías de precio</h3>
-        <p class="pc-precios-ayuda">Divide los productos de esta zona por precio. Puedes cambiar los nombres, añadir, quitar y ordenar.</p>
+        <h3 class="notas-form-titulo">&#128178; Precios</h3>
+        <p class="pc-precios-ayuda">Los precios se crean al ponérselos a una imagen y aparecen como subcategoría en todas las zonas donde haya imágenes con ese precio. Aquí puedes cambiarles el nombre (si dos quedan iguales se juntan) o quitarlos (las imágenes pasan a «Sin precio»).</p>
         <div id="pc-precios-lista" class="pc-precios-lista"></div>
-        <div class="notas-fila">
-          <button id="pc-precios-nueva" class="notas-btn notas-btn-sec" type="button">&#65291; Añadir subcategoría</button>
-        </div>
         <div class="notas-fila">
           <button id="pc-precios-guardar" class="notas-btn" type="button">Guardar</button>
           <button id="pc-precios-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
-          <button id="pc-precios-borrar-zona" class="notas-btn proy-btn-borrar" type="button">Eliminar zona</button>
           <span id="pc-precios-estado" class="notas-estado"></span>
         </div>
       </div>
@@ -2003,7 +2005,7 @@
   </main>
 
   <script src="config.js?v=69"></script>
-  <script src="app.js?v=122"></script>
+  <script src="app.js?v=123"></script>
   <script src="voz.js?v=66"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

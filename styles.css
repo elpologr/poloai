@@ -3914,9 +3914,6 @@ body.en-seccion .inicio-tareas { display: none; } /* solo se ve en el menú prin
   flex: 1; min-width: 0; padding: 8px 10px; font: inherit; color: var(--nb-texto); background: #fff; border: 1px solid var(--nb-borde); border-radius: 10px;
 }
 .pc-zona-nueva-fila .notas-btn { flex: none; padding: 8px 14px; }
-.pc-precios-form { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
-.pc-precio-fila { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; font-weight: 600; }
-.pc-precio-fila select { padding: 8px 10px; font: inherit; color: var(--nb-texto); background: #fff; border: 1px solid var(--nb-borde); border-radius: 10px; }
 .pc-zona-precios-btn {
   flex: none; width: 34px; height: 34px; padding: 0; display: grid; place-items: center; font-size: 1rem; line-height: 1; cursor: pointer;
   background: rgba(255, 255, 255, 0.95); border: none; border-radius: 50%; box-shadow: 0 4px 12px rgba(40, 10, 80, 0.35);
@@ -3940,11 +3937,16 @@ body.en-seccion .inicio-tareas { display: none; } /* solo se ve en el menú prin
 .pc-precio-mini:disabled { opacity: 0.35; cursor: default; }
 .pc-precio-mini:hover:not(:disabled) { background: #eef3fb; }
 
-/* Formulario de imagen: cada zona en su fila con su selector de precio */
-#pc-zonas.em-ml-zonas { flex-direction: column; flex-wrap: nowrap; gap: 6px; }
-.pc-zona-fila { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.pc-zona-fila .em-ml-zona { flex: none; }
-.pc-zona-precio {
-  flex: 1; min-width: 0; max-width: 240px; padding: 6px 8px; font: inherit; font-size: 0.88rem; color: var(--nb-texto);
+/* Precio de la imagen: botones con los precios existentes + campo para uno nuevo */
+.pc-precio-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.pc-precio-chip {
+  padding: 5px 12px; font: inherit; font-size: 0.88rem; font-weight: 700; color: #1b2a4e; cursor: pointer;
+  background: #fff; border: 1px solid #b9cbe6; border-radius: 999px;
+}
+.pc-precio-chip.activo { color: #fff; background: #12308a; border-color: #12308a; }
+#pc-precio {
+  display: block; width: 100%; box-sizing: border-box; padding: 8px 10px; font: inherit; color: var(--nb-texto);
   background: #fff; border: 1px solid var(--nb-borde); border-radius: 10px;
 }
+.pc-precio-cuenta { flex: none; min-width: 30px; font-size: 0.82rem; color: var(--nb-suave); text-align: right; }
+.pc-precio-editor-fila.quitada input { opacity: 0.45; text-decoration: line-through; }
