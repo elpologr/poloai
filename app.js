@@ -13411,7 +13411,7 @@ function cerrarProdEm() {
 // «Todos Los Productos» muestra las imágenes de todos los botones; los demás botones muestran solo las suyas.
 const ZONAS_PROD = ["Figuras", "Religioso", "Bases", "Macetas", "Halloween", "Navidad"];
 // Precios que ya existen para elegir. Solo aparecen como subcategoría en las zonas donde hay imágenes con ese precio.
-const PRECIOS_PROD = [1, 2, 3, 5, 8, 10, 12, 15, 18, 20, 25, 30, 35, 40, 50];
+const PRECIOS_PROD = [1, 2, 3, 5, 8, 10, 12, 15, 18, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100];
 const LISTAS_PROD = {
   "todos": "Todos Los Productos",
   "tiene-polo": "Quien Tiene Los Productos · Productos de Polo",
