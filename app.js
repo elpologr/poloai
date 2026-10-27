@@ -13404,8 +13404,8 @@ function pcConfigPorDefecto() {
 }
 function pcConfigLeerLocal() {
   try {
-    const c = pcConfigNormalizar(JSON.parse(localStorage.getItem(PC_CLAVE_CONFIG) || "null"));
-    if (c.zonas.length) return c;
+    const crudo = JSON.parse(localStorage.getItem(PC_CLAVE_CONFIG) || "null");
+    if (crudo && Array.isArray(crudo.zonas)) return pcConfigNormalizar(crudo); // puede quedar sin zonas si se eliminaron todas
   } catch (e) {
     /* sin copia local */
   }
@@ -13626,6 +13626,7 @@ const pcPreciosLista = pcEl("pc-precios-lista");
 const pcPreciosTitulo = pcEl("pc-precios-titulo");
 const pcPreciosEstado = pcEl("pc-precios-estado");
 const pcPreciosGuardar = pcEl("pc-precios-guardar");
+const pcPreciosBorrarZona = pcEl("pc-precios-borrar-zona");
 let pcPreciosZona = "";
 let pcPreciosTrabajo = []; // copia de trabajo: [{ id, nombre }]
 
@@ -13711,6 +13712,44 @@ async function guardarPreciosPc() {
   if (err) setEstado(pcEstado, "Guardado solo en este dispositivo (" + err + ")", "error");
   else setEstado(pcEstado, "Subcategorías guardadas ✓", "ok");
 }
+// Eliminar la zona completa (con sus subcategorías de precio). Las imágenes no se borran.
+async function borrarZonaPc() {
+  const zona = pcPreciosZona;
+  if (!zona) return;
+  const afectadas = productos.filter((m) => m.zonas.includes(zona));
+  const soloAqui = afectadas.filter((m) => m.zonas.length === 1).length;
+  let msg = "Se eliminará la zona «" + zona + "» con todas sus subcategorías de precio.";
+  if (afectadas.length) {
+    msg += "\n\nLas " + afectadas.length + " imagen(es) de esta zona NO se borran: solo dejan de estar en ella.";
+    if (soloAqui) msg += " " + soloAqui + " estaba(n) solo aquí y pasará(n) a «Sin zona».";
+  }
+  msg += "\n\n¿Continuar?";
+  if (!window.confirm(msg)) return;
+  pcPreciosBorrarZona.disabled = true;
+  pcPreciosGuardar.disabled = true;
+  setEstado(pcPreciosEstado, "Eliminando zona…");
+  try {
+    await llamarNotas("prodconf_zona_borrar", { zona });
+  } catch (e) {
+    setEstado(pcPreciosEstado, "Error: " + e.message + " (¿ya actualizaste el Apps Script?)", "error");
+    pcPreciosBorrarZona.disabled = false;
+    pcPreciosGuardar.disabled = false;
+    return;
+  }
+  pcConfig.zonas = pcConfig.zonas.filter((z) => z.nombre !== zona);
+  pcConfigGuardarLocal();
+  productos.forEach((m) => {
+    if (!m.zonas.includes(zona)) return;
+    m.zonas = m.zonas.filter((z) => z !== zona);
+    if (m.precios) delete m.precios[zona];
+  });
+  pcPreciosBorrarZona.disabled = false;
+  pcPreciosGuardar.disabled = false;
+  cerrarPreciosPc();
+  dibujarProdLista();
+  setEstado(pcEstado, "Zona «" + zona + "» eliminada ✓", "ok");
+}
+pcPreciosBorrarZona.addEventListener("click", borrarZonaPc);
 pcEl("pc-precios-nueva").addEventListener("click", () => {
   if (pcPreciosTrabajo.length >= 40) { setEstado(pcPreciosEstado, "Máximo 40 subcategorías por zona", "error"); return; }
   pcPreciosTrabajo.push({ id: pcNuevoIdPrecio(), nombre: "" });
@@ -13732,8 +13771,8 @@ async function cargarProductos() {
       Object.assign({}, m, { zonas: Array.isArray(m.zonas) ? m.zonas : [], precios: m.precios && typeof m.precios === "object" ? m.precios : {} })
     );
     if (cfg && cfg.config) {
-      const c = pcConfigNormalizar(cfg.config);
-      if (c.zonas.length) { pcConfig = c; pcConfigGuardarLocal(); }
+      pcConfig = pcConfigNormalizar(cfg.config);
+      pcConfigGuardarLocal();
     }
     prodCargados = true;
     setEstado(pcEstado, "");
