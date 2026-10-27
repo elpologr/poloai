@@ -1587,6 +1587,32 @@ function ofMezclarEnCache(accionAgregar, payload) {
   ofEscribirLista(def[0], c);
 }
 
+// Una edición o un borrado del Diario que ya salió bien en Google también se aplica a la copia guardada de su lista;
+// si no, al volver a abrir el Diario se vería un momento (o, con mala señal, mucho rato) el texto anterior
+function ofAplicarCambioEnCache(accion, payload) {
+  if (!payload || !payload.id || (accion !== "diario_editar" && accion !== "diario_borrar")) return;
+  const c = ofLeerLista("diario_listar");
+  if (!c || !c.j || !Array.isArray(c.j.diarios)) return;
+  const id = String(payload.id);
+  if (accion === "diario_borrar") {
+    c.j.diarios = c.j.diarios.filter((x) => String(x.id) !== id);
+  } else {
+    c.j.diarios = c.j.diarios.map((x) => {
+      if (String(x.id) !== id) return x;
+      const nuevo = Object.assign({}, x, {
+        nombre: payload.nombre,
+        fecha: payload.fecha,
+        descripcion: payload.descripcion,
+        destino: payload.destino,
+      });
+      if (payload.favorito !== undefined) nuevo.favorito = !!payload.favorito;
+      if (payload.ahora) nuevo.modificaciones = diAgregarModificacion(x.modificaciones, payload.ahora);
+      return nuevo;
+    });
+  }
+  ofEscribirLista("diario_listar", c);
+}
+
 function ofSinRed(e) {
   return navigator.onLine === false || (e && e.name === "AbortError") ||
     (e instanceof TypeError && /fetch|network|load failed|conexi/i.test(String(e.message)));
@@ -1698,6 +1724,7 @@ async function llamarNotas(accion, extra) {
     } else {
       ofCambios++;
       if (esAgregar) ofMezclarEnCache(accion, extra);
+      else ofAplicarCambioEnCache(accion, extra);
     }
     return j;
   } catch (e) {
@@ -7451,32 +7478,33 @@ function vnCrear() {
   if (vn.el) return;
   const css = document.createElement("style");
   css.textContent = `
-    .vn { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; padding: 12px; background: rgba(30, 12, 60, 0.55); }
+    .vn { position: fixed; inset: 0; z-index: 95; display: flex; align-items: center; justify-content: center; padding: 12px; background: rgba(0, 0, 0, 0.7); }
     .vn[hidden] { display: none; }
     .vn-caja { position: relative; display: flex; flex-direction: column; gap: 8px; width: min(680px, 100%); height: min(88vh, 720px); height: min(88dvh, 720px);
-      padding: 14px 14px 12px; color: var(--texto, #2b2140); background: var(--fondo, #fff); border: 1px solid var(--borde, #e3d8f6);
-      border-radius: 16px; box-shadow: 0 18px 50px rgba(30, 12, 60, 0.45); }
+      padding: 14px 14px 12px; color: #fff; background: #17141f; color-scheme: dark; border: 1px solid #34304a; border-top: 5px solid var(--vn-franja, #4b4663);
+      border-radius: 16px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6); }
     .vn-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
     .vn-titulo { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; padding-top: 3px; }
-    .vn-nombre { margin: 0; min-width: 0; font-size: 1.25rem; line-height: 1.25; overflow-wrap: anywhere; cursor: default; user-select: text; }
-    .vn-nombre-input { flex: 1; min-width: 0; padding: 7px 10px; font: inherit; font-size: 1.05rem; font-weight: 700; color: #2b2140; background: #fff;
+    .vn-nombre { margin: 0; min-width: 0; font-size: 1.25rem; line-height: 1.25; color: #fff; overflow-wrap: anywhere; cursor: default; user-select: text; }
+    .vn-nombre-input { flex: 1; min-width: 0; padding: 7px 10px; font: inherit; font-size: 1.05rem; font-weight: 700; color: #fff; background: #0f0d15;
       border: 2px solid var(--acento, #7a44d6); border-radius: 10px; }
     .vn-botones { display: flex; align-items: center; gap: 6px; flex: none; }
     .vn-btn { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 36px; height: 36px; padding: 0; font-size: 1.25rem; line-height: 1;
-      color: var(--acento-oscuro, #6234b8); background: rgba(255, 255, 255, 0.9); border: 1px solid var(--borde, #e3d8f6); border-radius: 50%; cursor: pointer; }
-    .vn-btn:hover { background: #fff; }
+      color: #fff; background: rgba(255, 255, 255, 0.1); border: 1px solid #3d3858; border-radius: 50%; cursor: pointer; }
+    .vn-btn:hover { background: rgba(255, 255, 255, 0.2); }
     .vn-btn:focus-visible { outline: 3px solid var(--acento, #7a44d6); outline-offset: 2px; }
     .vn-btn[hidden], .vn-nombre[hidden], .vn-nombre-input[hidden] { display: none; }
     .vn-lapiz, .vn-ok, .vn-no { width: 28px; height: 28px; font-size: 0.85rem; }
-    .vn-sub { min-height: 1em; margin: 0; font-size: 0.82rem; color: var(--suave, #6f6585); }
-    .vn-texto { flex: 1; min-height: 0; width: 100%; padding: 12px 14px; resize: none; font: inherit; font-size: 1rem; line-height: 1.5; color: #2b2140;
-      background: rgba(255, 255, 255, 0.9); border: 1px solid var(--borde, #e3d8f6); border-radius: 12px; }
+    .vn-sub { min-height: 1em; margin: 0; font-size: 0.82rem; color: #b9b2d3; }
+    .vn-texto { flex: 1; min-height: 0; width: 100%; padding: 12px 14px; resize: none; font: inherit; font-size: 1rem; line-height: 1.5; color: #fff; caret-color: #fff;
+      background: #0f0d15; border: 1px solid #34304a; border-radius: 12px; }
+    .vn-texto::placeholder { color: rgba(255, 255, 255, 0.45); }
     .vn-texto:focus { outline: 2px solid var(--acento, #7a44d6); outline-offset: -1px; }
     .vn-pie { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; }
-    .vn-estado { padding: 4px 10px; font-size: 0.85rem; font-weight: 600; color: #2b2140; background: rgba(255, 255, 255, 0.9); border-radius: 999px; }
+    .vn-estado { padding: 4px 10px; font-size: 0.85rem; font-weight: 600; color: #fff; background: rgba(255, 255, 255, 0.12); border-radius: 999px; }
     .vn-estado:empty { display: none; }
-    .vn-estado.error { color: #c0392b; }
-    .vn-estado.ok { color: #1e8a55; }
+    .vn-estado.error { color: #ff9a8f; }
+    .vn-estado.ok { color: #7be0a8; }
     .vn-guardar { margin-left: auto; padding: 10px 22px; font: inherit; font-weight: 700; color: #fff; background: var(--acento, #7a44d6); border: 0; border-radius: 10px; cursor: pointer; }
     .vn-guardar:hover:not(:disabled) { background: var(--acento-oscuro, #6234b8); }
     .vn-guardar:disabled { opacity: 0.5; cursor: default; }
@@ -7589,15 +7617,8 @@ function abrirVisorNota(cfg) {
   vn.ok.disabled = false;
   vn.ajustes.disabled = false;
   vnDecir("");
-  // Color de la nota (solo las notas normales lo tienen)
-  if (cfg.fondo) {
-    vn.caja.style.setProperty("--fondo", cfg.fondo);
-    aplicarContraste(vn.caja, cfg.fondo);
-  } else {
-    vn.caja.style.removeProperty("--fondo");
-    vn.caja.style.removeProperty("color");
-    vn.caja.style.removeProperty("--suave");
-  }
+  // El visor siempre es oscuro con letra blanca; el color de la nota (solo las notas normales lo tienen) se ve como una franja arriba
+  vn.caja.style.setProperty("--vn-franja", cfg.fondo && cfg.fondo !== "#ffffff" ? cfg.fondo : "#4b4663");
   vn.overflowPrevio = document.body.style.overflow;
   document.body.style.overflow = "hidden"; // la página de atrás no se mueve mientras se escribe
   vn.el.hidden = false;
@@ -11472,7 +11493,7 @@ function nvDibujar() {
     const titulo = n.nombre || "Sin nombre";
     const b = nvCrearChip(titulo, n.fecha ? String(n.fecha).split(" ")[0] : "", resumenCorto(npResumen(n), 70), n.etiqueta && NP_ETIQ_TEXTO[n.etiqueta] ? NP_ETIQ_TEXTO[n.etiqueta] : "");
     b.setAttribute("aria-label", "Ver o editar la nota " + titulo);
-    b.addEventListener("click", () => abrirFormNp(n));
+    b.addEventListener("click", () => abrirVisorNp(n));
     grid.appendChild(b);
   });
   grid.appendChild(nvCrearAnadir("Añadir una nota del proyecto", () => abrirFormNp(null)));
@@ -11570,7 +11591,7 @@ function dibujarChipsNp() {
         tag.textContent = NP_ETIQ_TEXTO[n.etiqueta];
         b.appendChild(tag);
       }
-      b.addEventListener("click", () => (npMoviendo ? npPreguntarPosicion(d, item) : abrirFormNp(n)));
+      b.addEventListener("click", () => (npMoviendo ? npPreguntarPosicion(d, item) : abrirVisorNp(n)));
     }
     // Número de posición (esquina inferior izquierda): las notas y notarios con número menor van primero
     const num = document.createElement("span");
@@ -11763,6 +11784,56 @@ async function guardarNp() {
   } finally {
     npGuardar.disabled = false;
   }
+}
+
+// Guarda el cambio del nombre o del texto completo de una nota del proyecto desde el visor (el engrane abre el formulario de siempre)
+async function guardarCambiosNp(d, n, cambios) {
+  const ahora = selloFechaHora();
+  const nombre = cambios.nombre !== undefined ? String(cambios.nombre).replace(/[|\r\n]+/g, " ").trim().slice(0, 80) : n.nombre || "";
+  const texto = cambios.texto !== undefined ? cambios.texto : n.texto;
+  const nota = {
+    id: n.id,
+    nombre,
+    fecha: n.fecha || ahora,
+    modificada: ahora,
+    destino: n.destino === "drive" ? "drive" : "sheets",
+    etiqueta: n.etiqueta || "",
+    texto,
+  };
+  const j = await llamarNotas("empresa_nota_guardar", {
+    id: d.id,
+    notaId: nota.id,
+    nombre: nota.nombre,
+    fecha: nota.fecha,
+    modificada: nota.modificada,
+    destino: nota.destino,
+    etiqueta: nota.etiqueta,
+    texto: nota.texto,
+  });
+  nota.largo = typeof j.notaLargo === "number" ? j.notaLargo : 0;
+  if (typeof j.largo === "number") d.notasLargo = j.largo;
+  d.notas = (Array.isArray(d.notas) ? d.notas : []).map((x) => (x.id === nota.id ? nota : x));
+  dibujarNotasEm();
+  dibujarZonasEtiqueta();
+  if (!nvPag.hidden) nvDibujar();
+  if (!npPag.hidden) dibujarChipsNp();
+  return nota;
+}
+// Al tocar una nota del proyecto se abre el visor amplio (nombre + texto); los ajustes (etiqueta, finalizar, eliminar) están en el engrane
+function abrirVisorNp(n) {
+  const d = emDetActual;
+  if (!d) return;
+  let actual = n;
+  abrirVisorNota({
+    nombre: actual.nombre || "Sin nombre",
+    texto: npArmar(npPartes(actual)), // el texto completo, igual que «Editar todo» del formulario
+    subtitulo: [actual.etiqueta && NP_ETIQ_TEXTO[actual.etiqueta] ? NP_ETIQ_TEXTO[actual.etiqueta] : "", actual.fecha ? "Creada el " + actual.fecha : ""].filter(Boolean).join(" · "),
+    placeholder: "Escribe tu nota…",
+    permitirVacio: false,
+    guardarTexto: async (texto) => { actual = await guardarCambiosNp(d, actual, { texto: ntLimpiar(texto) }); },
+    renombrar: async (nombre) => { actual = await guardarCambiosNp(d, actual, { nombre }); return actual.nombre; },
+    ajustes: () => abrirFormNp(actual),
+  });
 }
 
 async function borrarNp() {
@@ -15563,7 +15634,35 @@ function ntEdRevisar() {
     ntEd.guardar.disabled = false;
   }
 }
+// Nota nueva: la ventana de siempre. Nota ya escrita: el visor amplio (nombre + texto) con el engrane para la ventana de siempre
 function ntAbrirEditor(n, nota) {
+  if (nota) ntAbrirVisorNota(n, nota);
+  else ntAbrirEditorForm(n, null);
+}
+async function ntGuardarCambiosNota(n, nota, cambios) {
+  const t = cambios.texto !== undefined ? ntLimpiar(cambios.texto) : nota.texto;
+  const nom = cambios.nombre !== undefined ? ntLimpiarNombre(cambios.nombre) : nota.nombre || "";
+  const lista = n.notas.map((x) => (x.id === nota.id ? { id: x.id, fecha: x.fecha, nombre: nom, texto: t } : x));
+  const sobran = ntLargo(lista) - ntLimiteDe(n);
+  if (sobran > 0) throw new Error("No cabe: te pasas por " + ntFmt(sobran) + " caracteres");
+  await llamarNotas("notario_nota_guardar", { id: n.id, notaId: nota.id, fecha: nota.fecha, nombre: nom, texto: t });
+  nota.texto = t;
+  nota.nombre = nom;
+  ntDibujarTodo();
+}
+function ntAbrirVisorNota(n, nota) {
+  abrirVisorNota({
+    nombre: nota.nombre || "Sin nombre",
+    texto: nota.texto || "",
+    subtitulo: [nota.fecha, "📒 " + (n.nombre || "Notario")].filter(Boolean).join(" · "),
+    placeholder: "Escribe tu nota…",
+    permitirVacio: false,
+    guardarTexto: (texto) => ntGuardarCambiosNota(n, nota, { texto }),
+    renombrar: async (nombre) => { await ntGuardarCambiosNota(n, nota, { nombre }); return nota.nombre || nombre; },
+    ajustes: () => ntAbrirEditorForm(n, nota),
+  });
+}
+function ntAbrirEditorForm(n, nota) {
   NT.editor = { n, nota };
   ntEd.titulo.textContent = nota ? "Editar nota" : "Nueva nota";
   ntEd.fecha.textContent = nota ? nota.fecha || "" : "";
