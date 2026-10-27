@@ -2825,6 +2825,8 @@ const galFormTitulo = document.getElementById("gal-form-titulo");
 const galVista = document.getElementById("gal-vista");
 const galElegirImg = document.getElementById("gal-elegir-img");
 const galArchivo = document.getElementById("gal-archivo");
+const galTomarFoto = document.getElementById("gal-tomar-foto");
+const galArchivoCamara = document.getElementById("gal-archivo-camara");
 const galEtiqueta = document.getElementById("gal-etiqueta");
 const galDescripcion = document.getElementById("gal-descripcion");
 const galGuardar = document.getElementById("gal-guardar");
@@ -2935,8 +2937,10 @@ function dibujarVistaGaleria() {
 }
 
 galElegirImg.addEventListener("click", () => galArchivo.click());
-galArchivo.addEventListener("change", async () => {
-  const archivo = galArchivo.files && galArchivo.files[0];
+galTomarFoto.addEventListener("click", () => galArchivoCamara.click());
+// Sirve igual para la imagen elegida del teléfono y para la foto tomada con la cámara
+async function alElegirImagenGaleria(entrada) {
+  const archivo = entrada.files && entrada.files[0];
   if (!archivo) return;
   setEstado(galEstado, "Preparando imagen…");
   try {
@@ -2946,8 +2950,10 @@ galArchivo.addEventListener("change", async () => {
   } catch (e) {
     setEstado(galEstado, "Error: " + e.message, "error");
   }
-  galArchivo.value = "";
-});
+  entrada.value = "";
+}
+galArchivo.addEventListener("change", () => alElegirImagenGaleria(galArchivo));
+galArchivoCamara.addEventListener("change", () => alElegirImagenGaleria(galArchivoCamara));
 
 function abrirFormGaleria(g) {
   galeriaEditando = g;
@@ -2973,6 +2979,7 @@ function cerrarFormGaleria() {
   galImagenNueva = null;
   galImagenUrl = "";
   galArchivo.value = "";
+  galArchivoCamara.value = "";
 }
 
 async function guardarGaleria() {
