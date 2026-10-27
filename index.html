@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=107" />
+  <link rel="stylesheet" href="styles.css?v=108" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1319,6 +1319,10 @@
         </div>
 
         <div id="em-contenido">
+          <!-- Botón pequeño «Moldes» (como «Cuentas» en el Diario): abre la zona de Moldes (se maneja en app.js) -->
+          <div class="di-cuentas-barra em-moldes-barra">
+            <button id="em-moldes-abrir" class="btn-cal di-cuentas-btn" type="button">&#129513; Moldes</button>
+          </div>
           <!-- Botón divisor: cambia de zona dentro de Empresas/Proyectos (lo maneja app.js) -->
           <div id="em-zonas" class="em-zonas" role="tablist" aria-label="Zonas de Empresas/Proyectos">
             <button type="button" class="em-zona-btn" role="tab" data-zona="Proyectos" aria-selected="true">&#128193; Proyectos</button>
@@ -1339,6 +1343,29 @@
           </div>
           <p id="em-estado" class="notas-estado proy-estado-lista"></p>
           <div id="em-chips" class="ej-chips"></div>
+        </div>
+      </div>
+
+      <!-- Zona «Moldes»: un botón principal, quién tiene los moldes y los dueños de los moldes -->
+      <div id="em-moldes" class="notas-submenu em-moldes" hidden>
+        <header class="notas-sub-cabecera">
+          <button id="em-moldes-volver" class="notas-btn notas-btn-sec" type="button">&#8249; Volver</button>
+          <h3>&#129513; Moldes</h3>
+        </header>
+        <div class="notas-sub-cuerpo em-moldes-cuerpo">
+          <button id="em-moldes-todos" class="notas-btn em-moldes-btn em-moldes-principal" type="button">Todos Los Moldes</button>
+          <p class="em-moldes-texto">Quien Tiene Los Moldes</p>
+          <div class="em-moldes-fila">
+            <button class="notas-btn em-moldes-btn" type="button" data-grupo="tiene" data-nombre="Moldes Polo">Moldes Polo</button>
+            <button class="notas-btn em-moldes-btn" type="button" data-grupo="tiene" data-nombre="Moldes Madre">Moldes Madre</button>
+            <button class="notas-btn em-moldes-btn" type="button" data-grupo="tiene" data-nombre="Moldes Fer">Moldes Fer</button>
+          </div>
+          <p class="em-moldes-texto">Dueños de Moldes</p>
+          <div class="em-moldes-fila">
+            <button class="notas-btn em-moldes-btn" type="button" data-grupo="duenos" data-nombre="Moldes Polo">Moldes Polo</button>
+            <button class="notas-btn em-moldes-btn" type="button" data-grupo="duenos" data-nombre="Moldes Madre">Moldes Madre</button>
+            <button class="notas-btn em-moldes-btn" type="button" data-grupo="duenos" data-nombre="Moldes Fer">Moldes Fer</button>
+          </div>
         </div>
       </div>
 
@@ -1819,7 +1846,7 @@
   </main>
 
   <script src="config.js?v=68"></script>
-  <script src="app.js?v=114"></script>
+  <script src="app.js?v=115"></script>
   <script src="voz.js?v=66"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

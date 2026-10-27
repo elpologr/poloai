@@ -12976,7 +12976,19 @@ function entrarEmpresas() {
   actualizarPanelEmpresas();
 }
 // Empresas/Proyectos es una página: aquí solo se cierra la ventana
+// ----- Zona «Moldes» (botón pequeño arriba de las pestañas de Empresas/Proyectos) -----
+const emMoldes = document.getElementById("em-moldes");
+function abrirMoldesEm() { if (emMoldes) emMoldes.hidden = false; }
+function cerrarMoldesEm() { if (emMoldes) emMoldes.hidden = true; }
+(function montarMoldesEm() {
+  const abrir = document.getElementById("em-moldes-abrir");
+  const volver = document.getElementById("em-moldes-volver");
+  if (abrir) abrir.addEventListener("click", abrirMoldesEm);
+  if (volver) volver.addEventListener("click", cerrarMoldesEm);
+})();
+
 function cerrarEmpresas() {
+  cerrarMoldesEm();
   cerrarFormEm();
   cerrarDetalleEm();
   if (emMoviendo) emPonerMover(false);
@@ -12997,7 +13009,8 @@ emBorrar.addEventListener("click", borrarEm);
 // Esc cierra la ventana
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelEm.hidden) return;
-  if (!npForm.hidden) cerrarFormNp();
+  if (emMoldes && !emMoldes.hidden) cerrarMoldesEm();
+  else if (!npForm.hidden) cerrarFormNp();
   else if (!npPag.hidden) cerrarConfigNp();
   else if (!nvPag.hidden) cerrarNotasProy();
   else if (!emRedSub.hidden) cerrarSubRed();
