@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=113" />
+  <link rel="stylesheet" href="styles.css?v=114" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1491,7 +1491,12 @@
             <div class="notas-campo">
               <span>Zonas donde se mostrará (elige una o varias)</span>
               <div id="pc-zonas" class="em-ml-zonas" role="group" aria-label="Zonas"></div>
+              <div class="pc-zona-nueva-fila">
+                <input id="pc-zona-nueva" type="text" maxlength="40" autocomplete="off" placeholder="…o crea una zona nueva" aria-label="Nombre de la zona nueva" />
+                <button id="pc-zona-agregar" class="notas-btn notas-btn-sec" type="button">＋ Crear zona</button>
+              </div>
             </div>
+            <div id="pc-precios-form" class="pc-precios-form"></div>
             <label class="notas-campo">
               <span>Descripción (opcional)</span>
               <textarea id="pc-descripcion" rows="3" maxlength="2000" placeholder="Describe el producto…"></textarea>
@@ -1503,6 +1508,21 @@
           <button id="pc-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
           <button id="pc-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
           <span id="pc-form-estado" class="notas-estado"></span>
+        </div>
+      </div>
+
+      <!-- Ventana para editar las subcategorías de precio de una zona (nombres, cantidad y orden) -->
+      <div id="pc-precios" class="notas-nueva proy-form modo-editar" hidden>
+        <h3 id="pc-precios-titulo" class="notas-form-titulo">Subcategorías de precio</h3>
+        <p class="pc-precios-ayuda">Divide los productos de esta zona por precio. Puedes cambiar los nombres, añadir, quitar y ordenar.</p>
+        <div id="pc-precios-lista" class="pc-precios-lista"></div>
+        <div class="notas-fila">
+          <button id="pc-precios-nueva" class="notas-btn notas-btn-sec" type="button">&#65291; Añadir subcategoría</button>
+        </div>
+        <div class="notas-fila">
+          <button id="pc-precios-guardar" class="notas-btn" type="button">Guardar</button>
+          <button id="pc-precios-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <span id="pc-precios-estado" class="notas-estado"></span>
         </div>
       </div>
 
@@ -1983,7 +2003,7 @@
   </main>
 
   <script src="config.js?v=69"></script>
-  <script src="app.js?v=119"></script>
+  <script src="app.js?v=120"></script>
   <script src="voz.js?v=66"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

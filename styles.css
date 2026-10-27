@@ -3906,3 +3906,36 @@ body.en-seccion .inicio-tareas { display: none; } /* solo se ve en el menú prin
 }
 .em-ml-zona input { margin: 0; accent-color: #12308a; }
 .em-ml-zona:has(input:checked) { color: #fff; background: #12308a; border-color: #12308a; }
+
+
+/* ---------- Productos Confirmados: zonas nuevas y subcategorías de precio ---------- */
+.pc-zona-nueva-fila { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+.pc-zona-nueva-fila input {
+  flex: 1; min-width: 0; padding: 8px 10px; font: inherit; color: var(--nb-texto); background: #fff; border: 1px solid var(--nb-borde); border-radius: 10px;
+}
+.pc-zona-nueva-fila .notas-btn { flex: none; padding: 8px 14px; }
+.pc-precios-form { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+.pc-precio-fila { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; font-weight: 600; }
+.pc-precio-fila select { padding: 8px 10px; font: inherit; color: var(--nb-texto); background: #fff; border: 1px solid var(--nb-borde); border-radius: 10px; }
+.pc-zona-precios-btn {
+  flex: none; width: 34px; height: 34px; padding: 0; display: grid; place-items: center; font-size: 1rem; line-height: 1; cursor: pointer;
+  background: rgba(255, 255, 255, 0.95); border: none; border-radius: 50%; box-shadow: 0 4px 12px rgba(40, 10, 80, 0.35);
+}
+.pc-zona-precios-btn:hover { background: #fff; }
+.pc-subprecio {
+  display: inline-block; margin: 16px 0 8px; padding: 5px 14px; font-size: 0.95rem; font-weight: 800; color: #2b1d5c;
+  background: rgba(255, 255, 255, 0.9); border-radius: 999px; box-shadow: 0 3px 10px rgba(40, 10, 80, 0.25);
+}
+.pc-subprecio-aparte { color: #5a5a72; font-weight: 700; }
+.pc-precios-ayuda { margin: 0 0 10px; font-size: 0.88rem; color: var(--nb-suave); }
+.pc-precios-lista { display: flex; flex-direction: column; gap: 8px; }
+.pc-precio-editor-fila { display: flex; gap: 6px; align-items: center; }
+.pc-precio-editor-fila input {
+  flex: 1; min-width: 0; padding: 8px 10px; font: inherit; color: var(--nb-texto); background: #fff; border: 1px solid var(--nb-borde); border-radius: 10px;
+}
+.pc-precio-mini {
+  flex: none; width: 34px; height: 34px; padding: 0; font: inherit; font-weight: 800; color: #1b2a4e; cursor: pointer;
+  background: #fff; border: 1px solid var(--nb-borde); border-radius: 10px;
+}
+.pc-precio-mini:disabled { opacity: 0.35; cursor: default; }
+.pc-precio-mini:hover:not(:disabled) { background: #eef3fb; }
