@@ -6044,6 +6044,8 @@ const clPanel = diEl("di-cu-claude");
 const clCuenta = diEl("di-cu-cl-cuenta");
 const clHora = diEl("di-cu-cl-hora");
 const clCuando = diEl("di-cu-cl-cuando");
+const clDiaRadios = Array.prototype.slice.call(document.querySelectorAll('input[name="di-cu-cl-dia"]'));
+let clDiaManual = false; // true cuando tú eliges «Hoy» o «Mañana»; si no, se propone según la hora
 const clGuardar = diEl("di-cu-cl-guardar");
 const clQuitar = diEl("di-cu-cl-quitar");
 const clEstado = diEl("di-cu-cl-estado");
@@ -6091,6 +6093,34 @@ function clProxima(hhmm) {
   return d;
 }
 
+// Día elegido en el selector: «hoy» o «manana» ("" si no hay)
+function clDiaElegido() {
+  const r = clDiaRadios.find((x) => x.checked);
+  return r ? r.value : "";
+}
+function clPonerDia(valor) {
+  clDiaRadios.forEach((x) => { x.checked = x.value === valor; });
+}
+// Propone «Hoy» si esa hora todavía no llegó, o «Mañana» si ya pasó (tú puedes cambiarlo)
+function clProponerDia(hhmm) {
+  const m = /^(\d{2}):(\d{2})$/.exec(String(hhmm || ""));
+  if (!m) return;
+  const ahora = new Date();
+  const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), +m[1], +m[2]);
+  clPonerDia(hoy.getTime() > ahora.getTime() ? "hoy" : "manana");
+}
+// Fecha y hora exactas según la hora escrita y el día elegido (hoy o mañana)
+function clFechaElegida(hhmm, dia) {
+  const m = /^(\d{2}):(\d{2})$/.exec(String(hhmm || ""));
+  if (!m || !dia) return null;
+  const ahora = new Date();
+  return new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + (dia === "manana" ? 1 : 0), +m[1], +m[2]);
+}
+function clFechaLarga(d) { // «martes, 27 de octubre de 2026»
+  try { return d.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" }); }
+  catch (e) { return clDos(d.getDate()) + "/" + clDos(d.getMonth() + 1) + "/" + d.getFullYear(); }
+}
+
 function dibujarClaudeBoton() {
   cuVerClaude.innerHTML = "";
   const c = cuVerActual;
@@ -6113,8 +6143,12 @@ function dibujarClaudeBoton() {
 }
 
 function clVistaPrevia() {
-  const f = clProxima(clHora.value);
-  clCuando.textContent = f ? "Te aviso " + clDiaTexto(f) + " a las " + clHora12(f) : "";
+  const f = clFechaElegida(clHora.value, clDiaElegido());
+  if (!f) { clCuando.textContent = ""; return; }
+  const pasada = f.getTime() <= Date.now();
+  clCuando.textContent = pasada
+    ? "⚠️ Esa hora de hoy ya pasó: elige «Mañana»."
+    : "Te aviso " + clDiaTexto(f) + " (" + clFechaLarga(f) + ") a las " + clHora12(f);
 }
 function dibujarRegistroClaude() {
   const c = cuVerActual;
@@ -6143,6 +6177,15 @@ function abrirClaudeCu() {
   clCuenta.textContent = c.nombre;
   const f = clParsear(c.claudeDisponible);
   clHora.value = f ? clDos(f.getHours()) + ":" + clDos(f.getMinutes()) : "";
+  clPonerDia("");
+  clDiaManual = false;
+  if (f && f.getTime() > Date.now()) {
+    // Alarma ya guardada: se marca su día (hoy o mañana)
+    const dia = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const dif = Math.round((dia(f) - dia(new Date())) / 86400000);
+    if (dif === 0) { clPonerDia("hoy"); clDiaManual = true; }
+    else if (dif === 1) { clPonerDia("manana"); clDiaManual = true; }
+  }
   clQuitar.hidden = !(f && f.getTime() > Date.now());
   setEstado(clEstado, "");
   clInfo.textContent = "";
@@ -6265,8 +6308,19 @@ async function guardarClaudeCu(quitar) {
   if (!c) return;
   let f = null;
   if (!quitar) {
-    f = clProxima(clHora.value);
-    if (!f) { setEstado(clEstado, "Elige primero la hora", "error"); return; }
+    if (!clHora.value) { setEstado(clEstado, "Elige primero la hora", "error"); return; }
+    if (!clDiaElegido()) { setEstado(clEstado, "Elige si es hoy o mañana", "error"); return; }
+    f = clFechaElegida(clHora.value, clDiaElegido());
+    if (!f || f.getTime() <= Date.now()) {
+      setEstado(clEstado, "Esa hora ya pasó. Elige «Mañana» o cambia la hora.", "error");
+      return;
+    }
+    // Confirmación: se muestra la fecha y la hora exactas en que sonará el aviso
+    const pregunta = "¿Confirmas el aviso de Claude para «" + c.nombre + "»?\n\n" +
+      "📅 " + clFechaLarga(f) + "\n" +
+      "⏰ " + clHora12(f) + "\n\n" +
+      "Te avisaré ese día a esa hora.";
+    if (!window.confirm(pregunta)) { setEstado(clEstado, "Aviso cancelado (no se guardó nada)"); return; }
   }
   const cuando = selloFechaHora();
   const disponible = f ? clTexto(f) : "";
@@ -6295,7 +6349,11 @@ async function guardarClaudeCu(quitar) {
 }
 clGuardar.addEventListener("click", () => guardarClaudeCu(false));
 clQuitar.addEventListener("click", () => guardarClaudeCu(true));
-clHora.addEventListener("input", clVistaPrevia);
+clHora.addEventListener("input", () => {
+  if (!clDiaManual) clProponerDia(clHora.value); // mientras no elijas tú, se propone hoy/mañana según la hora
+  clVistaPrevia();
+});
+clDiaRadios.forEach((r) => r.addEventListener("change", () => { clDiaManual = true; clVistaPrevia(); }));
 diEl("di-cu-cl-volver").addEventListener("click", cuClaudeCerrar);
 
 // Lista de cuentas con hora pendiente (se guarda en este dispositivo para revisarla sin abrir Cuentas)

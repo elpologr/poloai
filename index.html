@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=109" />
+  <link rel="stylesheet" href="styles.css?v=110" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -808,6 +808,13 @@
             <span>&iquest;A qu&eacute; hora vuelve a estar disponible tu sesi&oacute;n de Claude?</span>
             <input id="di-cu-cl-hora" type="time" step="60" />
           </label>
+          <div class="di-cu-cl-dia" role="radiogroup" aria-label="D&iacute;a del aviso">
+            <span class="di-cu-cl-dia-titulo">&iquest;De qu&eacute; d&iacute;a es esa hora?</span>
+            <div class="di-cu-cl-dia-opciones">
+              <label class="di-cu-cl-dia-op"><input type="radio" name="di-cu-cl-dia" value="hoy" /><span>Hoy</span></label>
+              <label class="di-cu-cl-dia-op"><input type="radio" name="di-cu-cl-dia" value="manana" /><span>Ma&ntilde;ana</span></label>
+            </div>
+          </div>
           <p id="di-cu-cl-cuando" class="di-cu-cl-cuando"></p>
           <div class="notas-fila di-cu-cl-botones">
             <button id="di-cu-cl-guardar" class="notas-btn di-cu-cl-guardar" type="button">&#128276; Guardar y avisarme</button>
@@ -1898,7 +1905,7 @@
   </main>
 
   <script src="config.js?v=69"></script>
-  <script src="app.js?v=116"></script>
+  <script src="app.js?v=117"></script>
   <script src="voz.js?v=66"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

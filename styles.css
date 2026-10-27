@@ -3759,6 +3759,14 @@ body.en-seccion .menu { display: none; }
 .di-cu-cl-cuenta { margin: 0; font-size: 1.1rem; font-weight: 800; color: #f0b39b; overflow-wrap: anywhere; }
 .di-cu-cl-campo { display: flex; flex-direction: column; align-items: center; gap: 8px; width: min(100%, 360px); font-weight: 700; color: #faf6ef; }
 .di-cu-cl-campo input[type="time"] { width: 100%; padding: 12px; font-size: 1.6rem; font-weight: 800; text-align: center; color: #2b160d; background: #faf6ef; border: 2px solid #d97757; border-radius: 12px; }
+.di-cu-cl-dia { display: flex; flex-direction: column; align-items: center; gap: 8px; width: min(100%, 360px); }
+.di-cu-cl-dia-titulo { font-weight: 700; color: #faf6ef; }
+.di-cu-cl-dia-opciones { display: flex; gap: 8px; width: 100%; }
+.di-cu-cl-dia-op { flex: 1; position: relative; cursor: pointer; }
+.di-cu-cl-dia-op input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.di-cu-cl-dia-op span { display: block; padding: 12px 8px; text-align: center; font-size: 1.05rem; font-weight: 800; color: #faf6ef; background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(217, 119, 87, 0.5); border-radius: 12px; }
+.di-cu-cl-dia-op input:checked + span { color: #2b160d; background: #d97757; border-color: #d97757; }
+.di-cu-cl-dia-op input:focus-visible + span { outline: 3px solid #f0b39b; outline-offset: 2px; }
 .di-cu-cl-cuando { margin: 0; min-height: 1.3em; font-size: 0.95rem; font-weight: 700; color: #f0b39b; }
 .di-cu-cl-botones { justify-content: center; }
 .notas-btn.di-cu-cl-guardar { color: #faf6ef; font-weight: 800; background: linear-gradient(135deg, #e08a6b, #d97757 55%, #c4613f); border: 1px solid #f0b39b; }
