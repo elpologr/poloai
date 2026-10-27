@@ -3691,8 +3691,25 @@ body.en-seccion .menu { display: none; }
 .di-notario-uso { margin: 0 0 8px; font-size: 0.8rem; color: #ccc; }
 .di-notario-uso-aviso { color: #ffd54a; }
 .di-notario-uso-critico { color: #ff7a6b; font-weight: 700; }
-#di-form .di-notario-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 0; }
-@media (max-width: 480px) { #di-form .di-notario-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Cuadros de las notas del Notario Principal: 25 % más pequeños (antes 3 por fila en PC y 2 en celular; ahora 4 y 3) */
+#di-form .di-notario-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 0; }
+@media (max-width: 480px) { #di-form .di-notario-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+#di-form .di-notario-grid .ej-chip-resumen, .di-hoy-grid .ej-chip-resumen { padding: 7px; }
+#di-form .di-notario-grid .ej-chip-nombre, .di-hoy-grid .ej-chip-nombre { font-size: 0.68rem; }
+#di-form .di-notario-grid .ej-chip-fecha, .di-hoy-grid .ej-chip-fecha { font-size: 0.52rem; }
+#di-form .di-notario-grid .ej-chip-desc, .di-hoy-grid .ej-chip-desc { font-size: 0.56rem; -webkit-line-clamp: 3; }
+@media (max-width: 480px) {
+  #di-form .di-notario-grid .ej-chip-resumen, .di-hoy-grid .ej-chip-resumen { padding: 5px; }
+  #di-form .di-notario-grid .ej-chip-nombre, .di-hoy-grid .ej-chip-nombre { font-size: 0.6rem; }
+  #di-form .di-notario-grid .ej-chip-desc, .di-hoy-grid .ej-chip-desc { font-size: 0.5rem; -webkit-line-clamp: 2; }
+}
+
+/* Zona de abajo del calendario del Diario: Notario Principal de hoy */
+.di-hoy-notario { margin-top: 18px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.18); }
+.di-hoy-titulo { margin: 0 0 6px; font-size: 1rem; color: #fff; }
+.di-hoy-grid { margin-top: 8px; }
+.di-hoy-grid .ej-chip-nuevo { align-items: center; justify-content: center; }
+@media (max-width: 480px) { .di-hoy-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } }
 .ej-chip-notario { border-color: #4f94d4; }
  /* tres veces más alto que antes */
 
@@ -3799,3 +3816,18 @@ body.en-seccion .menu { display: none; }
 .td-dialogo-tarea { margin: 0 0 12px; padding: 8px 10px; font-size: 0.9rem; font-weight: 600; color: #2b2140; background: #f3ecfd; border-radius: 10px; overflow-wrap: anywhere; }
 .td-dialogo-botones-ancho { flex-wrap: wrap; }
 #di-nombre[readonly] { opacity: 0.75; cursor: default; }
+
+
+/* ---------- Inicio: Tareas por Terminar debajo de «Polo AI», en fila de izquierda a derecha ---------- */
+.inicio-tareas { max-width: 788px; margin: -6px auto 16px; text-align: left; }
+.inicio-tareas[hidden] { display: none; }
+body.en-seccion .inicio-tareas { display: none; } /* solo se ve en el menú principal */
+.inicio-tareas-titulo { margin: 0 0 6px 4px; font-size: 0.85rem; font-weight: 700; color: #fff; text-shadow: 0 1px 6px rgba(40, 10, 80, 0.45); }
+.inicio-tareas-fila {
+  display: flex; flex-direction: row; flex-wrap: nowrap; justify-content: flex-start; gap: 10px;
+  overflow-x: auto; padding: 4px 4px 10px; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity;
+}
+.inicio-tareas-fila .ej-chip { flex: 0 0 auto; width: 96px; height: 96px; scroll-snap-align: start; }
+.inicio-tareas-fila .ej-chip-nombre { font-size: 0.72rem; }
+.inicio-tareas-fila .ej-chip-desc { font-size: 0.58rem; -webkit-line-clamp: 3; }
+@media (max-width: 480px) { .inicio-tareas-fila .ej-chip { width: 84px; height: 84px; } }

@@ -122,6 +122,7 @@ function mostrarSeccion(id, opciones) {
   }
   // Los Notarios se leen la primera vez que se ve una zona que los tiene
   if (typeof actualizarNotarios === "function") actualizarNotarios();
+  if (!soloZona) actualizarTareasInicio(); // en el menú principal se ven las tareas por terminar
   navRegistrar(); // cada página nueva queda en el historial (botón «regresar» del navegador / del celular)
 }
 
@@ -4079,6 +4080,7 @@ async function asegurarEmpresasEnZonas() {
   if (ya) return;
   zonasLeyendoEmpresas = true;
   try { await cargarEmpresas(); } finally { zonasLeyendoEmpresas = false; }
+  dibujarTareasInicio();
 }
 // Tocar una nota de proyecto en Actividades/Trabajo: se abre en su proyecto, lista para modificarla
 function irANotaProyecto(d, nota) {
@@ -4090,6 +4092,46 @@ function irANotaProyecto(d, nota) {
 }
 let cargandoZonas = false;
 
+// ---------- Inicio: las Tareas por Terminar (etiqueta «Actividades») en fila, debajo de «Polo AI» ----------
+// Se ve solo en el menú principal. Incluye las notas de esa zona y las notas de proyectos con la misma etiqueta.
+function dibujarTareasInicio() {
+  try {
+    const caja = document.getElementById("inicio-tareas");
+    const fila = document.getElementById("inicio-tareas-fila");
+    if (!caja || !fila) return;
+    fila.innerHTML = "";
+    if (!sesionVigente()) { caja.hidden = true; return; }
+    const items = notasOrdenadas()
+      .filter((n) => (n.etiqueta || "General") === "Actividades")
+      .map((n) => ({ titulo: n.nombre || "Sin nombre", resumen: resumenCorto(String(n.texto || ""), 70), proyecto: "" }));
+    notasDeProyectosConEtiqueta("Actividades").forEach((x) =>
+      items.push({ titulo: x.n.nombre || "Sin nombre", resumen: resumenCorto(npResumen(x.n), 70), proyecto: x.d.nombre || "Proyecto" })
+    );
+    items.forEach((it) => {
+      const b = nvCrearChip(it.titulo, "", it.resumen, "", "inicio-tarea");
+      if (it.proyecto) b.title += " — proyecto: " + it.proyecto;
+      b.setAttribute("aria-label", "Tarea por terminar: " + it.titulo + ". Abrir Tareas por Terminar");
+      b.addEventListener("click", () => mostrarSeccion("seccion-tareas-pend"));
+      fila.appendChild(b);
+    });
+    caja.hidden = !items.length;
+  } catch (e) {
+    /* la página aún se está armando: se vuelve a dibujar más tarde */
+  }
+}
+// Dibuja lo que ya hay y, si hace falta, lee las notas (y los proyectos) para tenerlas a la vista en el inicio
+function actualizarTareasInicio() {
+  try {
+    if (document.body.classList.contains("en-seccion")) return;
+    dibujarTareasInicio();
+    if (!sesionVigente()) return;
+    if (!notasCargadas && !cargandoZonas) cargarNotasZonas();
+    asegurarEmpresasEnZonas().then(dibujarTareasInicio, () => {});
+  } catch (e) {
+    /* se vuelve a intentar la próxima vez */
+  }
+}
+
 // Lee las notas de la hoja (las mismas que usa el panel de Notas) y redibuja todo
 async function cargarNotasZonas() {
   if (cargandoZonas) return;
@@ -4100,6 +4142,7 @@ async function cargarNotasZonas() {
     notas = normalizarNotas(j.notas);
     notasCargadas = true;
     dibujarNotas();
+    dibujarTareasInicio();
     zonas.forEach((z) => setEstado(z.estadoLista, ""));
   } catch (e) {
     zonas.forEach((z) => setEstado(z.estadoLista, "Error: " + e.message, "error"));
@@ -4110,6 +4153,7 @@ async function cargarNotasZonas() {
 
 function dibujarZonasEtiqueta() {
   zonas.forEach((z) => z.dibujar());
+  dibujarTareasInicio(); // y la fila de tareas del inicio
 }
 
 // Se llama cuando cambia la sesión (desde actualizarPanelNotas)
@@ -4123,6 +4167,7 @@ function actualizarZonasEtiqueta() {
   } else if (!notasCargadas && zonas.some((z) => !z.seccion.hidden)) {
     cargarNotasZonas();
   }
+  actualizarTareasInicio(); // y la fila de tareas del inicio (lee las notas si hace falta)
 }
 
 // Botón «Juegos» de la barra lateral: abre la zona Juegos
@@ -4772,6 +4817,47 @@ function dibujarCalendarioDi() {
     } else el.addEventListener("click", () => abrirDiaDi(fecha));
     diCuad.appendChild(el);
   }
+  dibujarNotarioHoyDi(); // y el Notario Principal de hoy, debajo del calendario
+}
+
+// ----- Zona de abajo del calendario: Notario Principal del día de hoy -----
+// Muestra las notas del Notario Principal de hoy (la más reciente primero) y un recuadro «Añadir».
+// Si hoy aún no tiene Notario Principal, se crea al tocar «Añadir».
+function dibujarNotarioHoyDi() {
+  const grid = document.getElementById("di-hoy-grid");
+  if (!grid) return;
+  const fecha = new Date();
+  const hoy = claveFecha(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+  const rotulo = document.getElementById("di-hoy-fecha");
+  if (rotulo) rotulo.textContent = textoFecha(hoy);
+  const estado = document.getElementById("di-hoy-estado");
+  grid.innerHTML = "";
+  const cargados = typeof NT !== "undefined" && NT && NT.cargados;
+  if (!cargados) {
+    setEstado(estado, "Cargando notario…");
+    return;
+  }
+  setEstado(estado, "");
+  const n = npDeDia(hoy);
+  if (n) {
+    n.notas.slice().reverse().forEach((nota) => {
+      const primera = String(nota.texto || "").split(/\r?\n/).map((x) => x.trim()).find(Boolean) || "Sin texto";
+      const titulo = nota.nombre || (primera.length > 40 ? primera.slice(0, 40) + "…" : primera);
+      const b = nvCrearChip(titulo, nota.fecha ? String(nota.fecha).split(" ")[0] : "", resumenCorto(String(nota.texto || ""), 90), "", "nt-pag-chip");
+      b.setAttribute("aria-label", "Ver o editar esta nota del " + NP_NOMBRE + " de hoy");
+      b.addEventListener("click", () => ntAbrirEditor(n, nota));
+      grid.appendChild(b);
+    });
+  }
+  grid.appendChild(nvCrearAnadir("Añadir una nota al " + NP_NOMBRE + " de hoy", async () => {
+    try {
+      const principal = n || (setEstado(estado, "Preparando el " + NP_NOMBRE + "…"), await npAsegurar(hoy));
+      setEstado(estado, "");
+      ntAbrirEditor(principal, null);
+    } catch (err) {
+      setEstado(estado, "Error: " + err.message, "error");
+    }
+  }));
 }
 
 function diCambiarMes(delta) {

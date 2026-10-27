@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=106" />
+  <link rel="stylesheet" href="styles.css?v=107" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -238,6 +238,11 @@
 
   <header class="encabezado">
     <h1>Polo AI</h1>
+    <!-- Tareas por Terminar a la vista: las notas de esa zona, en fila de izquierda a derecha (se llena en app.js; solo en el menú principal) -->
+    <section id="inicio-tareas" class="inicio-tareas" aria-label="Tareas por terminar" hidden>
+      <p class="inicio-tareas-titulo">&#9203; Tareas por Terminar</p>
+      <div id="inicio-tareas-fila" class="inicio-tareas-fila"></div>
+    </section>
     <!-- Botones cuadrados con emoji. Orden: Calendario, Notas, Deudas, Bazar, Ejercicio, Diario, Pendientes, Trabajo, Información Primordial, Comandos. Arriba de todos va el botón grande «Día de Hoy».
          Cada botón abre su propia sección (Ejercicio y Diario con su propio calendario). -->
     <nav class="menu" aria-label="Secciones">
@@ -697,6 +702,12 @@
           </div>
           <p id="di-estado" class="notas-estado proy-estado-lista"></p>
           <div id="di-cuadricula" class="cal-cuadricula" role="grid"></div>
+          <!-- Notario Principal del día de hoy: sus notas en recuadros, debajo del calendario -->
+          <section id="di-hoy-notario" class="di-hoy-notario" aria-labelledby="di-hoy-titulo">
+            <h3 id="di-hoy-titulo" class="di-hoy-titulo">&#128210; Notario Principal · <span id="di-hoy-fecha"></span></h3>
+            <p id="di-hoy-estado" class="notas-estado proy-estado-lista"></p>
+            <div id="di-hoy-grid" class="ej-chips nv-grid di-notario-grid di-hoy-grid"></div>
+          </section>
         </div>
       </div>
 
@@ -1808,7 +1819,7 @@
   </main>
 
   <script src="config.js?v=68"></script>
-  <script src="app.js?v=113"></script>
+  <script src="app.js?v=114"></script>
   <script src="voz.js?v=66"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>
