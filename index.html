@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=108" />
+  <link rel="stylesheet" href="styles.css?v=109" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1353,19 +1353,71 @@
           <h3>&#129513; Moldes</h3>
         </header>
         <div class="notas-sub-cuerpo em-moldes-cuerpo">
-          <button id="em-moldes-todos" class="notas-btn em-moldes-btn em-moldes-principal" type="button">Todos Los Moldes</button>
+          <button id="em-moldes-todos" data-lista="todos" class="notas-btn em-moldes-btn em-moldes-principal" type="button">Todos Los Moldes</button>
           <p class="em-moldes-texto">Quien Tiene Los Moldes</p>
           <div class="em-moldes-fila">
-            <button class="notas-btn em-moldes-btn" type="button" data-grupo="tiene" data-nombre="Moldes Polo">Moldes Polo</button>
-            <button class="notas-btn em-moldes-btn" type="button" data-grupo="tiene" data-nombre="Moldes Madre">Moldes Madre</button>
-            <button class="notas-btn em-moldes-btn" type="button" data-grupo="tiene" data-nombre="Moldes Fer">Moldes Fer</button>
+            <button class="notas-btn em-moldes-btn" type="button" data-grupo="tiene" data-nombre="Moldes Polo" data-lista="tiene-polo">Moldes Polo</button>
+            <button class="notas-btn em-moldes-btn" type="button" data-grupo="tiene" data-nombre="Moldes Madre" data-lista="tiene-madre">Moldes Madre</button>
+            <button class="notas-btn em-moldes-btn" type="button" data-grupo="tiene" data-nombre="Moldes Fer" data-lista="tiene-fer">Moldes Fer</button>
           </div>
           <p class="em-moldes-texto">Dueños de Moldes</p>
           <div class="em-moldes-fila">
-            <button class="notas-btn em-moldes-btn" type="button" data-grupo="duenos" data-nombre="Moldes Polo">Moldes Polo</button>
-            <button class="notas-btn em-moldes-btn" type="button" data-grupo="duenos" data-nombre="Moldes Madre">Moldes Madre</button>
-            <button class="notas-btn em-moldes-btn" type="button" data-grupo="duenos" data-nombre="Moldes Fer">Moldes Fer</button>
+            <button class="notas-btn em-moldes-btn" type="button" data-grupo="duenos" data-nombre="Moldes Polo" data-lista="dueno-polo">Moldes Polo</button>
+            <button class="notas-btn em-moldes-btn" type="button" data-grupo="duenos" data-nombre="Moldes Madre" data-lista="dueno-madre">Moldes Madre</button>
+            <button class="notas-btn em-moldes-btn" type="button" data-grupo="duenos" data-nombre="Moldes Fer" data-lista="dueno-fer">Moldes Fer</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Imágenes de moldes de uno de los botones (imgbb): una división por zona; una imagen puede estar en varias zonas -->
+      <div id="em-moldes-lista" class="notas-submenu em-moldes" hidden>
+        <header class="notas-sub-cabecera">
+          <button id="ml-volver" class="notas-btn notas-btn-sec" type="button">&#8249; Volver</button>
+          <h3 id="ml-titulo">Moldes</h3>
+          <button id="ml-actualizar" class="notas-btn-icono" type="button" title="Volver a leer las imágenes de Google Sheets" aria-label="Actualizar imágenes de moldes">&#8635;</button>
+        </header>
+        <div class="notas-sub-cuerpo">
+          <div class="em-ml-barra">
+            <button id="ml-nueva" class="notas-btn" type="button">&#65291; Añadir imagen</button>
+            <span id="ml-estado" class="notas-estado"></span>
+          </div>
+          <div id="ml-secciones" class="em-ml-secciones"></div>
+        </div>
+      </div>
+
+      <!-- Ventana para añadir o editar una imagen de molde -->
+      <div id="ml-form" class="notas-nueva proy-form modo-editar" hidden>
+        <h3 id="ml-form-titulo" class="notas-form-titulo">Nueva imagen de molde</h3>
+        <div class="proy-form-cuerpo">
+          <div class="proy-imagen-col">
+            <div id="ml-vista" class="proy-vista"></div>
+            <div class="proy-imagen-botones">
+              <button id="ml-elegir-img" class="notas-btn notas-btn-sec" type="button">Elegir imagen</button>
+              <button id="ml-quitar-img" class="notas-btn notas-btn-sec" type="button" hidden>Quitar imagen</button>
+            </div>
+            <input id="ml-archivo" type="file" accept="image/*" hidden />
+            <div class="proy-url-img">
+              <input id="ml-url-img" type="url" inputmode="url" maxlength="2000" autocomplete="off"
+                     placeholder="…o pega aquí el link de la imagen (imgbb)" aria-label="Link de la imagen" />
+              <button id="ml-usar-url" class="notas-btn notas-btn-sec" type="button">Usar link</button>
+            </div>
+          </div>
+          <div class="proy-datos-col">
+            <div class="notas-campo">
+              <span>Zonas donde se mostrará (elige una o varias)</span>
+              <div id="ml-zonas" class="em-ml-zonas" role="group" aria-label="Zonas"></div>
+            </div>
+            <label class="notas-campo">
+              <span>Descripción (opcional)</span>
+              <textarea id="ml-descripcion" rows="3" maxlength="2000" placeholder="Describe el molde…"></textarea>
+            </label>
+          </div>
+        </div>
+        <div class="notas-fila">
+          <button id="ml-guardar" class="notas-btn" type="button">Guardar imagen</button>
+          <button id="ml-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <button id="ml-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+          <span id="ml-form-estado" class="notas-estado"></span>
         </div>
       </div>
 
@@ -1846,7 +1898,7 @@
   </main>
 
   <script src="config.js?v=68"></script>
-  <script src="app.js?v=115"></script>
+  <script src="app.js?v=116"></script>
   <script src="voz.js?v=66"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

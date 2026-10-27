@@ -12979,13 +12979,284 @@ function entrarEmpresas() {
 // ----- Zona «Moldes» (botón pequeño arriba de las pestañas de Empresas/Proyectos) -----
 const emMoldes = document.getElementById("em-moldes");
 function abrirMoldesEm() { if (emMoldes) emMoldes.hidden = false; }
-function cerrarMoldesEm() { if (emMoldes) emMoldes.hidden = true; }
+function cerrarMoldesEm() {
+  try {
+    cerrarFormMl();
+    cerrarListaMl();
+    if (emMoldes) emMoldes.hidden = true;
+  } catch (e) {
+    /* la página aún se está armando */
+  }
+}
 (function montarMoldesEm() {
   const abrir = document.getElementById("em-moldes-abrir");
   const volver = document.getElementById("em-moldes-volver");
   if (abrir) abrir.addEventListener("click", abrirMoldesEm);
   if (volver) volver.addEventListener("click", cerrarMoldesEm);
 })();
+
+// ----- Imágenes de cada botón de Moldes (hoja «Moldes»; las imágenes viven en imgbb) -----
+// Cada imagen guarda: link, descripción, las zonas donde se muestra (una o varias) y el botón donde se añadió.
+// «Todos Los Moldes» muestra las imágenes de todos los botones; los demás botones muestran solo las suyas.
+const ZONAS_MOLDES = ["Figuras", "Religioso", "Bases", "Macetas", "Halloween", "Navidad"];
+const LISTAS_MOLDES = {
+  "todos": "Todos Los Moldes",
+  "tiene-polo": "Quien Tiene Los Moldes · Moldes Polo",
+  "tiene-madre": "Quien Tiene Los Moldes · Moldes Madre",
+  "tiene-fer": "Quien Tiene Los Moldes · Moldes Fer",
+  "dueno-polo": "Dueños de Moldes · Moldes Polo",
+  "dueno-madre": "Dueños de Moldes · Moldes Madre",
+  "dueno-fer": "Dueños de Moldes · Moldes Fer",
+};
+const mlEl = (id) => document.getElementById(id);
+const mlSub = mlEl("em-moldes-lista");
+const mlTitulo = mlEl("ml-titulo");
+const mlSecciones = mlEl("ml-secciones");
+const mlEstado = mlEl("ml-estado");
+const mlForm = mlEl("ml-form");
+const mlFormTitulo = mlEl("ml-form-titulo");
+const mlVista = mlEl("ml-vista");
+const mlArchivo = mlEl("ml-archivo");
+const mlElegirImg = mlEl("ml-elegir-img");
+const mlQuitarImg = mlEl("ml-quitar-img");
+const mlUrlImg = mlEl("ml-url-img");
+const mlZonasCaja = mlEl("ml-zonas");
+const mlDescripcion = mlEl("ml-descripcion");
+const mlGuardar = mlEl("ml-guardar");
+const mlBorrar = mlEl("ml-borrar");
+const mlFormEstado = mlEl("ml-form-estado");
+
+let moldes = []; // [{ id, imagen, descripcion, zonas: [..], lista }]
+let moldesCargados = false;
+let mlLista = ""; // botón abierto (clave de LISTAS_MOLDES)
+let mlEditando = null; // imagen abierta en la ventana (null = nueva)
+let mlImagenUrl = "";
+let mlImagenNueva = null; // { base64, vista } si se eligió un archivo que aún no se sube
+
+ZONAS_MOLDES.forEach((z) => {
+  const l = document.createElement("label");
+  l.className = "em-ml-zona";
+  const i = document.createElement("input");
+  i.type = "checkbox";
+  i.value = z;
+  l.append(i, document.createTextNode(z));
+  mlZonasCaja.appendChild(l);
+});
+const mlZonasMarcadas = () => Array.from(mlZonasCaja.querySelectorAll("input:checked")).map((i) => i.value);
+
+function mlVisibles() {
+  const lista = moldes.slice().reverse(); // las más recientes primero
+  return mlLista === "todos" ? lista : lista.filter((m) => m.lista === mlLista);
+}
+
+function dibujarMoldesLista() {
+  mlSecciones.innerHTML = "";
+  if (!mlLista) return;
+  const visibles = mlVisibles();
+  const secciones = ZONAS_MOLDES.map((z) => ({ nombre: z, items: visibles.filter((m) => m.zonas.includes(z)) }));
+  const sueltas = visibles.filter((m) => !m.zonas.some((z) => ZONAS_MOLDES.includes(z)));
+  if (sueltas.length) secciones.push({ nombre: "Sin zona", items: sueltas });
+  secciones.forEach((s) => {
+    const div = document.createElement("div");
+    div.className = "bazar-division";
+    div.setAttribute("role", "separator");
+    div.setAttribute("aria-label", s.nombre);
+    div.innerHTML = '<span class="bazar-division-linea" aria-hidden="true"></span><h3 class="bazar-division-titulo"></h3><span class="bazar-division-linea" aria-hidden="true"></span>';
+    div.querySelector("h3").textContent = s.nombre + " (" + s.items.length + ")";
+    mlSecciones.appendChild(div);
+    if (!s.items.length) {
+      const p = document.createElement("p");
+      p.className = "em-ml-vacio";
+      p.textContent = "Aún no hay imágenes en esta zona";
+      mlSecciones.appendChild(p);
+      return;
+    }
+    const grid = document.createElement("div");
+    grid.className = "em-ml-grid";
+    s.items.forEach((m) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "em-ml-tile";
+      b.title = (m.descripcion || "Molde") + " — " + (LISTAS_MOLDES[m.lista] || "") + " — zonas: " + m.zonas.join(", ");
+      b.setAttribute("aria-label", "Ver o editar este molde (" + m.zonas.join(", ") + ")");
+      if (imagenValida(m.imagen)) {
+        const img = document.createElement("img");
+        img.alt = m.descripcion || "Molde";
+        img.loading = "lazy";
+        img.referrerPolicy = "no-referrer";
+        img.src = m.imagen;
+        b.appendChild(img);
+      }
+      b.addEventListener("click", () => abrirFormMl(m));
+      grid.appendChild(b);
+    });
+    mlSecciones.appendChild(grid);
+  });
+}
+
+async function cargarMoldes() {
+  setEstado(mlEstado, "Cargando…");
+  try {
+    const j = await llamarNotas("moldes_listar");
+    moldes = (Array.isArray(j.moldes) ? j.moldes : []).map((m) => Object.assign({}, m, { zonas: Array.isArray(m.zonas) ? m.zonas : [] }));
+    moldesCargados = true;
+    setEstado(mlEstado, "");
+    dibujarMoldesLista();
+  } catch (e) {
+    setEstado(mlEstado, "Error: " + e.message + " · usa ↻ para reintentar", "error");
+  }
+}
+
+function abrirListaMl(lista) {
+  if (!sesionVigente()) return;
+  mlLista = lista;
+  mlTitulo.textContent = "🧩 " + (LISTAS_MOLDES[lista] || "Moldes");
+  mlSub.hidden = false;
+  dibujarMoldesLista();
+  if (!moldesCargados) cargarMoldes();
+}
+function cerrarListaMl() {
+  cerrarFormMl();
+  if (mlSub) mlSub.hidden = true;
+  mlLista = "";
+}
+
+function mlDibujarVista() {
+  mlVista.innerHTML = "";
+  const src = mlImagenNueva ? mlImagenNueva.vista : mlImagenUrl;
+  if (src && (mlImagenNueva || imagenValida(src))) {
+    const img = document.createElement("img");
+    img.alt = "Imagen del molde";
+    img.referrerPolicy = "no-referrer";
+    img.src = src;
+    mlVista.appendChild(img);
+  } else {
+    mlVista.textContent = "Sin imagen";
+  }
+  mlQuitarImg.hidden = !(mlImagenNueva || mlImagenUrl);
+  mlElegirImg.textContent = mlImagenNueva || mlImagenUrl ? "Cambiar imagen" : "Elegir imagen";
+}
+
+function abrirFormMl(m) {
+  mlEditando = m;
+  mlImagenUrl = m ? m.imagen || "" : "";
+  mlImagenNueva = null;
+  mlFormTitulo.textContent = m ? "Editar imagen de molde" : "Nueva imagen de molde";
+  mlZonasCaja.querySelectorAll("input").forEach((i) => { i.checked = !!m && m.zonas.includes(i.value); });
+  mlDescripcion.value = m ? m.descripcion || "" : "";
+  mlUrlImg.value = "";
+  mlGuardar.textContent = m ? "Guardar cambios" : "Guardar imagen";
+  mlBorrar.hidden = !m;
+  setEstado(mlFormEstado, "");
+  mlDibujarVista();
+  mlForm.hidden = false;
+  mlForm.scrollTop = 0;
+}
+function cerrarFormMl() {
+  if (!mlForm) return;
+  mlForm.hidden = true;
+  mlEditando = null;
+  mlImagenNueva = null;
+  mlImagenUrl = "";
+  mlArchivo.value = "";
+}
+
+mlElegirImg.addEventListener("click", () => mlArchivo.click());
+mlArchivo.addEventListener("change", async () => {
+  const archivo = mlArchivo.files && mlArchivo.files[0];
+  if (!archivo) return;
+  setEstado(mlFormEstado, "Preparando imagen…");
+  try {
+    mlImagenNueva = await leerImagenReducida(archivo);
+    mlDibujarVista();
+    setEstado(mlFormEstado, "");
+  } catch (e) {
+    setEstado(mlFormEstado, "Error: " + e.message, "error");
+  }
+  mlArchivo.value = "";
+});
+// Poner la imagen pegando su link (el «Enlace directo» de imgbb): no se sube nada, solo se usa la dirección
+function mlUsarLink() {
+  const u = mlUrlImg.value.trim();
+  if (!u) { setEstado(mlFormEstado, "Pega primero el link de la imagen", "error"); return false; }
+  if (!imagenValida(u) || u.length > 2000) { setEstado(mlFormEstado, "El link debe empezar con http:// o https://", "error"); return false; }
+  if (/^https?:\/\/(www\.)?ibb\.co\//i.test(u)) {
+    setEstado(mlFormEstado, "Ese es el link de la página de imgbb. Copia el «Enlace directo» (empieza con https://i.ibb.co/…)", "error");
+    return false;
+  }
+  mlImagenUrl = u;
+  mlImagenNueva = null;
+  mlArchivo.value = "";
+  mlUrlImg.value = "";
+  mlDibujarVista();
+  setEstado(mlFormEstado, "");
+  return true;
+}
+mlEl("ml-usar-url").addEventListener("click", mlUsarLink);
+mlUrlImg.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); mlUsarLink(); } });
+mlQuitarImg.addEventListener("click", () => {
+  mlImagenNueva = null;
+  mlImagenUrl = "";
+  mlArchivo.value = "";
+  mlDibujarVista();
+});
+
+async function guardarMl() {
+  if (mlUrlImg.value.trim() && !mlImagenNueva && !mlUsarLink()) return; // link pegado sin tocar «Usar link»
+  if (!mlImagenNueva && !mlImagenUrl) { setEstado(mlFormEstado, "Elige una imagen o pega su link", "error"); return; }
+  const zonas = mlZonasMarcadas();
+  if (!zonas.length) { setEstado(mlFormEstado, "Elige al menos una zona", "error"); return; }
+  mlGuardar.disabled = true;
+  try {
+    if (mlImagenNueva) {
+      setEstado(mlFormEstado, "Subiendo imagen…");
+      const j = await llamarNotas("proyecto_imagen", { imagen: mlImagenNueva.base64 });
+      mlImagenUrl = j.url;
+      mlImagenNueva = null; // si el guardado falla, no se vuelve a subir
+    }
+    setEstado(mlFormEstado, "Guardando…");
+    const datos = { imagen: mlImagenUrl, descripcion: mlDescripcion.value.trim(), zonas, lista: mlEditando ? mlEditando.lista : mlLista };
+    if (mlEditando) {
+      await llamarNotas("moldes_editar", Object.assign({ id: mlEditando.id }, datos));
+      Object.assign(mlEditando, datos);
+    } else {
+      const nueva = Object.assign({ id: String(Date.now()) }, datos);
+      await llamarNotas("moldes_agregar", nueva);
+      moldes.push(nueva);
+    }
+    cerrarFormMl();
+    dibujarMoldesLista();
+    setEstado(mlEstado, "Guardado ✓", "ok");
+  } catch (e) {
+    setEstado(mlFormEstado, "Error: " + e.message, "error");
+  } finally {
+    mlGuardar.disabled = false;
+  }
+}
+async function borrarMl() {
+  const m = mlEditando;
+  if (!m || !window.confirm("¿Eliminar esta imagen de moldes? (seguirá en imgbb)")) return;
+  mlBorrar.disabled = true;
+  setEstado(mlFormEstado, "Eliminando…");
+  try {
+    await llamarNotas("moldes_borrar", { id: m.id });
+    moldes = moldes.filter((x) => x.id !== m.id);
+    cerrarFormMl();
+    dibujarMoldesLista();
+    setEstado(mlEstado, "Eliminada", "ok");
+  } catch (e) {
+    setEstado(mlFormEstado, "Error: " + e.message, "error");
+  } finally {
+    mlBorrar.disabled = false;
+  }
+}
+mlGuardar.addEventListener("click", guardarMl);
+mlBorrar.addEventListener("click", borrarMl);
+mlEl("ml-cancelar").addEventListener("click", cerrarFormMl);
+mlEl("ml-nueva").addEventListener("click", () => abrirFormMl(null));
+mlEl("ml-volver").addEventListener("click", cerrarListaMl);
+mlEl("ml-actualizar").addEventListener("click", () => { if (sesionVigente()) cargarMoldes(); });
+document.querySelectorAll(".em-moldes-btn[data-lista]").forEach((b) => b.addEventListener("click", () => abrirListaMl(b.dataset.lista)));
 
 function cerrarEmpresas() {
   cerrarMoldesEm();
@@ -13009,7 +13280,9 @@ emBorrar.addEventListener("click", borrarEm);
 // Esc cierra la ventana
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelEm.hidden) return;
-  if (emMoldes && !emMoldes.hidden) cerrarMoldesEm();
+  if (!mlForm.hidden) cerrarFormMl();
+  else if (!mlSub.hidden) cerrarListaMl();
+  else if (emMoldes && !emMoldes.hidden) cerrarMoldesEm();
   else if (!npForm.hidden) cerrarFormNp();
   else if (!npPag.hidden) cerrarConfigNp();
   else if (!nvPag.hidden) cerrarNotasProy();

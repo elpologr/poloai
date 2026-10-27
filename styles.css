@@ -3842,3 +3842,31 @@ body.en-seccion .inicio-tareas { display: none; } /* solo se ve en el menú prin
 .em-moldes-fila { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .em-moldes-fila .em-moldes-btn { padding: 14px 6px; font-size: 0.9rem; }
 @media (max-width: 480px) { .em-moldes-fila .em-moldes-btn { font-size: 0.76rem; padding: 12px 4px; } }
+
+
+/* ---------- Moldes: imágenes por zona (cuadros del mismo tamaño que los botones del menú: Diario, Bazar, Deudas…) ---------- */
+.em-ml-barra { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; }
+.em-ml-secciones .bazar-division { margin: 22px 0 14px; }
+.em-ml-secciones .bazar-division-titulo { font-size: 1.05rem; padding: 8px 18px; }
+.em-ml-grid {
+  --lado: min(104px, calc((100vw - 32px - 4 * 10px) / 5)); /* igual que --lado del menú principal */
+  display: grid; grid-template-columns: repeat(auto-fill, var(--lado)); gap: 10px; justify-content: start;
+}
+.em-ml-tile {
+  width: var(--lado); aspect-ratio: 1 / 1; padding: 0; overflow: hidden; cursor: pointer;
+  background: rgba(255, 255, 255, 0.92); border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 18px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35); transition: transform 0.12s;
+}
+.em-ml-tile:hover { transform: translateY(-2px); }
+.em-ml-tile:focus-visible { outline: 3px solid #8fb8ff; outline-offset: 2px; }
+.em-ml-tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 600px) { .em-ml-tile { border-radius: 14px; } }
+@media (max-width: 420px) { .em-ml-tile { border-radius: 12px; } }
+.em-ml-vacio { margin: 0; font-size: 0.85rem; font-style: italic; color: #aab4d4; }
+.em-ml-zonas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.em-ml-zona {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.88rem; font-weight: 700;
+  color: #1b2a4e; background: #fff; border: 1px solid #b9cbe6; border-radius: 999px; cursor: pointer;
+}
+.em-ml-zona input { margin: 0; accent-color: #12308a; }
+.em-ml-zona:has(input:checked) { color: #fff; background: #12308a; border-color: #12308a; }
