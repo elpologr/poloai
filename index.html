@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=114" />
+  <link rel="stylesheet" href="styles.css?v=115" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1412,7 +1412,7 @@
           </div>
           <div class="proy-datos-col">
             <div class="notas-campo">
-              <span>Zonas donde se mostrará (elige una o varias)</span>
+              <span>Zonas donde se mostrará (elige una o varias) y su precio</span>
               <div id="ml-zonas" class="em-ml-zonas" role="group" aria-label="Zonas"></div>
             </div>
             <label class="notas-campo">
@@ -1489,14 +1489,13 @@
           </div>
           <div class="proy-datos-col">
             <div class="notas-campo">
-              <span>Zonas donde se mostrará (elige una o varias)</span>
+              <span>Zonas donde se mostrará (elige una o varias) y su precio</span>
               <div id="pc-zonas" class="em-ml-zonas" role="group" aria-label="Zonas"></div>
               <div class="pc-zona-nueva-fila">
                 <input id="pc-zona-nueva" type="text" maxlength="40" autocomplete="off" placeholder="…o crea una zona nueva" aria-label="Nombre de la zona nueva" />
                 <button id="pc-zona-agregar" class="notas-btn notas-btn-sec" type="button">＋ Crear zona</button>
               </div>
             </div>
-            <div id="pc-precios-form" class="pc-precios-form"></div>
             <label class="notas-campo">
               <span>Descripción (opcional)</span>
               <textarea id="pc-descripcion" rows="3" maxlength="2000" placeholder="Describe el producto…"></textarea>
@@ -2004,7 +2003,7 @@
   </main>
 
   <script src="config.js?v=69"></script>
-  <script src="app.js?v=121"></script>
+  <script src="app.js?v=122"></script>
   <script src="voz.js?v=66"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

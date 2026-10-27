@@ -13443,56 +13443,51 @@ function pcNuevoIdPrecio() {
   return "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-// Casillas de zonas del formulario (más las que ya tiene la imagen que se edita)
+// Zonas del formulario: una fila por zona con su casilla y, si la zona tiene subcategorías de precio, su selector de precio al lado.
+// Elegir un precio marca la zona sola; desmarcar la zona quita su precio.
+function pcLeerPreciosForm() {
+  const r = {};
+  pcZonasCaja.querySelectorAll("select[data-zona]").forEach((s) => { if (s.value) r[s.dataset.zona] = s.value; });
+  return r;
+}
 function pcDibujarZonasForm(marcadas, precios) {
+  precios = precios || {};
   pcZonasCaja.innerHTML = "";
   const nombres = pcConfig.zonas.map((z) => z.nombre);
   marcadas.forEach((z) => { if (!nombres.includes(z)) nombres.push(z); });
   nombres.forEach((z) => {
+    const fila = document.createElement("div");
+    fila.className = "pc-zona-fila";
     const l = document.createElement("label");
     l.className = "em-ml-zona";
     const i = document.createElement("input");
     i.type = "checkbox";
     i.value = z;
     i.checked = marcadas.includes(z);
-    i.addEventListener("change", () => pcDibujarPreciosForm(pcLeerPreciosForm()));
     l.append(i, document.createTextNode(z));
-    pcZonasCaja.appendChild(l);
-  });
-  pcDibujarPreciosForm(precios || {});
-}
-
-// Un selector de precio por cada zona marcada que tenga subcategorías
-const pcPreciosForm = pcEl("pc-precios-form");
-function pcLeerPreciosForm() {
-  const r = {};
-  pcPreciosForm.querySelectorAll("select[data-zona]").forEach((s) => { if (s.value) r[s.dataset.zona] = s.value; });
-  return r;
-}
-function pcDibujarPreciosForm(sel) {
-  pcPreciosForm.innerHTML = "";
-  pcZonasMarcadas().forEach((zona) => {
-    const cfg = pcZonaCfg(zona, false);
-    if (!cfg || !cfg.precios.length) return;
-    const fila = document.createElement("label");
-    fila.className = "pc-precio-fila";
-    const t = document.createElement("span");
-    t.textContent = "Precio en " + zona;
-    const s = document.createElement("select");
-    s.dataset.zona = zona;
-    const o0 = document.createElement("option");
-    o0.value = "";
-    o0.textContent = "Sin precio";
-    s.appendChild(o0);
-    cfg.precios.forEach((p) => {
-      const o = document.createElement("option");
-      o.value = p.id;
-      o.textContent = p.nombre;
-      s.appendChild(o);
-    });
-    s.value = cfg.precios.some((p) => p.id === sel[zona]) ? sel[zona] : "";
-    fila.append(t, s);
-    pcPreciosForm.appendChild(fila);
+    fila.appendChild(l);
+    const cfg = pcZonaCfg(z, false);
+    if (cfg && cfg.precios.length) {
+      const s = document.createElement("select");
+      s.dataset.zona = z;
+      s.className = "pc-zona-precio";
+      s.setAttribute("aria-label", "Precio en " + z);
+      const o0 = document.createElement("option");
+      o0.value = "";
+      o0.textContent = "Sin precio";
+      s.appendChild(o0);
+      cfg.precios.forEach((p) => {
+        const o = document.createElement("option");
+        o.value = p.id;
+        o.textContent = "💲 " + p.nombre;
+        s.appendChild(o);
+      });
+      s.value = cfg.precios.some((p) => p.id === precios[z]) ? precios[z] : "";
+      s.addEventListener("change", () => { if (s.value) i.checked = true; });
+      i.addEventListener("change", () => { if (!i.checked) s.value = ""; });
+      fila.appendChild(s);
+    }
+    pcZonasCaja.appendChild(fila);
   });
 }
 

@@ -3939,3 +3939,12 @@ body.en-seccion .inicio-tareas { display: none; } /* solo se ve en el menú prin
 }
 .pc-precio-mini:disabled { opacity: 0.35; cursor: default; }
 .pc-precio-mini:hover:not(:disabled) { background: #eef3fb; }
+
+/* Formulario de imagen: cada zona en su fila con su selector de precio */
+#pc-zonas.em-ml-zonas { flex-direction: column; flex-wrap: nowrap; gap: 6px; }
+.pc-zona-fila { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pc-zona-fila .em-ml-zona { flex: none; }
+.pc-zona-precio {
+  flex: 1; min-width: 0; max-width: 240px; padding: 6px 8px; font: inherit; font-size: 0.88rem; color: var(--nb-texto);
+  background: #fff; border: 1px solid var(--nb-borde); border-radius: 10px;
+}
