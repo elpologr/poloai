@@ -2,7 +2,7 @@
 // Sigue los pasos del README para obtener estos valores.
 const CONFIG = {
   // URL de la aplicación web de Apps Script (termina en /exec)
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxjCmUQAc5m-VX6jrGe3UGjGCaOZ-rlHWkp7Nx6m7jGkdvgmSPkLbbdcei8PnmKstvx/exec",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxsjldWkSz3ifRxGbu7QzeJSqRQC96RtcJd2dsiWcdJFVeI6RdM2Y8P80k0AwAGalYE/exec",
   // Debe ser EXACTAMENTE igual al TOKEN de google-apps-script.gs
   TOKEN: "polodulce",
   // Página de los juegos (otro repositorio). La zona «Juegos» la muestra dentro de un marco y ofrece abrirla en otra pestaña.
