@@ -3842,7 +3842,7 @@ body.en-seccion .inicio-tareas { display: none; } /* solo se ve en el menú prin
 
 
 /* ---------- Empresas/Proyectos: zona «Moldes» (botón pequeño arriba de las pestañas) ---------- */
-.em-moldes-barra { margin: 0 0 8px; }
+.em-moldes-barra { margin: 0 0 8px; gap: 8px; flex-wrap: wrap; }
 .em-moldes-cuerpo { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
 .em-moldes-btn { width: 100%; justify-content: center; text-align: center; }
 .em-moldes-principal { padding: 16px 12px; font-size: 1.15rem; font-weight: 800; }
@@ -3850,6 +3850,14 @@ body.en-seccion .inicio-tareas { display: none; } /* solo se ve en el menú prin
 .em-moldes-fila { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .em-moldes-fila .em-moldes-btn { padding: 14px 6px; font-size: 0.9rem; }
 @media (max-width: 480px) { .em-moldes-fila .em-moldes-btn { font-size: 0.76rem; padding: 12px 4px; } }
+/* Zona «Productos Confirmados»: mismos estilos que Moldes (las imágenes reutilizan los estilos .em-ml-*) */
+.em-prod-cuerpo { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+.em-prod-btn { width: 100%; justify-content: center; text-align: center; }
+.em-prod-principal { padding: 16px 12px; font-size: 1.15rem; font-weight: 800; }
+.em-prod-texto { margin: 14px 0 0; font-size: 1rem; font-weight: 700; color: #eaf2fc; text-align: center; }
+.em-prod-fila { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.em-prod-fila .em-prod-btn { padding: 14px 6px; font-size: 0.9rem; }
+@media (max-width: 480px) { .em-prod-fila .em-prod-btn { font-size: 0.76rem; padding: 12px 4px; } }
 
 
 /* ---------- Moldes: imágenes por zona (cuadros del mismo tamaño que los botones del menú: Diario, Bazar, Deudas…) ---------- */

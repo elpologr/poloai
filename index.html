@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=110" />
+  <link rel="stylesheet" href="styles.css?v=111" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1328,6 +1328,7 @@
         <div id="em-contenido">
           <!-- Botón pequeño «Moldes» (como «Cuentas» en el Diario): abre la zona de Moldes (se maneja en app.js) -->
           <div class="di-cuentas-barra em-moldes-barra">
+            <button id="em-prod-abrir" class="btn-cal di-cuentas-btn" type="button">&#9989; Productos Confirmados</button>
             <button id="em-moldes-abrir" class="btn-cal di-cuentas-btn" type="button">&#129513; Moldes</button>
           </div>
           <!-- Botón divisor: cambia de zona dentro de Empresas/Proyectos (lo maneja app.js) -->
@@ -1425,6 +1426,81 @@
           <button id="ml-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
           <button id="ml-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
           <span id="ml-form-estado" class="notas-estado"></span>
+        </div>
+      </div>
+
+      <!-- Zona «Productos Confirmados»: igual que Moldes (un botón principal, quién tiene los productos y los dueños de los productos) -->
+      <div id="em-prod" class="notas-submenu em-prod" hidden>
+        <header class="notas-sub-cabecera">
+          <button id="em-prod-volver" class="notas-btn notas-btn-sec" type="button">&#8249; Volver</button>
+          <h3>&#9989; Productos Confirmados</h3>
+        </header>
+        <div class="notas-sub-cuerpo em-prod-cuerpo">
+          <button id="em-prod-todos" data-lista="todos" class="notas-btn em-prod-btn em-prod-principal" type="button">Todos Los Productos</button>
+          <p class="em-prod-texto">Quien Tiene Los Productos</p>
+          <div class="em-prod-fila">
+            <button class="notas-btn em-prod-btn" type="button" data-grupo="tiene" data-nombre="Productos de Polo" data-lista="tiene-polo">Productos de Polo</button>
+            <button class="notas-btn em-prod-btn" type="button" data-grupo="tiene" data-nombre="Productos de Madre" data-lista="tiene-madre">Productos de Madre</button>
+            <button class="notas-btn em-prod-btn" type="button" data-grupo="tiene" data-nombre="Productos de Fer" data-lista="tiene-fer">Productos de Fer</button>
+          </div>
+          <p class="em-prod-texto">Dueños de Productos</p>
+          <div class="em-prod-fila">
+            <button class="notas-btn em-prod-btn" type="button" data-grupo="duenos" data-nombre="Productos de Polo" data-lista="dueno-polo">Productos de Polo</button>
+            <button class="notas-btn em-prod-btn" type="button" data-grupo="duenos" data-nombre="Productos de Madre" data-lista="dueno-madre">Productos de Madre</button>
+            <button class="notas-btn em-prod-btn" type="button" data-grupo="duenos" data-nombre="Productos de Fer" data-lista="dueno-fer">Productos de Fer</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Imágenes de productos confirmados de uno de los botones (imgbb): una división por zona; una imagen puede estar en varias zonas -->
+      <div id="em-prod-lista" class="notas-submenu em-prod" hidden>
+        <header class="notas-sub-cabecera">
+          <button id="pc-volver" class="notas-btn notas-btn-sec" type="button">&#8249; Volver</button>
+          <h3 id="pc-titulo">Productos Confirmados</h3>
+          <button id="pc-actualizar" class="notas-btn-icono" type="button" title="Volver a leer las imágenes de Google Sheets" aria-label="Actualizar imágenes de productos">&#8635;</button>
+        </header>
+        <div class="notas-sub-cuerpo">
+          <div class="em-ml-barra">
+            <button id="pc-nueva" class="notas-btn" type="button">&#65291; Añadir imagen</button>
+            <span id="pc-estado" class="notas-estado"></span>
+          </div>
+          <div id="pc-secciones" class="em-ml-secciones"></div>
+        </div>
+      </div>
+
+      <!-- Ventana para añadir o editar una imagen de producto confirmado -->
+      <div id="pc-form" class="notas-nueva proy-form modo-editar" hidden>
+        <h3 id="pc-form-titulo" class="notas-form-titulo">Nueva imagen de producto</h3>
+        <div class="proy-form-cuerpo">
+          <div class="proy-imagen-col">
+            <div id="pc-vista" class="proy-vista"></div>
+            <div class="proy-imagen-botones">
+              <button id="pc-elegir-img" class="notas-btn notas-btn-sec" type="button">Elegir imagen</button>
+              <button id="pc-quitar-img" class="notas-btn notas-btn-sec" type="button" hidden>Quitar imagen</button>
+            </div>
+            <input id="pc-archivo" type="file" accept="image/*" hidden />
+            <div class="proy-url-img">
+              <input id="pc-url-img" type="url" inputmode="url" maxlength="2000" autocomplete="off"
+                     placeholder="…o pega aquí el link de la imagen (imgbb)" aria-label="Link de la imagen" />
+              <button id="pc-usar-url" class="notas-btn notas-btn-sec" type="button">Usar link</button>
+            </div>
+          </div>
+          <div class="proy-datos-col">
+            <div class="notas-campo">
+              <span>Zonas donde se mostrará (elige una o varias)</span>
+              <div id="pc-zonas" class="em-ml-zonas" role="group" aria-label="Zonas"></div>
+            </div>
+            <label class="notas-campo">
+              <span>Descripción (opcional)</span>
+              <textarea id="pc-descripcion" rows="3" maxlength="2000" placeholder="Describe el producto…"></textarea>
+            </label>
+          </div>
+        </div>
+        <div class="notas-fila">
+          <button id="pc-guardar" class="notas-btn" type="button">Guardar imagen</button>
+          <button id="pc-cancelar" class="notas-btn notas-btn-sec" type="button">Cancelar</button>
+          <button id="pc-borrar" class="notas-btn proy-btn-borrar" type="button" hidden>Eliminar</button>
+          <span id="pc-form-estado" class="notas-estado"></span>
         </div>
       </div>
 
@@ -1905,7 +1981,7 @@
   </main>
 
   <script src="config.js?v=69"></script>
-  <script src="app.js?v=117"></script>
+  <script src="app.js?v=118"></script>
   <script src="voz.js?v=66"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>

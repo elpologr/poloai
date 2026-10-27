@@ -13316,8 +13316,291 @@ mlEl("ml-volver").addEventListener("click", cerrarListaMl);
 mlEl("ml-actualizar").addEventListener("click", () => { if (sesionVigente()) cargarMoldes(); });
 document.querySelectorAll(".em-moldes-btn[data-lista]").forEach((b) => b.addEventListener("click", () => abrirListaMl(b.dataset.lista)));
 
+// ----- Zona «Productos Confirmados» (botón pequeño arriba de las pestañas de Empresas/Proyectos) -----
+const emProd = document.getElementById("em-prod");
+function abrirProdEm() { if (emProd) emProd.hidden = false; }
+function cerrarProdEm() {
+  try {
+    cerrarFormPc();
+    cerrarListaPc();
+    if (emProd) emProd.hidden = true;
+  } catch (e) {
+    /* la página aún se está armando */
+  }
+}
+(function montarProdEm() {
+  const abrir = document.getElementById("em-prod-abrir");
+  const volver = document.getElementById("em-prod-volver");
+  if (abrir) abrir.addEventListener("click", abrirProdEm);
+  if (volver) volver.addEventListener("click", cerrarProdEm);
+})();
+
+// ----- Imágenes de cada botón de Productos Confirmados (hoja «Productos Confirmados»; las imágenes viven en imgbb) -----
+// Cada imagen guarda: link, descripción, las zonas donde se muestra (una o varias) y el botón donde se añadió.
+// «Todos Los Productos» muestra las imágenes de todos los botones; los demás botones muestran solo las suyas.
+const ZONAS_PROD = ["Figuras", "Religioso", "Bases", "Macetas", "Halloween", "Navidad"];
+const LISTAS_PROD = {
+  "todos": "Todos Los Productos",
+  "tiene-polo": "Quien Tiene Los Productos · Productos de Polo",
+  "tiene-madre": "Quien Tiene Los Productos · Productos de Madre",
+  "tiene-fer": "Quien Tiene Los Productos · Productos de Fer",
+  "dueno-polo": "Dueños de Productos · Productos de Polo",
+  "dueno-madre": "Dueños de Productos · Productos de Madre",
+  "dueno-fer": "Dueños de Productos · Productos de Fer",
+};
+const pcEl = (id) => document.getElementById(id);
+const pcSub = pcEl("em-prod-lista");
+const pcTitulo = pcEl("pc-titulo");
+const pcSecciones = pcEl("pc-secciones");
+const pcEstado = pcEl("pc-estado");
+const pcForm = pcEl("pc-form");
+const pcFormTitulo = pcEl("pc-form-titulo");
+const pcVista = pcEl("pc-vista");
+const pcArchivo = pcEl("pc-archivo");
+const pcElegirImg = pcEl("pc-elegir-img");
+const pcQuitarImg = pcEl("pc-quitar-img");
+const pcUrlImg = pcEl("pc-url-img");
+const pcZonasCaja = pcEl("pc-zonas");
+const pcDescripcion = pcEl("pc-descripcion");
+const pcGuardar = pcEl("pc-guardar");
+const pcBorrar = pcEl("pc-borrar");
+const pcFormEstado = pcEl("pc-form-estado");
+
+let productos = []; // [{ id, imagen, descripcion, zonas: [..], lista }]
+let prodCargados = false;
+let pcLista = ""; // botón abierto (clave de LISTAS_PROD)
+let pcEditando = null; // imagen abierta en la ventana (null = nueva)
+let pcImagenUrl = "";
+let pcImagenNueva = null; // { base64, vista } si se eligió un archivo que aún no se sube
+
+ZONAS_PROD.forEach((z) => {
+  const l = document.createElement("label");
+  l.className = "em-ml-zona";
+  const i = document.createElement("input");
+  i.type = "checkbox";
+  i.value = z;
+  l.append(i, document.createTextNode(z));
+  pcZonasCaja.appendChild(l);
+});
+const pcZonasMarcadas = () => Array.from(pcZonasCaja.querySelectorAll("input:checked")).map((i) => i.value);
+
+function pcVisibles() {
+  const lista = productos.slice().reverse(); // las más recientes primero
+  return pcLista === "todos" ? lista : lista.filter((m) => m.lista === pcLista);
+}
+
+function dibujarProdLista() {
+  pcSecciones.innerHTML = "";
+  if (!pcLista) return;
+  const visibles = pcVisibles();
+  const secciones = ZONAS_PROD.map((z) => ({ nombre: z, items: visibles.filter((m) => m.zonas.includes(z)) }));
+  const sueltas = visibles.filter((m) => !m.zonas.some((z) => ZONAS_PROD.includes(z)));
+  if (sueltas.length) secciones.push({ nombre: "Sin zona", items: sueltas });
+  secciones.forEach((s) => {
+    const div = document.createElement("div");
+    div.className = "bazar-division";
+    div.setAttribute("role", "separator");
+    div.setAttribute("aria-label", s.nombre);
+    div.innerHTML = '<span class="bazar-division-linea" aria-hidden="true"></span><h3 class="bazar-division-titulo"></h3><span class="bazar-division-linea" aria-hidden="true"></span>';
+    div.querySelector("h3").textContent = s.nombre + " (" + s.items.length + ")";
+    pcSecciones.appendChild(div);
+    if (!s.items.length) {
+      const p = document.createElement("p");
+      p.className = "em-ml-vacio";
+      p.textContent = "Aún no hay imágenes en esta zona";
+      pcSecciones.appendChild(p);
+      return;
+    }
+    const grid = document.createElement("div");
+    grid.className = "em-ml-grid";
+    s.items.forEach((m) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "em-ml-tile";
+      b.title = (m.descripcion || "Producto") + " — " + (LISTAS_PROD[m.lista] || "") + " — zonas: " + m.zonas.join(", ");
+      b.setAttribute("aria-label", "Ver o editar este producto (" + m.zonas.join(", ") + ")");
+      if (imagenValida(m.imagen)) {
+        const img = document.createElement("img");
+        img.alt = m.descripcion || "Producto";
+        img.loading = "lazy";
+        img.referrerPolicy = "no-referrer";
+        img.src = m.imagen;
+        b.appendChild(img);
+      }
+      b.addEventListener("click", () => abrirFormPc(m));
+      grid.appendChild(b);
+    });
+    pcSecciones.appendChild(grid);
+  });
+}
+
+async function cargarProductos() {
+  setEstado(pcEstado, "Cargando…");
+  try {
+    const j = await llamarNotas("prodconf_listar");
+    productos = (Array.isArray(j.productos) ? j.productos : []).map((m) => Object.assign({}, m, { zonas: Array.isArray(m.zonas) ? m.zonas : [] }));
+    prodCargados = true;
+    setEstado(pcEstado, "");
+    dibujarProdLista();
+  } catch (e) {
+    setEstado(pcEstado, "Error: " + e.message + " · usa ↻ para reintentar", "error");
+  }
+}
+
+function abrirListaPc(lista) {
+  if (!sesionVigente()) return;
+  pcLista = lista;
+  pcTitulo.textContent = "✅ " + (LISTAS_PROD[lista] || "Productos Confirmados");
+  pcSub.hidden = false;
+  dibujarProdLista();
+  if (!prodCargados) cargarProductos();
+}
+function cerrarListaPc() {
+  cerrarFormPc();
+  if (pcSub) pcSub.hidden = true;
+  pcLista = "";
+}
+
+function pcDibujarVista() {
+  pcVista.innerHTML = "";
+  const src = pcImagenNueva ? pcImagenNueva.vista : pcImagenUrl;
+  if (src && (pcImagenNueva || imagenValida(src))) {
+    const img = document.createElement("img");
+    img.alt = "Imagen del producto";
+    img.referrerPolicy = "no-referrer";
+    img.src = src;
+    pcVista.appendChild(img);
+  } else {
+    pcVista.textContent = "Sin imagen";
+  }
+  pcQuitarImg.hidden = !(pcImagenNueva || pcImagenUrl);
+  pcElegirImg.textContent = pcImagenNueva || pcImagenUrl ? "Cambiar imagen" : "Elegir imagen";
+}
+
+function abrirFormPc(m) {
+  pcEditando = m;
+  pcImagenUrl = m ? m.imagen || "" : "";
+  pcImagenNueva = null;
+  pcFormTitulo.textContent = m ? "Editar imagen de producto" : "Nueva imagen de producto";
+  pcZonasCaja.querySelectorAll("input").forEach((i) => { i.checked = !!m && m.zonas.includes(i.value); });
+  pcDescripcion.value = m ? m.descripcion || "" : "";
+  pcUrlImg.value = "";
+  pcGuardar.textContent = m ? "Guardar cambios" : "Guardar imagen";
+  pcBorrar.hidden = !m;
+  setEstado(pcFormEstado, "");
+  pcDibujarVista();
+  pcForm.hidden = false;
+  pcForm.scrollTop = 0;
+}
+function cerrarFormPc() {
+  if (!pcForm) return;
+  pcForm.hidden = true;
+  pcEditando = null;
+  pcImagenNueva = null;
+  pcImagenUrl = "";
+  pcArchivo.value = "";
+}
+
+pcElegirImg.addEventListener("click", () => pcArchivo.click());
+pcArchivo.addEventListener("change", async () => {
+  const archivo = pcArchivo.files && pcArchivo.files[0];
+  if (!archivo) return;
+  setEstado(pcFormEstado, "Preparando imagen…");
+  try {
+    pcImagenNueva = await leerImagenReducida(archivo);
+    pcDibujarVista();
+    setEstado(pcFormEstado, "");
+  } catch (e) {
+    setEstado(pcFormEstado, "Error: " + e.message, "error");
+  }
+  pcArchivo.value = "";
+});
+// Poner la imagen pegando su link (el «Enlace directo» de imgbb): no se sube nada, solo se usa la dirección
+function pcUsarLink() {
+  const u = pcUrlImg.value.trim();
+  if (!u) { setEstado(pcFormEstado, "Pega primero el link de la imagen", "error"); return false; }
+  if (!imagenValida(u) || u.length > 2000) { setEstado(pcFormEstado, "El link debe empezar con http:// o https://", "error"); return false; }
+  if (/^https?:\/\/(www\.)?ibb\.co\//i.test(u)) {
+    setEstado(pcFormEstado, "Ese es el link de la página de imgbb. Copia el «Enlace directo» (empieza con https://i.ibb.co/…)", "error");
+    return false;
+  }
+  pcImagenUrl = u;
+  pcImagenNueva = null;
+  pcArchivo.value = "";
+  pcUrlImg.value = "";
+  pcDibujarVista();
+  setEstado(pcFormEstado, "");
+  return true;
+}
+pcEl("pc-usar-url").addEventListener("click", pcUsarLink);
+pcUrlImg.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); pcUsarLink(); } });
+pcQuitarImg.addEventListener("click", () => {
+  pcImagenNueva = null;
+  pcImagenUrl = "";
+  pcArchivo.value = "";
+  pcDibujarVista();
+});
+
+async function guardarPc() {
+  if (pcUrlImg.value.trim() && !pcImagenNueva && !pcUsarLink()) return; // link pegado sin tocar «Usar link»
+  if (!pcImagenNueva && !pcImagenUrl) { setEstado(pcFormEstado, "Elige una imagen o pega su link", "error"); return; }
+  const zonas = pcZonasMarcadas();
+  if (!zonas.length) { setEstado(pcFormEstado, "Elige al menos una zona", "error"); return; }
+  pcGuardar.disabled = true;
+  try {
+    if (pcImagenNueva) {
+      setEstado(pcFormEstado, "Subiendo imagen…");
+      const j = await llamarNotas("proyecto_imagen", { imagen: pcImagenNueva.base64 });
+      pcImagenUrl = j.url;
+      pcImagenNueva = null; // si el guardado falla, no se vuelve a subir
+    }
+    setEstado(pcFormEstado, "Guardando…");
+    const datos = { imagen: pcImagenUrl, descripcion: pcDescripcion.value.trim(), zonas, lista: pcEditando ? pcEditando.lista : pcLista };
+    if (pcEditando) {
+      await llamarNotas("prodconf_editar", Object.assign({ id: pcEditando.id }, datos));
+      Object.assign(pcEditando, datos);
+    } else {
+      const nueva = Object.assign({ id: String(Date.now()) }, datos);
+      await llamarNotas("prodconf_agregar", nueva);
+      productos.push(nueva);
+    }
+    cerrarFormPc();
+    dibujarProdLista();
+    setEstado(pcEstado, "Guardado ✓", "ok");
+  } catch (e) {
+    setEstado(pcFormEstado, "Error: " + e.message, "error");
+  } finally {
+    pcGuardar.disabled = false;
+  }
+}
+async function borrarPc() {
+  const m = pcEditando;
+  if (!m || !window.confirm("¿Eliminar esta imagen de productos? (seguirá en imgbb)")) return;
+  pcBorrar.disabled = true;
+  setEstado(pcFormEstado, "Eliminando…");
+  try {
+    await llamarNotas("prodconf_borrar", { id: m.id });
+    productos = productos.filter((x) => x.id !== m.id);
+    cerrarFormPc();
+    dibujarProdLista();
+    setEstado(pcEstado, "Eliminada", "ok");
+  } catch (e) {
+    setEstado(pcFormEstado, "Error: " + e.message, "error");
+  } finally {
+    pcBorrar.disabled = false;
+  }
+}
+pcGuardar.addEventListener("click", guardarPc);
+pcBorrar.addEventListener("click", borrarPc);
+pcEl("pc-cancelar").addEventListener("click", cerrarFormPc);
+pcEl("pc-nueva").addEventListener("click", () => abrirFormPc(null));
+pcEl("pc-volver").addEventListener("click", cerrarListaPc);
+pcEl("pc-actualizar").addEventListener("click", () => { if (sesionVigente()) cargarProductos(); });
+document.querySelectorAll(".em-prod-btn[data-lista]").forEach((b) => b.addEventListener("click", () => abrirListaPc(b.dataset.lista)));
+
 function cerrarEmpresas() {
   cerrarMoldesEm();
+  cerrarProdEm();
   cerrarFormEm();
   cerrarDetalleEm();
   if (emMoviendo) emPonerMover(false);
@@ -13339,8 +13622,11 @@ emBorrar.addEventListener("click", borrarEm);
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || panelEm.hidden) return;
   if (!mlForm.hidden) cerrarFormMl();
+  else if (!pcForm.hidden) cerrarFormPc();
   else if (!mlSub.hidden) cerrarListaMl();
+  else if (!pcSub.hidden) cerrarListaPc();
   else if (emMoldes && !emMoldes.hidden) cerrarMoldesEm();
+  else if (emProd && !emProd.hidden) cerrarProdEm();
   else if (!npForm.hidden) cerrarFormNp();
   else if (!npPag.hidden) cerrarConfigNp();
   else if (!nvPag.hidden) cerrarNotasProy();
