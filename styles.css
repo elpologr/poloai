@@ -3850,14 +3850,31 @@ body.en-seccion .inicio-tareas { display: none; } /* solo se ve en el menú prin
 .em-moldes-fila { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .em-moldes-fila .em-moldes-btn { padding: 14px 6px; font-size: 0.9rem; }
 @media (max-width: 480px) { .em-moldes-fila .em-moldes-btn { font-size: 0.76rem; padding: 12px 4px; } }
-/* Zona «Productos Confirmados»: mismos estilos que Moldes (las imágenes reutilizan los estilos .em-ml-*) */
+/* Zona «Productos Confirmados»: 3 botones cuadrados (tan altos como anchos) con miniatura opcional de imgbb */
 .em-prod-cuerpo { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
-.em-prod-btn { width: 100%; justify-content: center; text-align: center; }
-.em-prod-principal { padding: 16px 12px; font-size: 1.15rem; font-weight: 800; }
-.em-prod-texto { margin: 14px 0 0; font-size: 1rem; font-weight: 700; color: #eaf2fc; text-align: center; }
 .em-prod-fila { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.em-prod-fila .em-prod-btn { padding: 14px 6px; font-size: 0.9rem; }
-@media (max-width: 480px) { .em-prod-fila .em-prod-btn { font-size: 0.76rem; padding: 12px 4px; } }
+.em-prod-caja { position: relative; aspect-ratio: 1 / 1; min-width: 0; }
+.em-prod-btn {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%; padding: 0; overflow: hidden; text-align: center; border-radius: 18px;
+  background-size: cover; background-position: center; background-repeat: no-repeat;
+}
+.em-prod-etiqueta {
+  display: block; width: 100%; padding: 6px; box-sizing: border-box; font-size: 0.9rem; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere;
+}
+.em-prod-btn.con-miniatura { align-items: flex-end; }
+.em-prod-btn.con-miniatura .em-prod-etiqueta {
+  color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85); padding: 18px 4px 6px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0));
+}
+.em-prod-miniatura-btn {
+  position: absolute; top: 6px; right: 6px; z-index: 2; width: 28px; height: 28px; padding: 0;
+  display: grid; place-items: center; font-size: 0.85rem; line-height: 1; color: #1b2a4e; cursor: pointer;
+  background: rgba(255, 255, 255, 0.92); border: 1px solid rgba(0, 0, 0, 0.2); border-radius: 50%; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.em-prod-miniatura-btn:hover { background: #fff; }
+@media (max-width: 600px) { .em-prod-btn { border-radius: 14px; } .em-prod-etiqueta { font-size: 0.78rem; } }
+@media (max-width: 420px) { .em-prod-btn { border-radius: 12px; } .em-prod-etiqueta { font-size: 0.7rem; } .em-prod-miniatura-btn { width: 24px; height: 24px; top: 4px; right: 4px; } }
 
 
 /* ---------- Moldes: imágenes por zona (cuadros del mismo tamaño que los botones del menú: Diario, Bazar, Deudas…) ---------- */

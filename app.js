@@ -13598,6 +13598,53 @@ pcEl("pc-volver").addEventListener("click", cerrarListaPc);
 pcEl("pc-actualizar").addEventListener("click", () => { if (sesionVigente()) cargarProductos(); });
 document.querySelectorAll(".em-prod-btn[data-lista]").forEach((b) => b.addEventListener("click", () => abrirListaPc(b.dataset.lista)));
 
+// ----- Miniaturas de los 3 botones de Productos Confirmados (link de imgbb; se guardan en este dispositivo) -----
+const PC_CLAVE_MINIATURAS = "polo-prod-miniaturas";
+function pcLeerMiniaturas() {
+  try {
+    const m = JSON.parse(localStorage.getItem(PC_CLAVE_MINIATURAS) || "{}");
+    return m && typeof m === "object" ? m : {};
+  } catch (e) {
+    return {};
+  }
+}
+function pcAplicarMiniaturas() {
+  const m = pcLeerMiniaturas();
+  document.querySelectorAll(".em-prod-btn[data-lista]").forEach((b) => {
+    const url = m[b.dataset.lista];
+    if (url && imagenValida(url)) {
+      b.style.backgroundImage = 'url("' + url.replace(/["\\\s]/g, encodeURIComponent) + '")';
+      b.classList.add("con-miniatura");
+    } else {
+      b.style.backgroundImage = "";
+      b.classList.remove("con-miniatura");
+    }
+  });
+}
+function pcEditarMiniatura(lista) {
+  const m = pcLeerMiniaturas();
+  const r = window.prompt("Pega el «Enlace directo» de la imagen de imgbb (empieza con https://i.ibb.co/…).\nDéjalo vacío para quitar la miniatura.", m[lista] || "");
+  if (r === null) return; // canceló
+  const u = r.trim();
+  if (u) {
+    if (/^https?:\/\/(www\.)?ibb\.co\//i.test(u)) {
+      window.alert("Ese es el link de la página de imgbb. Copia el «Enlace directo» (empieza con https://i.ibb.co/…)");
+      return;
+    }
+    if (!imagenValida(u) || u.length > 2000) {
+      window.alert("El link debe empezar con http:// o https://");
+      return;
+    }
+    m[lista] = u;
+  } else {
+    delete m[lista];
+  }
+  try { localStorage.setItem(PC_CLAVE_MINIATURAS, JSON.stringify(m)); } catch (e) {}
+  pcAplicarMiniaturas();
+}
+document.querySelectorAll(".em-prod-miniatura-btn[data-miniatura]").forEach((b) => b.addEventListener("click", () => pcEditarMiniatura(b.dataset.miniatura)));
+pcAplicarMiniaturas();
+
 function cerrarEmpresas() {
   cerrarMoldesEm();
   cerrarProdEm();

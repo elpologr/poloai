@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://script.google.com" />
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <title>Polo AI</title>
-  <link rel="stylesheet" href="styles.css?v=111" />
+  <link rel="stylesheet" href="styles.css?v=112" />
 </head>
 <body>
   <!-- Botón de tres rayas (esquina superior izquierda) -->
@@ -1429,25 +1429,27 @@
         </div>
       </div>
 
-      <!-- Zona «Productos Confirmados»: igual que Moldes (un botón principal, quién tiene los productos y los dueños de los productos) -->
+      <!-- Zona «Productos Confirmados»: 3 botones cuadrados (Polo, Madre y Fer), cada uno con miniatura opcional -->
       <div id="em-prod" class="notas-submenu em-prod" hidden>
         <header class="notas-sub-cabecera">
           <button id="em-prod-volver" class="notas-btn notas-btn-sec" type="button">&#8249; Volver</button>
           <h3>&#9989; Productos Confirmados</h3>
         </header>
         <div class="notas-sub-cuerpo em-prod-cuerpo">
-          <button id="em-prod-todos" data-lista="todos" class="notas-btn em-prod-btn em-prod-principal" type="button">Todos Los Productos</button>
-          <p class="em-prod-texto">Quien Tiene Los Productos</p>
+          <!-- 3 botones cuadrados; cada uno puede tener una miniatura (link de imgbb) con el lápiz de su esquina (lo maneja app.js) -->
           <div class="em-prod-fila">
-            <button class="notas-btn em-prod-btn" type="button" data-grupo="tiene" data-nombre="Productos de Polo" data-lista="tiene-polo">Productos de Polo</button>
-            <button class="notas-btn em-prod-btn" type="button" data-grupo="tiene" data-nombre="Productos de Madre" data-lista="tiene-madre">Productos de Madre</button>
-            <button class="notas-btn em-prod-btn" type="button" data-grupo="tiene" data-nombre="Productos de Fer" data-lista="tiene-fer">Productos de Fer</button>
-          </div>
-          <p class="em-prod-texto">Dueños de Productos</p>
-          <div class="em-prod-fila">
-            <button class="notas-btn em-prod-btn" type="button" data-grupo="duenos" data-nombre="Productos de Polo" data-lista="dueno-polo">Productos de Polo</button>
-            <button class="notas-btn em-prod-btn" type="button" data-grupo="duenos" data-nombre="Productos de Madre" data-lista="dueno-madre">Productos de Madre</button>
-            <button class="notas-btn em-prod-btn" type="button" data-grupo="duenos" data-nombre="Productos de Fer" data-lista="dueno-fer">Productos de Fer</button>
+            <div class="em-prod-caja">
+              <button class="notas-btn em-prod-btn" type="button" data-grupo="tiene" data-nombre="Productos de Polo" data-lista="tiene-polo"><span class="em-prod-etiqueta">Productos de Polo</span></button>
+              <button class="em-prod-miniatura-btn" type="button" data-miniatura="tiene-polo" title="Poner o cambiar la miniatura" aria-label="Miniatura de Productos de Polo">&#9998;</button>
+            </div>
+            <div class="em-prod-caja">
+              <button class="notas-btn em-prod-btn" type="button" data-grupo="tiene" data-nombre="Productos de Madre" data-lista="tiene-madre"><span class="em-prod-etiqueta">Productos de Madre</span></button>
+              <button class="em-prod-miniatura-btn" type="button" data-miniatura="tiene-madre" title="Poner o cambiar la miniatura" aria-label="Miniatura de Productos de Madre">&#9998;</button>
+            </div>
+            <div class="em-prod-caja">
+              <button class="notas-btn em-prod-btn" type="button" data-grupo="tiene" data-nombre="Productos de Fer" data-lista="tiene-fer"><span class="em-prod-etiqueta">Productos de Fer</span></button>
+              <button class="em-prod-miniatura-btn" type="button" data-miniatura="tiene-fer" title="Poner o cambiar la miniatura" aria-label="Miniatura de Productos de Fer">&#9998;</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1981,7 +1983,7 @@
   </main>
 
   <script src="config.js?v=69"></script>
-  <script src="app.js?v=118"></script>
+  <script src="app.js?v=119"></script>
   <script src="voz.js?v=66"></script>
   <script type="module" src="firebase.js?v=64"></script>
 </body>
