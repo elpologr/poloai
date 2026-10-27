@@ -3863,6 +3863,9 @@ body.en-seccion .inicio-tareas { display: none; } /* solo se ve en el menú prin
   display: block; width: 100%; padding: 6px; box-sizing: border-box; font-size: 0.9rem; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere;
 }
 .em-prod-btn.con-miniatura { align-items: flex-end; }
+/* Al pasar el mouse, «.notas-btn:hover» reiniciaba el fondo (tamaño y posición) y la miniatura se veía ampliada: aquí se conserva igual */
+.em-prod-btn:hover:not(:disabled) { background-size: cover; background-position: center; background-repeat: no-repeat; }
+.em-prod-btn.con-miniatura:hover:not(:disabled) { background-color: transparent; }
 .em-prod-btn.con-miniatura .em-prod-etiqueta {
   color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85); padding: 18px 4px 6px;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0));
