@@ -4,7 +4,7 @@
 // 2) Las actualizaciones se revisan en segundo plano (la página lo pide unos segundos después de abrir). Si hay una versión
 //    nueva, se guarda COMPLETA de una sola vez (nunca a medias) y la página avisa «Hay una versión nueva» para recargar.
 // 3) «sin-internet.html» queda solo como último recurso (si nunca se abrió la app con internet en este dispositivo).
-const CACHE = "polo-app-v5";
+const CACHE = "polo-app-v6";
 const PAGINA_OFFLINE = "sin-internet.html";
 const LIMITE_RED = 15000; // ms máximos por archivo al revisar actualizaciones en segundo plano
 
