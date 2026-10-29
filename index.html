@@ -198,6 +198,16 @@
         <div id="gal-contenido">
           <!-- Filtro por etiqueta -->
           <div id="gal-filtros" class="gal-filtros" role="group" aria-label="Filtrar por etiqueta"></div>
+          <!-- Subir varias imágenes de una vez (hasta 50 por tanda), todas con la misma etiqueta -->
+          <div class="gal-lote">
+            <label class="gal-lote-etiqueta">
+              <span>Etiqueta:</span>
+              <select id="gal-etiqueta-lote" aria-label="Etiqueta para las imágenes que subas"></select>
+            </label>
+            <button id="gal-subir-varias" class="notas-btn notas-btn-sec" type="button">&#128444;&#65039; Subir varias (hasta 50)</button>
+            <input id="gal-archivo-varias" type="file" accept="image/*" multiple hidden />
+          </div>
+          <div id="gal-lote-barra" class="gal-lote-barra" hidden><div id="gal-lote-relleno" class="gal-lote-relleno"></div></div>
           <p id="gal-estado-lista" class="notas-estado proy-estado-lista"></p>
           <!-- Cuadrícula de recuadros 1:1 (el primero sirve para agregar una imagen) -->
           <div id="gal-grid" class="proy-grid"></div>

@@ -2840,11 +2840,19 @@ let galImagenUrl = ""; // imagen actual (URL de imgbb)
 let galImagenNueva = null; // { base64, vista } cuando se eligió una imagen que aún no se sube
 let galFiltro = "Todas";
 
+const galEtiquetaLote = document.getElementById("gal-etiqueta-lote");
+const galSubirVarias = document.getElementById("gal-subir-varias");
+const galArchivoVarias = document.getElementById("gal-archivo-varias");
+const galLoteBarra = document.getElementById("gal-lote-barra");
+const galLoteRelleno = document.getElementById("gal-lote-relleno");
+
 ETIQUETAS_GALERIA.forEach((e) => {
-  const op = document.createElement("option");
-  op.value = e;
-  op.textContent = e;
-  galEtiqueta.appendChild(op);
+  [galEtiqueta, galEtiquetaLote].forEach((sel) => {
+    const op = document.createElement("option");
+    op.value = e;
+    op.textContent = e;
+    sel.appendChild(op);
+  });
 });
 
 // Las más recientes (las últimas de la hoja) primero, y solo las de la etiqueta elegida
@@ -2954,6 +2962,136 @@ async function alElegirImagenGaleria(entrada) {
 }
 galArchivo.addEventListener("change", () => alElegirImagenGaleria(galArchivo));
 galArchivoCamara.addEventListener("change", () => alElegirImagenGaleria(galArchivoCamara));
+
+// ----- Subir varias imágenes de una vez -----
+// Cada imagen se reduce en el navegador, se sube a imgbb (vía Apps Script) y se guarda como fila de la galería.
+// Se hacen pocas a la vez (GAL_SIMULTANEAS) para no saturar imgbb ni el Apps Script, y cada paso se reintenta si falla.
+const GAL_MAX_LOTE = 50; // máximo de imágenes por tanda
+const GAL_SIMULTANEAS = 3; // subidas al mismo tiempo
+const GAL_INTENTOS = 3; // intentos por imagen antes de darla por fallida
+let galSubiendoLote = false;
+
+function galEsperar(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+// Los errores de sesión o de datos no se arreglan reintentando
+function galErrorFatal(e) {
+  return /inicia sesi|configurar|sesi[oó]n/i.test(String((e && e.message) || e));
+}
+
+async function galConReintentos(accion, extra, intentos) {
+  let ultimo;
+  for (let n = 1; n <= intentos; n++) {
+    try {
+      return await llamarNotas(accion, extra);
+    } catch (e) {
+      ultimo = e;
+      if (galErrorFatal(e) || n === intentos) break;
+      await galEsperar(1500 * n);
+    }
+  }
+  throw ultimo;
+}
+
+function galAvisarSalida(e) {
+  e.preventDefault();
+  e.returnValue = "";
+}
+
+async function subirLoteGaleria(lista) {
+  if (galSubiendoLote) return;
+  let archivos = Array.from(lista || []).filter((f) => /^image\//i.test(f.type) || /\.(jpe?g|png|gif|webp|bmp|heic|heif|avif)$/i.test(f.name));
+  if (!archivos.length) {
+    setEstado(galEstadoLista, "No se eligió ninguna imagen", "error");
+    return;
+  }
+  let recortadas = 0;
+  if (archivos.length > GAL_MAX_LOTE) {
+    recortadas = archivos.length - GAL_MAX_LOTE;
+    archivos = archivos.slice(0, GAL_MAX_LOTE);
+  }
+  const total = archivos.length;
+  const etiqueta = galEtiquetaLote.value || "General";
+  const base = Date.now(); // ids únicos: base + posición (10-16 dígitos, como pide el Apps Script)
+  const fallidas = [];
+  let hechas = 0; // terminadas (bien o mal)
+  let subidas = 0;
+  let siguiente = 0;
+  let abortar = "";
+
+  galSubiendoLote = true;
+  galSubirVarias.disabled = true;
+  galEtiquetaLote.disabled = true;
+  galLoteBarra.hidden = false;
+  galLoteRelleno.style.width = "0";
+  window.addEventListener("beforeunload", galAvisarSalida);
+
+  const mostrar = () => {
+    const err = fallidas.length ? " · " + fallidas.length + " con error" : "";
+    setEstado(galEstadoLista, "Subiendo " + Math.min(hechas + 1, total) + " de " + total + "…" + err + " (no cierres la página)");
+    galLoteRelleno.style.width = Math.round((hechas / total) * 100) + "%";
+  };
+  mostrar();
+
+  async function trabajador() {
+    while (!abortar) {
+      const i = siguiente++;
+      if (i >= total) return;
+      const archivo = archivos[i];
+      try {
+        const reducida = await leerImagenReducida(archivo);
+        const j = await galConReintentos("proyecto_imagen", { imagen: reducida.base64 }, GAL_INTENTOS);
+        const nueva = { id: String(base + i), imagen: j.url, descripcion: "", etiqueta };
+        await galConReintentos("galeria_agregar", nueva, 2);
+        galeria.push(nueva);
+        subidas++;
+      } catch (e) {
+        if (galErrorFatal(e)) abortar = e.message || "Error de sesión";
+        else fallidas.push(archivo.name || "imagen " + (i + 1));
+      }
+      hechas++;
+      mostrar();
+      if (subidas && subidas % 5 === 0) dibujarGaleria();
+    }
+  }
+
+  try {
+    await Promise.all(Array.from({ length: Math.min(GAL_SIMULTANEAS, total) }, trabajador));
+  } finally {
+    window.removeEventListener("beforeunload", galAvisarSalida);
+    galSubiendoLote = false;
+    galSubirVarias.disabled = false;
+    galEtiquetaLote.disabled = false;
+    galLoteBarra.hidden = true;
+    galArchivoVarias.value = "";
+    if (galFiltro !== "Todas" && galFiltro !== etiqueta) galFiltro = etiqueta; // para que se vean las recién subidas
+    dibujarGaleria();
+  }
+
+  let msg = "";
+  let tipo = "ok";
+  if (abortar) {
+    msg = "Se detuvo: " + abortar + ". Subidas: " + subidas + " de " + total + ".";
+    tipo = "error";
+  } else {
+    msg = "Listo: " + subidas + " de " + total + " imágenes subidas ✓";
+    if (fallidas.length) {
+      msg += ". No se pudieron subir (" + fallidas.length + "): " + fallidas.slice(0, 8).join(", ") + (fallidas.length > 8 ? "…" : "") + ". Vuelve a elegirlas para reintentar.";
+      tipo = "error";
+    }
+  }
+  if (recortadas) msg += " Solo se tomaron las primeras " + GAL_MAX_LOTE + "; faltan " + recortadas + " por subir (elígelas en otra tanda).";
+  setEstado(galEstadoLista, msg, tipo);
+}
+
+galSubirVarias.addEventListener("click", () => {
+  if (galSubiendoLote) return;
+  // La etiqueta del filtro activo se preselecciona (igual que al agregar una sola imagen)
+  if (ETIQUETAS_GALERIA.includes(galFiltro)) galEtiquetaLote.value = galFiltro;
+  galArchivoVarias.click();
+});
+galArchivoVarias.addEventListener("change", () => subirLoteGaleria(galArchivoVarias.files));
 
 function abrirFormGaleria(g) {
   galeriaEditando = g;

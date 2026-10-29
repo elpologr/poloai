@@ -3950,3 +3950,10 @@ body.en-seccion .inicio-tareas { display: none; } /* solo se ve en el menú prin
 }
 .pc-precio-cuenta { flex: none; min-width: 30px; font-size: 0.82rem; color: var(--nb-suave); text-align: right; }
 .pc-precio-editor-fila.quitada input { opacity: 0.45; text-decoration: line-through; }
+
+/* Galería: subir varias imágenes a la vez */
+.gal-lote { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 10px; }
+.gal-lote-etiqueta { display: inline-flex; align-items: center; gap: 6px; font-size: 0.95rem; }
+.gal-lote-etiqueta select { padding: 6px 8px; border-radius: 8px; border: 1px solid rgba(0, 0, 0, 0.25); font: inherit; }
+.gal-lote-barra { height: 8px; margin-top: 8px; border-radius: 99px; background: rgba(0, 0, 0, 0.12); overflow: hidden; }
+.gal-lote-relleno { width: 0; height: 100%; border-radius: 99px; background: var(--nb-acento); transition: width 0.25s; }
