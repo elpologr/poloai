@@ -2941,14 +2941,22 @@ function dibujarVistaGaleria() {
   } else {
     galVista.textContent = "Sin imagen";
   }
-  galElegirImg.textContent = galImagenNueva || galImagenUrl ? "Cambiar imagen" : "Elegir imagen";
+  galElegirImg.textContent = galImagenNueva || galImagenUrl ? "Cambiar imagen" : galeriaEditando ? "Elegir imagen" : "Elegir imagen(es)";
 }
 
 galElegirImg.addEventListener("click", () => galArchivo.click());
 galTomarFoto.addEventListener("click", () => galArchivoCamara.click());
 // Sirve igual para la imagen elegida del teléfono y para la foto tomada con la cámara
 async function alElegirImagenGaleria(entrada) {
-  const archivo = entrada.files && entrada.files[0];
+  const elegidas = Array.from(entrada.files || []);
+  // Al agregar (no al editar) se pueden elegir varias imágenes: se suben todas en tanda con la etiqueta elegida en el formulario
+  if (!galeriaEditando && elegidas.length > 1) {
+    galEtiquetaLote.value = galEtiqueta.value || "General";
+    cerrarFormGaleria();
+    subirLoteGaleria(elegidas).finally(() => { entrada.value = ""; });
+    return;
+  }
+  const archivo = elegidas[0];
   if (!archivo) return;
   setEstado(galEstado, "Preparando imagen…");
   try {
@@ -3098,6 +3106,8 @@ function abrirFormGaleria(g) {
   galImagenUrl = g ? g.imagen || "" : "";
   galImagenNueva = null;
   galFormTitulo.textContent = g ? "Editar imagen" : "Nueva imagen";
+  galArchivo.multiple = !g; // al agregar se pueden elegir varias a la vez
+  galElegirImg.textContent = g ? "Elegir imagen" : "Elegir imagen(es)";
   // Al agregar, se preselecciona la etiqueta del filtro activo
   const sugerida = g ? g.etiqueta : galFiltro;
   galEtiqueta.value = ETIQUETAS_GALERIA.includes(sugerida) ? sugerida : "General";
