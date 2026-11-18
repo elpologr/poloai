@@ -861,9 +861,231 @@
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !modal.hidden) cerrar(); });
   }
 
+  // ======================================================================
+  //  IDENTIFICAR CANCIONES (botón 🎵, como Shazam)
+  // ======================================================================
+  // Graba unos segundos con el micrófono, manda el audio al Apps Script (acción «cancion_identificar»)
+  // y este lo reconoce con AudD. La clave de AudD vive solo en el Apps Script.
+  function montarIdentificador() {
+    const DURACION_MS = 12000; // lo que dura la grabación
+    const MINIMO_MS = 3000;    // menos que esto no alcanza para reconocer
+    const el = (tag, clase, texto) => {
+      const e = document.createElement(tag);
+      if (clase) e.className = clase;
+      if (texto != null) e.textContent = texto;
+      return e;
+    };
+
+    const fab = el("button", "pv-fab pv-fab-cancion", "🎵");
+    fab.type = "button";
+    fab.title = "Identificar una canción (como Shazam)";
+    fab.setAttribute("aria-label", "Identificar una canción");
+    document.body.appendChild(fab);
+
+    const modal = el("div", "pv-modal");
+    modal.hidden = true;
+    modal.innerHTML = `
+      <div class="pv-caja" role="dialog" aria-modal="true" aria-labelledby="pc-titulo">
+        <div class="pv-cab">
+          <h3 id="pc-titulo" class="pv-titulo">🎵 Identificar canción</h3>
+          <button type="button" class="pv-cerrar" aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="pv-sin-sesion" hidden>
+          <p>Inicia sesión con tu cuenta de Google para identificar canciones.</p>
+          <button type="button" class="pv-btn pc-ir-login">Iniciar sesión</button>
+        </div>
+        <div class="pc-contenido">
+          <p class="pv-ayuda">Acerca el micrófono a la música y pulsa «Escuchar». Se graban unos 12 segundos
+            (puedes detener antes, pero mínimo 3).</p>
+          <div class="pc-barra" hidden><div class="pc-barra-relleno"></div></div>
+          <div class="pv-fila">
+            <button type="button" class="pv-btn pc-escuchar">🎧 Escuchar</button>
+            <span class="pv-estado" aria-live="polite"></span>
+          </div>
+          <div class="pc-resultado" hidden>
+            <p class="pc-titulo-cancion"></p>
+            <p class="pc-artista"></p>
+            <p class="pc-detalle"></p>
+            <div class="pc-enlaces"></div>
+            <div class="pv-fila">
+              <button type="button" class="pv-btn pv-sec pc-copiar">📋 Copiar nombre</button>
+              <button type="button" class="pv-btn pv-sec pc-otra">Identificar otra</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    const q = (s) => modal.querySelector(s);
+    const sinSesion = q(".pv-sin-sesion"), contenido = q(".pc-contenido");
+    const btn = q(".pc-escuchar"), estado = q(".pv-estado");
+    const barra = q(".pc-barra"), relleno = q(".pc-barra-relleno");
+    const resultado = q(".pc-resultado"), enlaces = q(".pc-enlaces");
+
+    let grabador = null, flujo = null, reloj = null, inicio = 0, trozos = [], ocupado = false, ultima = "";
+
+    function decir(msg, tipo) {
+      estado.textContent = msg || "";
+      estado.className = "pv-estado" + (tipo ? " " + tipo : "");
+    }
+
+    function liberar() {
+      if (reloj) { clearInterval(reloj); reloj = null; }
+      if (flujo) { flujo.getTracks().forEach((t) => t.stop()); flujo = null; }
+      grabador = null;
+      barra.hidden = true;
+      relleno.style.width = "0";
+      fab.classList.remove("escuchando");
+      btn.classList.remove("escuchando");
+      btn.textContent = "🎧 Escuchar";
+    }
+
+    function aBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result).split(",")[1] || "");
+        fr.onerror = () => reject(new Error("No se pudo leer la grabación"));
+        fr.readAsDataURL(blob);
+      });
+    }
+
+    function enlace(texto, url) {
+      if (!/^https?:\/\/\S+$/i.test(String(url || ""))) return;
+      const a = el("a", "pv-btn pv-sec pc-enlace", texto);
+      a.href = url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      enlaces.appendChild(a);
+    }
+
+    function mostrar(j) {
+      const c = j && j.cancion;
+      if (!j || !j.encontrada || !c) {
+        decir("No la reconocí. Acércate más a la música, sube el volumen y vuelve a intentar.", "error");
+        return;
+      }
+      decir("");
+      ultima = (c.artista ? c.artista + " - " : "") + c.titulo;
+      q(".pc-titulo-cancion").textContent = c.titulo || "";
+      q(".pc-artista").textContent = c.artista || "";
+      q(".pc-detalle").textContent = [c.album, c.fecha].filter(Boolean).join(" · ");
+      enlaces.innerHTML = "";
+      enlace("▶ Spotify", c.spotify);
+      enlace("🍎 Apple Music", c.apple);
+      enlace("▶ YouTube", "https://www.youtube.com/results?search_query=" + encodeURIComponent(ultima));
+      enlace("🔗 Más enlaces", c.enlace);
+      resultado.hidden = false;
+    }
+
+    async function procesar(tipo, duracion) {
+      const blob = new Blob(trozos, { type: tipo });
+      trozos = [];
+      liberar();
+      if (duracion < MINIMO_MS || blob.size < 2000) {
+        decir("La grabación fue muy corta. Pulsa «Escuchar» y espera unos segundos.", "error");
+        return;
+      }
+      ocupado = true;
+      btn.disabled = true;
+      decir("Buscando la canción…");
+      try {
+        const audio = await aBase64(blob);
+        const j = await llamarNotas("cancion_identificar", { audio, mime: tipo.split(";")[0] });
+        mostrar(j);
+      } catch (e) {
+        decir("Error: " + (e && e.message ? e.message : e), "error");
+      } finally {
+        ocupado = false;
+        btn.disabled = false;
+      }
+    }
+
+    async function escuchar() {
+      if (ocupado) return;
+      if (grabador) { // segundo toque: detener y buscar con lo grabado
+        try { grabador.stop(); } catch (e) { liberar(); }
+        return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+        decir("Este navegador no permite grabar audio.", "error");
+        return;
+      }
+      resultado.hidden = true;
+      decir("Pidiendo acceso al micrófono…");
+      try {
+        // Sin filtros de voz: la música se reconoce mejor sin cancelación de eco ni supresión de ruido
+        flujo = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+        });
+      } catch (e) {
+        const negado = e && (e.name === "NotAllowedError" || e.name === "SecurityError");
+        decir(negado ? "El navegador no dio permiso al micrófono. Actívalo en los permisos del sitio." : "No pude usar el micrófono.", "error");
+        return;
+      }
+      const tipo = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm", "audio/ogg;codecs=opus"]
+        .find((t) => window.MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || "";
+      try {
+        grabador = tipo ? new MediaRecorder(flujo, { mimeType: tipo }) : new MediaRecorder(flujo);
+      } catch (e) {
+        liberar();
+        decir("No se pudo iniciar la grabación.", "error");
+        return;
+      }
+      const tipoFinal = grabador.mimeType || tipo || "audio/webm";
+      const rec = grabador;
+      trozos = [];
+      rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) trozos.push(ev.data); };
+      rec.onstop = () => { if (grabador === rec) procesar(tipoFinal, Date.now() - inicio); };
+      rec.start();
+      inicio = Date.now();
+      fab.classList.add("escuchando");
+      btn.classList.add("escuchando");
+      btn.textContent = "⏹ Detener y buscar";
+      barra.hidden = false;
+      decir("Escuchando… deja sonar la música");
+      reloj = setInterval(() => {
+        const t = Date.now() - inicio;
+        relleno.style.width = Math.min(100, Math.round((t / DURACION_MS) * 100)) + "%";
+        if (t >= DURACION_MS && grabador === rec) { try { rec.stop(); } catch (e) { liberar(); } }
+      }, 100);
+    }
+
+    function actualizarSesion() {
+      const dentro = typeof sesionVigente === "function" ? sesionVigente() : false;
+      sinSesion.hidden = dentro;
+      contenido.hidden = !dentro;
+    }
+    function abrir() {
+      actualizarSesion();
+      modal.hidden = false;
+    }
+    function cerrar() {
+      if (grabador) { grabador.onstop = null; try { grabador.stop(); } catch (e) { /* ya estaba detenido */ } }
+      trozos = [];
+      liberar();
+      modal.hidden = true;
+    }
+
+    btn.addEventListener("click", escuchar);
+    q(".pc-otra").addEventListener("click", () => { resultado.hidden = true; decir(""); escuchar(); });
+    q(".pc-copiar").addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(ultima); decir("Copiado ✓", "ok"); }
+      catch (e) { decir("No se pudo copiar: " + ultima); }
+    });
+    fab.addEventListener("click", abrir);
+    q(".pv-cerrar").addEventListener("click", cerrar);
+    q(".pc-ir-login").addEventListener("click", () => {
+      cerrar();
+      if (typeof abrirLateral === "function") abrirLateral();
+    });
+    modal.addEventListener("click", (e) => { if (e.target === modal) cerrar(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !modal.hidden) cerrar(); });
+  }
+
   if (typeof document !== "undefined") {
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", montarInterfaz);
-    else montarInterfaz();
+    const montar = () => { montarInterfaz(); montarIdentificador(); };
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", montar);
+    else montar();
   }
   // Para probar el intérprete fuera del navegador (node)
   if (typeof module === "object" && module.exports) module.exports = { interpretar, textoConFecha, norm, esPregunta, buscarCuentas };

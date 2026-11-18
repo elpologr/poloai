@@ -2649,6 +2649,30 @@ button.em-red { width: 100%; font: inherit; text-align: left; cursor: pointer; }
 .aviso-flotante.error { color: #a50e0e; background: #fce8e6; border-color: #f5b5b0; }
 .aviso-flotante[hidden] { display: none; }
 
+/* ---------- Insignia «N notas sin subir» (notas hechas sin internet) ---------- */
+.pend-insignia {
+  position: fixed; left: 12px; bottom: 16px; z-index: 190; padding: 8px 14px; font: inherit; font-size: 0.85rem; font-weight: 700;
+  color: #5b3a00; background: #fff3cd; border: 1px solid #f0d58a; border-radius: 999px; cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+}
+.pend-insignia.error { color: #a50e0e; background: #fce8e6; border-color: #f5b5b0; }
+.pend-insignia[hidden] { display: none; }
+.pend-panel {
+  position: fixed; left: 12px; bottom: 60px; z-index: 191; width: min(360px, calc(100vw - 24px)); max-height: 55vh; overflow: auto;
+  padding: 12px 14px; color: #2a2140; background: #fff; border: 1px solid #d9d2ee; border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+.pend-panel[hidden] { display: none; }
+.pend-estado { margin: 6px 0 8px; font-size: 0.85rem; line-height: 1.35; color: #5a5075; }
+.pend-lista { margin: 0 0 10px; padding-left: 18px; font-size: 0.88rem; }
+.pend-lista li { margin-bottom: 4px; overflow-wrap: anywhere; }
+.pend-error { display: block; color: #a50e0e; }
+.pend-botones { display: flex; gap: 8px; }
+.pend-botones button {
+  flex: 1; padding: 8px 10px; font: inherit; font-size: 0.85rem; font-weight: 700; color: #fff; background: #4a2685;
+  border: 0; border-radius: 8px; cursor: pointer;
+}
+.pend-botones .pend-cerrar { color: #4a2685; background: #ece6f8; }
+
 /* ---------- Reproductor de YouTube dentro de la hoja ---------- */
 .em-hoja-video-fondo { z-index: 20; background: rgba(0, 0, 0, 0.7); }
 .em-hoja-video-caja {
@@ -3957,3 +3981,22 @@ body.en-seccion .inicio-tareas { display: none; } /* solo se ve en el menú prin
 .gal-lote-etiqueta select { padding: 6px 8px; border-radius: 8px; border: 1px solid rgba(0, 0, 0, 0.25); font: inherit; }
 .gal-lote-barra { height: 8px; margin-top: 8px; border-radius: 99px; background: rgba(0, 0, 0, 0.12); overflow: hidden; }
 .gal-lote-relleno { width: 0; height: 100%; border-radius: 99px; background: var(--nb-acento); transition: width 0.25s; }
+
+/* ---------- Identificar canciones (botón 🎵 y su ventana) ---------- */
+.pv-fab.pv-fab-cancion {
+  right: 22px;
+  bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+  width: 50px;
+  height: 50px;
+  font-size: 1.35rem;
+}
+.pc-barra { height: 8px; margin: 4px 0 10px; border-radius: 99px; background: #e3effb; overflow: hidden; }
+.pc-barra-relleno { width: 0; height: 100%; border-radius: 99px; background: var(--nb-acento); transition: width 0.12s linear; }
+.pc-escuchar.escuchando { background: #d63a2f; }
+.pc-resultado { margin-top: 14px; padding: 14px; background: #f4f9ff; border: 1px solid var(--nb-borde); border-radius: 12px; }
+.pc-titulo-cancion { margin: 0; font-size: 1.25rem; font-weight: 700; word-break: break-word; }
+.pc-artista { margin: 2px 0 0; font-size: 1.05rem; color: var(--nb-acento-oscuro); }
+.pc-detalle { margin: 2px 0 0; font-size: 0.9rem; color: var(--nb-suave); }
+.pc-detalle:empty { display: none; }
+.pc-enlaces { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.pc-enlace { text-decoration: none; display: inline-flex; align-items: center; }
